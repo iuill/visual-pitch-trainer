@@ -10,12 +10,7 @@ import {
   detectPitchWithLibraries,
   type LibraryDetectors,
 } from "./pitchDetection";
-import {
-  buildNoteRange,
-  getRms,
-  midiToNoteName,
-  type Note,
-} from "./pitchMath";
+import { buildNoteRange, getRms, midiToNoteName, type Note } from "./pitchMath";
 import {
   addSampleToSession,
   createInitialSessionStats,
@@ -107,7 +102,9 @@ const elements = {
   micDeviceStatus: queryElement<HTMLParagraphElement>("#micDeviceStatus"),
   noteRangeSelect: queryElement<HTMLSelectElement>("#noteRangeSelect"),
   referenceVolumeInput: queryElement<HTMLInputElement>("#referenceVolumeInput"),
-  referenceVolumeValue: queryElement<HTMLOutputElement>("#referenceVolumeValue"),
+  referenceVolumeValue: queryElement<HTMLOutputElement>(
+    "#referenceVolumeValue",
+  ),
   toleranceInput: queryElement<HTMLInputElement>("#toleranceInput"),
   toleranceValue: queryElement<HTMLOutputElement>("#toleranceValue"),
   sensitivityInput: queryElement<HTMLInputElement>("#sensitivityInput"),
@@ -141,7 +138,10 @@ function init() {
   drawGraph();
   elements.clearGraphButton.addEventListener("click", clearSession);
   elements.noteRangeSelect.addEventListener("change", handleNoteRangeChange);
-  elements.referenceVolumeInput.addEventListener("input", updateReferenceVolume);
+  elements.referenceVolumeInput.addEventListener(
+    "input",
+    updateReferenceVolume,
+  );
   elements.toleranceInput.addEventListener("input", updateTolerance);
   elements.sensitivityInput.addEventListener("input", updateSensitivity);
   elements.micSelect.addEventListener("change", handleMicSelection);
@@ -179,7 +179,8 @@ function disableAudioControls() {
   elements.micButton.disabled = true;
   elements.analysisStatus.textContent =
     "このブラウザでは声の稽古を始められません。別のブラウザで開いてください。";
-  elements.micDeviceStatus.textContent = "音声機能が使えないため、マイクを取得できません。";
+  elements.micDeviceStatus.textContent =
+    "音声機能が使えないため、マイクを取得できません。";
 }
 
 function showAudioError(error: unknown) {
@@ -196,7 +197,10 @@ function renderNoteButtons() {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "note-button";
-      button.setAttribute("aria-pressed", String(note.name === state.target.name));
+      button.setAttribute(
+        "aria-pressed",
+        String(note.name === state.target.name),
+      );
       button.innerHTML = `<strong>${note.solfege}</strong><span>${note.name}</span>`;
       button.addEventListener("click", () => {
         state.target = note;
@@ -212,7 +216,9 @@ function renderNoteButtons() {
 }
 
 function handleNoteRangeChange() {
-  const previousIndex = getCurrentNotes().findIndex((note) => note.name === state.target.name);
+  const previousIndex = getCurrentNotes().findIndex(
+    (note) => note.name === state.target.name,
+  );
   const nextStartMidi = Number(elements.noteRangeSelect.value);
   const nextNotes = buildNoteRange(nextStartMidi);
 
@@ -257,8 +263,14 @@ function playTone(frequency: number, durationSec = 0.8, delaySec = 0) {
   oscillator.type = "sine";
   oscillator.frequency.setValueAtTime(frequency, startAt);
   gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(getReferenceGainValue(), startAt + 0.03);
-  gain.gain.setValueAtTime(getReferenceGainValue(), Math.max(startAt + 0.04, stopAt - 0.08));
+  gain.gain.exponentialRampToValueAtTime(
+    getReferenceGainValue(),
+    startAt + 0.03,
+  );
+  gain.gain.setValueAtTime(
+    getReferenceGainValue(),
+    Math.max(startAt + 0.04, stopAt - 0.08),
+  );
   gain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
 
   oscillator.connect(gain);
@@ -298,7 +310,11 @@ function startReferenceTone() {
 }
 
 function stopReferenceTone() {
-  if (!state.referenceOscillator || !state.referenceGain || !state.audioContext) {
+  if (
+    !state.referenceOscillator ||
+    !state.referenceGain ||
+    !state.audioContext
+  ) {
     state.referenceOscillator = null;
     state.referenceGain = null;
     elements.playToneButton.classList.remove("is-active");
@@ -411,7 +427,10 @@ async function startMicrophone() {
   state.mediaStream = stream;
   state.analyser = analyser;
   state.sourceNode = sourceNode;
-  state.pitchDetectors = createPitchDetectors(audioContext.sampleRate, analyser.fftSize);
+  state.pitchDetectors = createPitchDetectors(
+    audioContext.sampleRate,
+    analyser.fftSize,
+  );
   state.buffer = new Float32Array(analyser.fftSize);
   state.isMicActive = true;
   resetSessionStats(performance.now());
@@ -493,7 +512,8 @@ async function handleMicSelection() {
 
 async function refreshAudioDevices() {
   if (!navigator.mediaDevices?.enumerateDevices) {
-    elements.micDeviceStatus.textContent = "このブラウザではマイク一覧を取得できません。";
+    elements.micDeviceStatus.textContent =
+      "このブラウザではマイク一覧を取得できません。";
     return;
   }
 
@@ -509,7 +529,10 @@ async function refreshAudioDevices() {
       ),
     );
 
-    if (currentValue && inputs.some((device) => device.deviceId === currentValue)) {
+    if (
+      currentValue &&
+      inputs.some((device) => device.deviceId === currentValue)
+    ) {
       elements.micSelect.value = currentValue;
     } else {
       elements.micSelect.value = "";
@@ -517,7 +540,8 @@ async function refreshAudioDevices() {
     }
 
     if (inputs.length === 0) {
-      elements.micDeviceStatus.textContent = "利用可能なマイクが見つかりません。";
+      elements.micDeviceStatus.textContent =
+        "利用可能なマイクが見つかりません。";
     } else if (!state.isMicActive && inputs.some((device) => !device.label)) {
       elements.micDeviceStatus.textContent =
         "稽古開始後に入力名を表示できます。";
@@ -543,7 +567,9 @@ function updateActiveDeviceFromStream(stream: MediaStream) {
   }
 
   const selectedLabel =
-    elements.micSelect.selectedOptions[0]?.textContent || track?.label || "既定のマイク";
+    elements.micSelect.selectedOptions[0]?.textContent ||
+    track?.label ||
+    "既定のマイク";
   elements.micDeviceStatus.textContent = `使用中: ${selectedLabel}`;
 }
 
@@ -667,19 +693,35 @@ function setupPitchCanvas() {
 function syncPitchCanvasSize() {
   const canvas = elements.pitchCanvas;
   const rect = canvas.getBoundingClientRect();
-  const cssWidth = Math.max(1, Math.round(rect.width || canvas.clientWidth || canvas.width));
-  const cssHeight = Math.max(1, Math.round(rect.height || canvas.clientHeight || canvas.height));
-  const backingSize = resolveCanvasBackingSize(cssWidth, cssHeight, window.devicePixelRatio || 1);
+  const cssWidth = Math.max(
+    1,
+    Math.round(rect.width || canvas.clientWidth || canvas.width),
+  );
+  const cssHeight = Math.max(
+    1,
+    Math.round(rect.height || canvas.clientHeight || canvas.height),
+  );
+  const backingSize = resolveCanvasBackingSize(
+    cssWidth,
+    cssHeight,
+    window.devicePixelRatio || 1,
+  );
 
   state.graphPixelRatio = backingSize.pixelRatio;
 
-  if (canvas.width !== backingSize.width || canvas.height !== backingSize.height) {
+  if (
+    canvas.width !== backingSize.width ||
+    canvas.height !== backingSize.height
+  ) {
     canvas.width = backingSize.width;
     canvas.height = backingSize.height;
   }
 }
 
-function createPitchDetectors(sampleRate: number, bufferSize: number): LibraryDetectors {
+function createPitchDetectors(
+  sampleRate: number,
+  bufferSize: number,
+): LibraryDetectors {
   return {
     sampleRate,
     yin: YIN({
@@ -727,7 +769,14 @@ function drawGraph() {
     GRAPH_RANGE_SEMITONES,
   );
 
-  context.setTransform(state.graphPixelRatio, 0, 0, state.graphPixelRatio, 0, 0);
+  context.setTransform(
+    state.graphPixelRatio,
+    0,
+    0,
+    state.graphPixelRatio,
+    0,
+    0,
+  );
   context.clearRect(0, 0, width, height);
   context.fillStyle = "#fbfcfc";
   context.fillRect(0, 0, width, height);
@@ -751,7 +800,11 @@ function drawGraph() {
 
   context.fillStyle = "#172026";
   context.font = "22px system-ui, sans-serif";
-  context.fillText(state.target.name, viewport.padding.left + 8, viewport.zeroY - 10);
+  context.fillText(
+    state.target.name,
+    viewport.padding.left + 8,
+    viewport.zeroY - 10,
+  );
 
   context.strokeStyle = "#2b6cb0";
   context.lineWidth = 4;
@@ -769,20 +822,32 @@ function drawGraph() {
   drawGraphLabels(context, width, height, viewport.padding);
 }
 
-function drawGrid(context: CanvasRenderingContext2D, viewport: ReturnType<typeof createGraphViewport>) {
+function drawGrid(
+  context: CanvasRenderingContext2D,
+  viewport: ReturnType<typeof createGraphViewport>,
+) {
   context.strokeStyle = "#d7dee2";
   context.lineWidth = 1;
   context.font = "16px system-ui, sans-serif";
   context.fillStyle = "#5c6870";
 
-  for (let midi = Math.ceil(viewport.minMidi); midi <= Math.floor(viewport.maxMidi); midi += 1) {
+  for (
+    let midi = Math.ceil(viewport.minMidi);
+    midi <= Math.floor(viewport.maxMidi);
+    midi += 1
+  ) {
     const y =
       viewport.padding.top +
-      ((viewport.maxMidi - midi) / (viewport.maxMidi - viewport.minMidi)) * viewport.plotHeight;
+      ((viewport.maxMidi - midi) / (viewport.maxMidi - viewport.minMidi)) *
+        viewport.plotHeight;
     const isOctave = Math.round(midi - viewport.targetMidi) % 12 === 0;
     const isTarget = Math.round(midi) === Math.round(viewport.targetMidi);
 
-    context.strokeStyle = isTarget ? "#146c75" : isOctave ? "#c6d4d8" : "#e8edf0";
+    context.strokeStyle = isTarget
+      ? "#146c75"
+      : isOctave
+        ? "#c6d4d8"
+        : "#e8edf0";
     context.lineWidth = isTarget ? 2 : 1;
     context.beginPath();
     context.moveTo(viewport.padding.left, y);
@@ -799,7 +864,8 @@ function drawGrid(context: CanvasRenderingContext2D, viewport: ReturnType<typeof
   context.lineWidth = 1;
 
   for (let second = 0; second <= GRAPH_SECONDS; second += 3) {
-    const x = viewport.padding.left + (second / GRAPH_SECONDS) * viewport.plotWidth;
+    const x =
+      viewport.padding.left + (second / GRAPH_SECONDS) * viewport.plotWidth;
     context.beginPath();
     context.moveTo(x, viewport.padding.top);
     context.lineTo(x, viewport.padding.top + viewport.plotHeight);

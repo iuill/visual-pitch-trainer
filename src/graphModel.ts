@@ -30,7 +30,12 @@ export type GraphPoint = {
   startsLine: boolean;
 };
 
-export const DEFAULT_GRAPH_PADDING: GraphPadding = { top: 38, right: 20, bottom: 34, left: 54 };
+export const DEFAULT_GRAPH_PADDING: GraphPadding = {
+  top: 38,
+  right: 20,
+  bottom: 34,
+  left: 54,
+};
 
 export function createGraphViewport(
   width: number,
@@ -61,8 +66,20 @@ export function createGraphViewport(
     maxMidi,
     targetMidi,
     zeroY: midiToY(targetMidi, minMidi, maxMidi, padding, plotHeight),
-    toleranceTop: midiToY(targetMidi + toleranceSemitone, minMidi, maxMidi, padding, plotHeight),
-    toleranceBottom: midiToY(targetMidi - toleranceSemitone, minMidi, maxMidi, padding, plotHeight),
+    toleranceTop: midiToY(
+      targetMidi + toleranceSemitone,
+      minMidi,
+      maxMidi,
+      padding,
+      plotHeight,
+    ),
+    toleranceBottom: midiToY(
+      targetMidi - toleranceSemitone,
+      minMidi,
+      maxMidi,
+      padding,
+      plotHeight,
+    ),
     startTime,
     latestTime,
   };
@@ -85,7 +102,8 @@ export function buildGraphPoints(
     points.push({
       x:
         viewport.padding.left +
-        ((sample.timeMs - viewport.startTime) / (graphSeconds * 1000)) * viewport.plotWidth,
+        ((sample.timeMs - viewport.startTime) / (graphSeconds * 1000)) *
+          viewport.plotWidth,
       y: midiToY(
         sample.midi,
         viewport.minMidi,
@@ -101,7 +119,10 @@ export function buildGraphPoints(
   return points;
 }
 
-export function getVisibleSamples(samples: PitchSample[], limit: number): PitchSample[] {
+export function getVisibleSamples(
+  samples: PitchSample[],
+  limit: number,
+): PitchSample[] {
   return samples.slice(-limit);
 }
 

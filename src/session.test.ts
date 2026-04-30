@@ -29,17 +29,35 @@ describe("session", () => {
     let stats = createInitialSessionStats(1000);
     stats = addSampleToSession(
       stats,
-      createPitchSample(1100, { frequency: 440, clarity: 0.9 }, 0.03, 440, 1000),
+      createPitchSample(
+        1100,
+        { frequency: 440, clarity: 0.9 },
+        0.03,
+        440,
+        1000,
+      ),
       20,
     );
     stats = addSampleToSession(
       stats,
-      createPitchSample(1300, { frequency: 440 * 2 ** (10 / 1200), clarity: 0.9 }, 0.03, 440, 1000),
+      createPitchSample(
+        1300,
+        { frequency: 440 * 2 ** (10 / 1200), clarity: 0.9 },
+        0.03,
+        440,
+        1000,
+      ),
       20,
     );
     stats = addSampleToSession(
       stats,
-      createPitchSample(1500, { frequency: null, clarity: null }, 0.03, 440, 1000),
+      createPitchSample(
+        1500,
+        { frequency: null, clarity: null },
+        0.03,
+        440,
+        1000,
+      ),
       20,
     );
 
@@ -97,7 +115,13 @@ describe("session", () => {
     expect(
       formatAnalysisStatus(
         resolveAnalysisStatus(
-          createPitchSample(0, { frequency: null, clarity: null }, 0.001, target, 0),
+          createPitchSample(
+            0,
+            { frequency: null, clarity: null },
+            0.001,
+            target,
+            0,
+          ),
           0.006,
           20,
         ),
@@ -105,7 +129,13 @@ describe("session", () => {
     ).toBe("声が小さい、または無音です");
     expect(
       resolveAnalysisStatus(
-        createPitchSample(0, { frequency: null, clarity: null }, 0.02, target, 0),
+        createPitchSample(
+          0,
+          { frequency: null, clarity: null },
+          0.02,
+          target,
+          0,
+        ),
         0.006,
         20,
       ),
@@ -113,7 +143,13 @@ describe("session", () => {
     expect(
       formatAnalysisStatus(
         resolveAnalysisStatus(
-          createPitchSample(0, { frequency: target, clarity: 0.9 }, 0.02, target, 0),
+          createPitchSample(
+            0,
+            { frequency: target, clarity: 0.9 },
+            0.02,
+            target,
+            0,
+          ),
           0.006,
           20,
         ),
@@ -122,7 +158,13 @@ describe("session", () => {
     expect(
       formatAnalysisStatus(
         resolveAnalysisStatus(
-          createPitchSample(0, { frequency: target * 2 ** (30 / 1200), clarity: 0.9 }, 0.02, target, 0),
+          createPitchSample(
+            0,
+            { frequency: target * 2 ** (30 / 1200), clarity: 0.9 },
+            0.02,
+            target,
+            0,
+          ),
           0.006,
           20,
         ),
@@ -131,7 +173,13 @@ describe("session", () => {
     expect(
       formatAnalysisStatus(
         resolveAnalysisStatus(
-          createPitchSample(0, { frequency: target * 2 ** (-30 / 1200), clarity: 0.9 }, 0.02, target, 0),
+          createPitchSample(
+            0,
+            { frequency: target * 2 ** (-30 / 1200), clarity: 0.9 },
+            0.02,
+            target,
+            0,
+          ),
           0.006,
           20,
         ),

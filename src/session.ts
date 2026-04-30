@@ -34,9 +34,16 @@ export type SessionSummary = {
   formattedRecentAverage: string;
 };
 
-export type AnalysisStatus = "quiet" | "undetected" | "inRange" | "high" | "low";
+export type AnalysisStatus =
+  | "quiet"
+  | "undetected"
+  | "inRange"
+  | "high"
+  | "low";
 
-export function createInitialSessionStats(startAt: number | null = null): SessionStats {
+export function createInitialSessionStats(
+  startAt: number | null = null,
+): SessionStats {
   return {
     samples: [],
     totalAbsCents: 0,
@@ -85,7 +92,8 @@ export function addSampleToSession(
     Math.abs(sample.centsFromTarget) <= tolerance
       ? sample.capturedAt - stats.lastSampleAt
       : 0;
-  const absCents = sample.centsFromTarget === null ? 0 : Math.abs(sample.centsFromTarget);
+  const absCents =
+    sample.centsFromTarget === null ? 0 : Math.abs(sample.centsFromTarget);
   const validSampleCount = sample.centsFromTarget === null ? 0 : 1;
 
   return {
@@ -98,21 +106,35 @@ export function addSampleToSession(
   };
 }
 
-export function trimSamples(samples: PitchSample[], now: number, graphSeconds: number): PitchSample[] {
+export function trimSamples(
+  samples: PitchSample[],
+  now: number,
+  graphSeconds: number,
+): PitchSample[] {
   const keepAfter = now - graphSeconds * 1000 - 1000;
   return samples.filter((sample) => sample.capturedAt >= keepAfter);
 }
 
-export function createSessionSummary(stats: SessionStats, now: number): SessionSummary {
-  const elapsedSec = stats.sessionStart !== null ? (now - stats.sessionStart) / 1000 : 0;
-  const recentSamples = stats.samples.filter((sample) => sample.centsFromTarget !== null);
+export function createSessionSummary(
+  stats: SessionStats,
+  now: number,
+): SessionSummary {
+  const elapsedSec =
+    stats.sessionStart !== null ? (now - stats.sessionStart) / 1000 : 0;
+  const recentSamples = stats.samples.filter(
+    (sample) => sample.centsFromTarget !== null,
+  );
   const recentAverage =
     recentSamples.length === 0
       ? null
-      : recentSamples.reduce((sum, sample) => sum + Math.abs(sample.centsFromTarget ?? 0), 0) /
-        recentSamples.length;
+      : recentSamples.reduce(
+          (sum, sample) => sum + Math.abs(sample.centsFromTarget ?? 0),
+          0,
+        ) / recentSamples.length;
   const overallAverage =
-    stats.totalValidSamples === 0 ? null : stats.totalAbsCents / stats.totalValidSamples;
+    stats.totalValidSamples === 0
+      ? null
+      : stats.totalAbsCents / stats.totalValidSamples;
 
   return {
     elapsedSec,

@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { detectPitchWithLibraries, type LibraryDetectors } from "./pitchDetection";
+import {
+  detectPitchWithLibraries,
+  type LibraryDetectors,
+} from "./pitchDetection";
 
 function createDetectors(
   yinPitch: number | null,

@@ -1,10 +1,17 @@
-import { chooseBestLibraryPitch, getRms, type PitchCandidate } from "./pitchMath";
+import {
+  chooseBestLibraryPitch,
+  getRms,
+  type PitchCandidate,
+} from "./pitchMath";
 import type { PitchDetection } from "./session";
 
 export type LibraryDetectors = {
   sampleRate: number;
   yin: (buffer: Float32Array<ArrayBuffer>) => number | null;
-  macleod: (buffer: Float32Array<ArrayBuffer>) => { freq: number; probability: number };
+  macleod: (buffer: Float32Array<ArrayBuffer>) => {
+    freq: number;
+    probability: number;
+  };
 };
 
 export type PitchDetectionOptions = {
@@ -45,7 +52,10 @@ export function detectPitchWithLibraries(
     });
   }
 
-  const bestCandidate = chooseBestLibraryPitch(candidates, options.targetFrequency);
+  const bestCandidate = chooseBestLibraryPitch(
+    candidates,
+    options.targetFrequency,
+  );
 
   if (!bestCandidate) {
     const fallbackClarity =

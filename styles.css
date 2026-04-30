@@ -24,11 +24,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family:
-    "Noto Sans JP",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
+    "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
 }
 
@@ -79,10 +75,7 @@ p {
 h1 {
   margin-bottom: 0;
   color: var(--accent-strong);
-  font-family:
-    "Kaisei Tokumin",
-    "Noto Sans JP",
-    serif;
+  font-family: "Kaisei Tokumin", "Noto Sans JP", serif;
   font-size: clamp(2rem, 5.6vw, 4.6rem);
   font-weight: 800;
   line-height: 1.02;
@@ -94,10 +87,7 @@ h1 {
 h2 {
   margin-bottom: 4px;
   color: var(--accent-strong);
-  font-family:
-    "Kaisei Tokumin",
-    "Noto Sans JP",
-    serif;
+  font-family: "Kaisei Tokumin", "Noto Sans JP", serif;
   font-size: 1.05rem;
   font-weight: 800;
 }

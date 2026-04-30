@@ -43,7 +43,8 @@
         "Anthropic.claude-code",
         "mhutchie.git-graph",
         "GitHub.copilot-chat",
-        "ms-vscode.live-server"],
+        "ms-vscode.live-server"
+      ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
         "liveServer.settings.host": "0.0.0.0"

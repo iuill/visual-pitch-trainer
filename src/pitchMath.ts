@@ -26,7 +26,20 @@ export const SOLFEGE_NAMES = [
   "ド",
 ] as const;
 
-const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const NOTE_NAMES = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
 const DETECTION_MIN_HZ = 80;
 const DETECTION_MAX_HZ = 1600;
 const MIN_CLARITY = 0.52;
@@ -62,7 +75,9 @@ export function chooseBestLibraryPitch(
       continue;
     }
 
-    const distanceSemitones = Math.abs(12 * Math.log2(candidate.frequency / targetFrequency));
+    const distanceSemitones = Math.abs(
+      12 * Math.log2(candidate.frequency / targetFrequency),
+    );
     const sourceBonus = candidate.source === "yin" ? 0 : 0.04;
     const score =
       distanceSemitones * TARGET_DISTANCE_CONFIDENCE_WEIGHT +

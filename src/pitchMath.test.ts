@@ -34,7 +34,10 @@ describe("pitch math", () => {
   });
 
   test("calculates RMS volume", () => {
-    expect(getRms(new Float32Array([0, 1, 0, -1]))).toBeCloseTo(Math.SQRT1_2, 8);
+    expect(getRms(new Float32Array([0, 1, 0, -1]))).toBeCloseTo(
+      Math.SQRT1_2,
+      8,
+    );
   });
 
   test("chooses the closest confident pitch inside the target range", () => {
@@ -42,7 +45,11 @@ describe("pitch math", () => {
     const best = chooseBestLibraryPitch(
       [
         { frequency: target * 2.2, confidence: 0.99, source: "macleod" },
-        { frequency: target * 2 ** (1 / 12), confidence: 0.8, source: "macleod" },
+        {
+          frequency: target * 2 ** (1 / 12),
+          confidence: 0.8,
+          source: "macleod",
+        },
         { frequency: target, confidence: 0.86, source: "yin" },
       ],
       target,
@@ -53,7 +60,10 @@ describe("pitch math", () => {
 
   test("rejects low-confidence pitch candidates", () => {
     expect(
-      chooseBestLibraryPitch([{ frequency: 440, confidence: 0.3, source: "macleod" }], 440),
+      chooseBestLibraryPitch(
+        [{ frequency: 440, confidence: 0.3, source: "macleod" }],
+        440,
+      ),
     ).toBeNull();
   });
 });
