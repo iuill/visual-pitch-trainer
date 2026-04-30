@@ -1,46 +1,33 @@
 import { Macleod, YIN } from "pitchfinder";
 import {
+  buildGraphPoints,
+  createGraphViewport,
+  type GraphPadding,
+  getVisibleSamples,
+  resolveCanvasBackingSize,
+} from "./graphModel";
+import {
+  detectPitchWithLibraries,
+  type LibraryDetectors,
+} from "./pitchDetection";
+import {
   buildNoteRange,
-  chooseBestLibraryPitch,
-  formatPitchGap,
   getRms,
-  hzToCents,
-  hzToMidi,
-  hzToNoteName,
   midiToNoteName,
   type Note,
-  type PitchCandidate,
 } from "./pitchMath";
+import {
+  addSampleToSession,
+  createInitialSessionStats,
+  createPitchSample,
+  createSessionSummary,
+  formatAnalysisStatus,
+  type PitchSample,
+  resolveAnalysisStatus,
+  type SessionStats,
+  trimSamples,
+} from "./session";
 import "../styles.css";
-
-type PitchSample = {
-  timeMs: number;
-  capturedAt: number;
-  frequency: number | null;
-  midi: number | null;
-  note: string | null;
-  centsFromTarget: number | null;
-  volume: number;
-  clarity: number | null;
-};
-
-type PitchDetection = {
-  frequency: number | null;
-  clarity: number | null;
-};
-
-type GraphPadding = {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-};
-
-type LibraryDetectors = {
-  sampleRate: number;
-  yin: (buffer: Float32Array<ArrayBuffer>) => number | null;
-  macleod: (buffer: Float32Array<ArrayBuffer>) => { freq: number; probability: number };
-};
 
 type AppState = {
   noteRangeStartMidi: number;
@@ -56,12 +43,7 @@ type AppState = {
   isMicActive: boolean;
   animationId: number | null;
   buffer: Float32Array<ArrayBuffer> | null;
-  samples: PitchSample[];
-  totalAbsCents: number;
-  totalValidSamples: number;
-  sessionStart: number | null;
-  stableMs: number;
-  lastSampleAt: number | null;
+  session: SessionStats;
   tolerance: number;
   minRms: number;
   selectedDeviceId: string;
@@ -96,12 +78,7 @@ const state: AppState = {
   isMicActive: false,
   animationId: null,
   buffer: null,
-  samples: [],
-  totalAbsCents: 0,
-  totalValidSamples: 0,
-  sessionStart: null,
-  stableMs: 0,
-  lastSampleAt: null,
+  session: createInitialSessionStats(),
   tolerance: 20,
   minRms: 0.006,
   selectedDeviceId: "",
@@ -549,61 +526,28 @@ function analyzeFrame(now: number) {
   state.analyser.getFloatTimeDomainData(state.buffer);
   const volume = getRms(state.buffer);
   const detection = detectPitch(state.buffer, state.audioContext.sampleRate);
-  const sample = createPitchSample(now, detection, volume);
-  state.samples.push(sample);
-  recordSessionStats(sample);
-  trimSamples(now);
+  const sample = createPitchSample(
+    now,
+    detection,
+    volume,
+    state.target.frequency,
+    state.session.sessionStart,
+  );
+  state.session = addSampleToSession(state.session, sample, state.tolerance);
+  state.session = {
+    ...state.session,
+    samples: trimSamples(state.session.samples, now, GRAPH_SECONDS),
+  };
   updateReadouts(sample, now);
   drawGraph();
 
   state.animationId = requestAnimationFrame(analyzeFrame);
 }
 
-function createPitchSample(now: number, detection: PitchDetection, volume: number): PitchSample {
-  const elapsedMs = state.sessionStart ? now - state.sessionStart : 0;
-  const pitch = detection.frequency;
-  let cents: number | null = null;
-  let note: string | null = null;
-
-  if (pitch) {
-    cents = hzToCents(pitch, state.target.frequency);
-    note = hzToNoteName(pitch);
-  }
-
-  const sample = {
-    timeMs: elapsedMs,
-    capturedAt: now,
-    frequency: pitch,
-    midi: pitch ? hzToMidi(pitch) : null,
-    note,
-    centsFromTarget: cents,
-    volume,
-    clarity: detection.clarity,
-  };
-
-  if (state.lastSampleAt !== null && cents !== null && Math.abs(cents) <= state.tolerance) {
-    state.stableMs += now - state.lastSampleAt;
-  }
-  state.lastSampleAt = now;
-
-  return sample;
-}
-
 function updateReadouts(sample: PitchSample, now: number) {
-  const hasPitch = sample.frequency !== null;
-  const cents = sample.centsFromTarget;
-
-  if (sample.volume < state.minRms) {
-    elements.analysisStatus.textContent = "音が小さい、または無音です";
-  } else if (!hasPitch) {
-    elements.analysisStatus.textContent = "音程を検出できません";
-  } else if (cents !== null && Math.abs(cents) <= state.tolerance) {
-    elements.analysisStatus.textContent = "目標範囲内です";
-  } else if (cents !== null && cents > 0) {
-    elements.analysisStatus.textContent = "目標より高い傾向です";
-  } else {
-    elements.analysisStatus.textContent = "目標より低い傾向です";
-  }
+  elements.analysisStatus.textContent = formatAnalysisStatus(
+    resolveAnalysisStatus(sample, state.minRms, state.tolerance),
+  );
 
   elements.graphVolume.textContent = `${Math.round(Math.min(sample.volume * 500, 100))}%`;
   elements.graphClarity.textContent =
@@ -613,20 +557,12 @@ function updateReadouts(sample: PitchSample, now: number) {
 }
 
 function updateSummary(now: number) {
-  const elapsedSec = state.sessionStart ? (now - state.sessionStart) / 1000 : 0;
-  const recentSamples = state.samples.filter((sample) => sample.centsFromTarget !== null);
-  const recentAverage =
-    recentSamples.length === 0
-      ? null
-      : recentSamples.reduce((sum, sample) => sum + Math.abs(sample.centsFromTarget ?? 0), 0) /
-        recentSamples.length;
-  const overallAverage =
-    state.totalValidSamples === 0 ? null : state.totalAbsCents / state.totalValidSamples;
+  const summary = createSessionSummary(state.session, now);
 
-  elements.durationReadout.textContent = `${elapsedSec.toFixed(1)} 秒`;
-  elements.stableReadout.textContent = `${(state.stableMs / 1000).toFixed(1)} 秒`;
-  elements.averageReadout.textContent = formatPitchGap(overallAverage);
-  elements.recentAverageReadout.textContent = formatPitchGap(recentAverage);
+  elements.durationReadout.textContent = `${summary.elapsedSec.toFixed(1)} 秒`;
+  elements.stableReadout.textContent = `${summary.stableSec.toFixed(1)} 秒`;
+  elements.averageReadout.textContent = summary.formattedOverallAverage;
+  elements.recentAverageReadout.textContent = summary.formattedRecentAverage;
 }
 
 function clearSession() {
@@ -643,25 +579,11 @@ function resetActiveSession() {
 }
 
 function resetSessionStats(startAt: number | null) {
-  state.samples = [];
-  state.totalAbsCents = 0;
-  state.totalValidSamples = 0;
-  state.sessionStart = startAt;
-  state.lastSampleAt = null;
-  state.stableMs = 0;
+  state.session = createInitialSessionStats(startAt);
   elements.durationReadout.textContent = "0.0 秒";
   elements.stableReadout.textContent = "0.0 秒";
   elements.averageReadout.textContent = "--";
   elements.recentAverageReadout.textContent = "--";
-}
-
-function recordSessionStats(sample: PitchSample) {
-  if (sample.centsFromTarget === null) {
-    return;
-  }
-
-  state.totalAbsCents += Math.abs(sample.centsFromTarget);
-  state.totalValidSamples += 1;
 }
 
 function updateTargetDisplay() {
@@ -711,15 +633,13 @@ function syncPitchCanvasSize() {
   const rect = canvas.getBoundingClientRect();
   const cssWidth = Math.max(1, Math.round(rect.width || canvas.clientWidth || canvas.width));
   const cssHeight = Math.max(1, Math.round(rect.height || canvas.clientHeight || canvas.height));
-  const pixelRatio = clamp(window.devicePixelRatio || 1, 1, 3);
-  const width = Math.round(cssWidth * pixelRatio);
-  const height = Math.round(cssHeight * pixelRatio);
+  const backingSize = resolveCanvasBackingSize(cssWidth, cssHeight, window.devicePixelRatio || 1);
 
-  state.graphPixelRatio = pixelRatio;
+  state.graphPixelRatio = backingSize.pixelRatio;
 
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
+  if (canvas.width !== backingSize.width || canvas.height !== backingSize.height) {
+    canvas.width = backingSize.width;
+    canvas.height = backingSize.height;
   }
 }
 
@@ -739,52 +659,18 @@ function createPitchDetectors(sampleRate: number, bufferSize: number): LibraryDe
   };
 }
 
-function detectPitch(buffer: Float32Array<ArrayBuffer>, sampleRate: number): PitchDetection {
-  const rms = getRms(buffer);
-
-  if (rms < state.minRms) {
-    return { frequency: null, clarity: null };
-  }
-
+function detectPitch(buffer: Float32Array<ArrayBuffer>, sampleRate: number) {
   const detectors =
     state.pitchDetectors?.sampleRate === sampleRate
       ? state.pitchDetectors
       : createPitchDetectors(sampleRate, buffer.length);
   state.pitchDetectors = detectors;
 
-  const candidates: PitchCandidate[] = [];
-  const yinPitch = detectors.yin(buffer);
-
-  if (yinPitch !== null) {
-    candidates.push({
-      frequency: yinPitch,
-      confidence: 0.86,
-      source: "yin",
-    });
-  }
-
-  const macleodPitch = detectors.macleod(buffer);
-
-  if (macleodPitch.freq > 0 && macleodPitch.probability >= MIN_CLARITY) {
-    candidates.push({
-      frequency: macleodPitch.freq,
-      confidence: clamp(macleodPitch.probability, 0, 1),
-      source: "macleod",
-    });
-  }
-
-  const bestCandidate = chooseBestLibraryPitch(candidates, state.target.frequency);
-
-  if (!bestCandidate) {
-    const fallbackClarity =
-      macleodPitch.freq > 0 ? clamp(macleodPitch.probability, 0, 1) : null;
-    return { frequency: null, clarity: fallbackClarity };
-  }
-
-  return {
-    frequency: bestCandidate.frequency,
-    clarity: bestCandidate.confidence,
-  };
+  return detectPitchWithLibraries(buffer, detectors, {
+    minRms: state.minRms,
+    minClarity: MIN_CLARITY,
+    targetFrequency: state.target.frequency,
+  });
 }
 
 function drawGraph() {
@@ -794,99 +680,77 @@ function drawGraph() {
   const context = canvasContext;
   const width = canvas.width / state.graphPixelRatio;
   const height = canvas.height / state.graphPixelRatio;
-  const padding: GraphPadding = { top: 22, right: 20, bottom: 34, left: 54 };
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-  const targetMidi = hzToMidi(state.target.frequency);
-  const minMidi = targetMidi - GRAPH_RANGE_SEMITONES;
-  const maxMidi = targetMidi + GRAPH_RANGE_SEMITONES;
+  const visibleSamples = getVisibleSamples(state.session.samples, 900);
+  const viewport = createGraphViewport(
+    width,
+    height,
+    state.target.frequency,
+    state.tolerance,
+    visibleSamples,
+    GRAPH_SECONDS,
+    GRAPH_RANGE_SEMITONES,
+  );
 
   context.setTransform(state.graphPixelRatio, 0, 0, state.graphPixelRatio, 0, 0);
   context.clearRect(0, 0, width, height);
   context.fillStyle = "#fbfcfc";
   context.fillRect(0, 0, width, height);
 
-  const zeroY = midiToY(targetMidi, minMidi, maxMidi, padding, plotHeight);
-  const toleranceSemitone = state.tolerance / 100;
-  const toleranceTop = midiToY(targetMidi + toleranceSemitone, minMidi, maxMidi, padding, plotHeight);
-  const toleranceBottom = midiToY(
-    targetMidi - toleranceSemitone,
-    minMidi,
-    maxMidi,
-    padding,
-    plotHeight,
+  context.fillStyle = "rgba(47, 133, 90, 0.12)";
+  context.fillRect(
+    viewport.padding.left,
+    viewport.toleranceTop,
+    viewport.plotWidth,
+    viewport.toleranceBottom - viewport.toleranceTop,
   );
 
-  context.fillStyle = "rgba(47, 133, 90, 0.12)";
-  context.fillRect(padding.left, toleranceTop, plotWidth, toleranceBottom - toleranceTop);
-
-  drawGrid(context, padding, plotWidth, plotHeight, minMidi, maxMidi, targetMidi);
+  drawGrid(context, viewport);
 
   context.strokeStyle = "#146c75";
   context.lineWidth = 3;
   context.beginPath();
-  context.moveTo(padding.left, zeroY);
-  context.lineTo(width - padding.right, zeroY);
+  context.moveTo(viewport.padding.left, viewport.zeroY);
+  context.lineTo(width - viewport.padding.right, viewport.zeroY);
   context.stroke();
 
   context.fillStyle = "#172026";
   context.font = "22px system-ui, sans-serif";
-  context.fillText(state.target.name, padding.left + 8, zeroY - 10);
-
-  const visibleSamples = state.samples.slice(-900);
-  const latestTime = visibleSamples.at(-1)?.timeMs ?? GRAPH_SECONDS * 1000;
-  const startTime = Math.max(0, latestTime - GRAPH_SECONDS * 1000);
+  context.fillText(state.target.name, viewport.padding.left + 8, viewport.zeroY - 10);
 
   context.strokeStyle = "#2b6cb0";
   context.lineWidth = 4;
   context.beginPath();
-  let startedLine = false;
 
-  visibleSamples.forEach((sample) => {
-    if (sample.midi === null || sample.timeMs < startTime) {
-      startedLine = false;
-      return;
-    }
-
-    const x = padding.left + ((sample.timeMs - startTime) / (GRAPH_SECONDS * 1000)) * plotWidth;
-    const y = midiToY(sample.midi, minMidi, maxMidi, padding, plotHeight);
-
-    if (!startedLine) {
-      context.moveTo(x, y);
-      startedLine = true;
+  buildGraphPoints(visibleSamples, viewport, GRAPH_SECONDS).forEach((point) => {
+    if (point.startsLine) {
+      context.moveTo(point.x, point.y);
     } else {
-      context.lineTo(x, y);
+      context.lineTo(point.x, point.y);
     }
   });
 
   context.stroke();
-  drawGraphLabels(context, width, height, padding);
+  drawGraphLabels(context, width, height, viewport.padding);
 }
 
-function drawGrid(
-  context: CanvasRenderingContext2D,
-  padding: GraphPadding,
-  plotWidth: number,
-  plotHeight: number,
-  minMidi: number,
-  maxMidi: number,
-  targetMidi: number,
-) {
+function drawGrid(context: CanvasRenderingContext2D, viewport: ReturnType<typeof createGraphViewport>) {
   context.strokeStyle = "#d7dee2";
   context.lineWidth = 1;
   context.font = "16px system-ui, sans-serif";
   context.fillStyle = "#5c6870";
 
-  for (let midi = Math.ceil(minMidi); midi <= Math.floor(maxMidi); midi += 1) {
-    const y = midiToY(midi, minMidi, maxMidi, padding, plotHeight);
-    const isOctave = Math.round(midi - targetMidi) % 12 === 0;
-    const isTarget = Math.round(midi) === Math.round(targetMidi);
+  for (let midi = Math.ceil(viewport.minMidi); midi <= Math.floor(viewport.maxMidi); midi += 1) {
+    const y =
+      viewport.padding.top +
+      ((viewport.maxMidi - midi) / (viewport.maxMidi - viewport.minMidi)) * viewport.plotHeight;
+    const isOctave = Math.round(midi - viewport.targetMidi) % 12 === 0;
+    const isTarget = Math.round(midi) === Math.round(viewport.targetMidi);
 
     context.strokeStyle = isTarget ? "#146c75" : isOctave ? "#c6d4d8" : "#e8edf0";
     context.lineWidth = isTarget ? 2 : 1;
     context.beginPath();
-    context.moveTo(padding.left, y);
-    context.lineTo(padding.left + plotWidth, y);
+    context.moveTo(viewport.padding.left, y);
+    context.lineTo(viewport.padding.left + viewport.plotWidth, y);
     context.stroke();
 
     if (isOctave || isTarget || midi % 2 === 0) {
@@ -899,10 +763,10 @@ function drawGrid(
   context.lineWidth = 1;
 
   for (let second = 0; second <= GRAPH_SECONDS; second += 3) {
-    const x = padding.left + (second / GRAPH_SECONDS) * plotWidth;
+    const x = viewport.padding.left + (second / GRAPH_SECONDS) * viewport.plotWidth;
     context.beginPath();
-    context.moveTo(x, padding.top);
-    context.lineTo(x, padding.top + plotHeight);
+    context.moveTo(x, viewport.padding.top);
+    context.lineTo(x, viewport.padding.top + viewport.plotHeight);
     context.stroke();
   }
 }
@@ -918,26 +782,6 @@ function drawGraphLabels(
   context.fillText("音名", 8, 20);
   context.fillText("12秒前", padding.left, height - 10);
   context.fillText("現在", width - padding.right - 38, height - 10);
-}
-
-function midiToY(
-  midi: number,
-  minMidi: number,
-  maxMidi: number,
-  padding: GraphPadding,
-  plotHeight: number,
-): number {
-  const clamped = clamp(midi, minMidi, maxMidi);
-  return padding.top + ((maxMidi - clamped) / (maxMidi - minMidi)) * plotHeight;
-}
-
-function trimSamples(now: number) {
-  const keepAfter = now - GRAPH_SECONDS * 1000 - 1000;
-  state.samples = state.samples.filter((sample) => sample.capturedAt >= keepAfter);
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
 }
 
 init();
