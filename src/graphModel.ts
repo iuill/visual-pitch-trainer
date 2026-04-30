@@ -52,8 +52,10 @@ export function createGraphViewport(
   const targetMidi = hzToMidi(targetFrequency);
   const minMidi = targetMidi - graphRangeSemitones;
   const maxMidi = targetMidi + graphRangeSemitones;
-  const latestTime = samples.at(-1)?.timeMs ?? graphSeconds * 1000;
-  const startTime = Math.max(0, latestTime - graphSeconds * 1000);
+  const latestSampleTime = samples.at(-1)?.timeMs;
+  const latestTime = latestSampleTime ?? graphSeconds * 1000;
+  const startTime =
+    latestSampleTime === undefined ? 0 : latestTime - graphSeconds * 1000;
   const toleranceSemitone = tolerance / 100;
 
   return {

@@ -70,9 +70,14 @@ describe("graph model", () => {
     const points = buildGraphPoints(samples, viewport, 12);
 
     expect(points).toHaveLength(2);
+    expect(viewport.startTime).toBe(-11_800);
     expect(points[0]?.startsLine).toBe(true);
     expect(points[1]?.startsLine).toBe(true);
     expect(points[1]?.y).toBeLessThan(points[0]?.y ?? Infinity);
+    expect(points[1]?.x).toBeCloseTo(
+      viewport.padding.left + viewport.plotWidth,
+      8,
+    );
   });
 
   test("clamps canvas backing size pixel ratio", () => {
