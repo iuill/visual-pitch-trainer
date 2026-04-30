@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Visual Pitch Trainer</title>
+    <meta
+      name="description"
+      content="参考音を再生しながら発声の音程をリアルタイムに視覚化する練習アプリ"
+    />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-labelledby="app-title">
+        <div>
+          <p class="eyebrow">Visual Pitch Trainer</p>
+          <h1 id="app-title">音程を目で確認しながら練習する</h1>
+          <p class="lead">
+            参考音を再生し、マイクで発声を解析します。目標音との差と時間変化をリアルタイムに表示します。
+          </p>
+        </div>
+        <div class="privacy-note">
+          <span class="status-dot" aria-hidden="true"></span>
+          音声解析はブラウザ内で行います
+        </div>
+      </section>
+
+      <section class="practice-layout" aria-label="音程練習">
+        <div class="control-panel">
+          <div class="panel-header">
+            <div>
+              <h2>目標音</h2>
+              <p id="targetFrequency">C3 / 130.81 Hz</p>
+            </div>
+            <button id="playScaleButton" class="icon-button wide" type="button">
+              <span aria-hidden="true">♪</span>
+              ドレミ再生
+            </button>
+          </div>
+
+          <div class="setting-row select-row">
+            <label for="noteRangeSelect">音域</label>
+            <select id="noteRangeSelect">
+              <option value="48" selected>C3 - C4 / 低めの男性声</option>
+              <option value="60">C4 - C5 / 高めの男性声・低めの女性声</option>
+              <option value="72">C5 - C6 / 高めの女性声</option>
+            </select>
+          </div>
+
+          <div id="noteButtons" class="note-grid" aria-label="目標音を選択"></div>
+
+          <div class="action-row">
+            <button id="playToneButton" class="primary-button" type="button">
+              <span aria-hidden="true">▶</span>
+              参考音
+            </button>
+            <button id="micButton" class="secondary-button" type="button">
+              <span aria-hidden="true">●</span>
+              マイク開始
+            </button>
+          </div>
+
+          <div class="setting-row">
+            <label for="referenceVolumeInput">参考音 Vol</label>
+            <input
+              id="referenceVolumeInput"
+              type="range"
+              min="0"
+              max="100"
+              value="35"
+              step="5"
+            />
+            <output id="referenceVolumeValue" for="referenceVolumeInput">35%</output>
+          </div>
+
+          <div class="device-row">
+            <label for="micSelect">入力マイク</label>
+            <select id="micSelect">
+              <option value="">未選択</option>
+            </select>
+            <p id="micDeviceStatus">マイク開始後に利用可能な入力を表示します。</p>
+          </div>
+
+          <div class="setting-row">
+            <label for="toleranceInput">判定の幅</label>
+            <input id="toleranceInput" type="range" min="5" max="50" value="20" step="5" />
+            <output id="toleranceValue" for="toleranceInput">半音の20%</output>
+          </div>
+
+          <div class="setting-row">
+            <label for="sensitivityInput">感度</label>
+            <input id="sensitivityInput" type="range" min="2" max="20" value="6" step="1" />
+            <output id="sensitivityValue" for="sensitivityInput">標準</output>
+          </div>
+        </div>
+
+        <div class="graph-panel">
+          <div class="panel-header">
+            <div>
+              <h2>音程の時間変化</h2>
+              <p>横軸は直近12秒、縦軸は音名です。目標音の上下1オクターブを表示します。</p>
+            </div>
+            <button id="clearGraphButton" class="icon-button" type="button" title="グラフを消去">
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+          <div class="graph-status" aria-live="polite">
+            <strong id="analysisStatus">マイクを開始してください</strong>
+            <span>音量: <b id="graphVolume">--</b></span>
+            <span>信頼度: <b id="graphClarity">--</b></span>
+          </div>
+          <canvas id="pitchCanvas" width="960" height="360" aria-label="音程グラフ"></canvas>
+        </div>
+
+        <div class="summary-panel">
+          <h2>練習サマリー</h2>
+          <div class="summary-grid">
+            <div>
+              <span class="label">計測時間</span>
+              <strong id="durationReadout">0.0 秒</strong>
+            </div>
+            <div>
+              <span class="label">安定時間</span>
+              <strong id="stableReadout">0.0 秒</strong>
+            </div>
+            <div>
+              <span class="label">全体の音程差</span>
+              <strong id="averageReadout">--</strong>
+            </div>
+            <div>
+              <span class="label">直近の音程差</span>
+              <strong id="recentAverageReadout">--</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/app.ts"></script>
+  </body>
+</html>

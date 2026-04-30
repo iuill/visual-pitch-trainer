@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.bun/
+.env
+.env.*
+.tmp/
+
+/tmp/
