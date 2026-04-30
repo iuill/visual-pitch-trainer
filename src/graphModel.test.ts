@@ -20,12 +20,12 @@ describe("graph model", () => {
       20,
       [],
       12,
-      12,
+      6,
     );
 
     expect(viewport.plotWidth).toBe(886);
     expect(viewport.zeroY).toBeCloseTo(
-      midiToY(60, 48, 72, viewport.padding, viewport.plotHeight),
+      midiToY(60, 54, 66, viewport.padding, viewport.plotHeight),
       8,
     );
     expect(viewport.toleranceTop).toBeLessThan(viewport.zeroY);
@@ -65,7 +65,7 @@ describe("graph model", () => {
       20,
       samples,
       12,
-      12,
+      6,
     );
     const points = buildGraphPoints(samples, viewport, 12);
 

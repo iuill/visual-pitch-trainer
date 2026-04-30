@@ -3,7 +3,6 @@ import {
   buildGraphPoints,
   createGraphViewport,
   type GraphPadding,
-  getVisibleSamples,
   resolveCanvasBackingSize,
 } from "./graphModel";
 import {
@@ -56,7 +55,7 @@ declare global {
 
 const DEFAULT_RANGE_START_MIDI = 48;
 const GRAPH_SECONDS = 12;
-const GRAPH_RANGE_SEMITONES = 12;
+const GRAPH_RANGE_SEMITONES = 6;
 const YIN_THRESHOLD = 0.12;
 const MIN_CLARITY = 0.52;
 const MACLEOD_CUTOFF = 0.93;
@@ -827,7 +826,7 @@ function drawGraph() {
   const context = canvasContext;
   const width = canvas.width / state.graphPixelRatio;
   const height = canvas.height / state.graphPixelRatio;
-  const visibleSamples = getVisibleSamples(state.session.samples, 900);
+  const visibleSamples = state.session.samples;
   const viewport = createGraphViewport(
     width,
     height,
