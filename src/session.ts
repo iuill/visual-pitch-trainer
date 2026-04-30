@@ -75,8 +75,12 @@ export function addSampleToSession(
   sample: PitchSample,
   tolerance: number,
 ): SessionStats {
+  const previousSample = stats.samples.at(-1);
   const stableDelta =
     stats.lastSampleAt !== null &&
+    previousSample?.centsFromTarget !== null &&
+    previousSample?.centsFromTarget !== undefined &&
+    Math.abs(previousSample.centsFromTarget) <= tolerance &&
     sample.centsFromTarget !== null &&
     Math.abs(sample.centsFromTarget) <= tolerance
       ? sample.capturedAt - stats.lastSampleAt
@@ -100,7 +104,7 @@ export function trimSamples(samples: PitchSample[], now: number, graphSeconds: n
 }
 
 export function createSessionSummary(stats: SessionStats, now: number): SessionSummary {
-  const elapsedSec = stats.sessionStart ? (now - stats.sessionStart) / 1000 : 0;
+  const elapsedSec = stats.sessionStart !== null ? (now - stats.sessionStart) / 1000 : 0;
   const recentSamples = stats.samples.filter((sample) => sample.centsFromTarget !== null);
   const recentAverage =
     recentSamples.length === 0

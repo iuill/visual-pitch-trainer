@@ -41,6 +41,7 @@ type AppState = {
   referenceVolume: number;
   pitchDetectors: LibraryDetectors | null;
   isMicActive: boolean;
+  isMicStarting: boolean;
   animationId: number | null;
   buffer: Float32Array<ArrayBuffer> | null;
   session: SessionStats;
@@ -76,6 +77,7 @@ const state: AppState = {
   referenceVolume: 0.35,
   pitchDetectors: null,
   isMicActive: false,
+  isMicStarting: false,
   animationId: null,
   buffer: null,
   session: createInitialSessionStats(),
@@ -137,28 +139,6 @@ function init() {
   updateSensitivity();
   setupPitchCanvas();
   drawGraph();
-
-  if (!isAudioContextSupported()) {
-    disableAudioControls();
-    return;
-  }
-
-  elements.playToneButton.addEventListener("click", () => {
-    try {
-      toggleReferenceTone();
-    } catch (error) {
-      showAudioError(error);
-    }
-  });
-
-  elements.playScaleButton.addEventListener("click", () => {
-    try {
-      playScale();
-    } catch (error) {
-      showAudioError(error);
-    }
-  });
-  elements.micButton.addEventListener("click", toggleMicrophone);
   elements.clearGraphButton.addEventListener("click", clearSession);
   elements.noteRangeSelect.addEventListener("change", handleNoteRangeChange);
   elements.referenceVolumeInput.addEventListener("input", updateReferenceVolume);
@@ -166,7 +146,27 @@ function init() {
   elements.sensitivityInput.addEventListener("input", updateSensitivity);
   elements.micSelect.addEventListener("change", handleMicSelection);
 
-  refreshAudioDevices();
+  if (isAudioContextSupported()) {
+    elements.playToneButton.addEventListener("click", () => {
+      try {
+        toggleReferenceTone();
+      } catch (error) {
+        showAudioError(error);
+      }
+    });
+
+    elements.playScaleButton.addEventListener("click", () => {
+      try {
+        playScale();
+      } catch (error) {
+        showAudioError(error);
+      }
+    });
+    elements.micButton.addEventListener("click", toggleMicrophone);
+    refreshAudioDevices();
+  } else {
+    disableAudioControls();
+  }
 }
 
 function isAudioContextSupported(): boolean {
@@ -354,17 +354,30 @@ function playScale() {
 }
 
 async function toggleMicrophone() {
+  if (state.isMicStarting) {
+    return;
+  }
+
   if (state.isMicActive) {
     stopMicrophone();
     return;
   }
 
+  state.isMicStarting = true;
+  updateMicButtonState("starting");
+
   try {
     await startMicrophone();
+    if (!state.isMicActive) {
+      updateMicButtonState("stopped");
+    }
   } catch (error) {
     elements.analysisStatus.textContent =
       "マイクを開始できませんでした。ブラウザの許可を確認してください。";
+    updateMicButtonState("stopped");
     console.error(error);
+  } finally {
+    state.isMicStarting = false;
   }
 }
 
@@ -403,8 +416,7 @@ async function startMicrophone() {
   state.isMicActive = true;
   resetSessionStats(performance.now());
 
-  elements.micButton.classList.add("is-active");
-  elements.micButton.innerHTML = `<span aria-hidden="true">■</span>マイク停止`;
+  updateMicButtonState("active");
   elements.analysisStatus.textContent = "音程を解析中です";
 
   await refreshAudioDevices();
@@ -431,12 +443,28 @@ function stopMicrophone() {
   state.isMicActive = false;
   state.animationId = null;
 
-  elements.micButton.classList.remove("is-active");
-  elements.micButton.innerHTML = `<span aria-hidden="true">●</span>マイク開始`;
+  updateMicButtonState("stopped");
   elements.analysisStatus.textContent = "マイクを停止しました";
 }
 
+function updateMicButtonState(status: "active" | "starting" | "stopped") {
+  elements.micButton.disabled = status === "starting";
+  elements.micButton.classList.toggle("is-active", status === "active");
+
+  if (status === "active") {
+    elements.micButton.innerHTML = `<span aria-hidden="true">■</span>マイク停止`;
+  } else if (status === "starting") {
+    elements.micButton.innerHTML = `<span aria-hidden="true">●</span>マイク準備中`;
+  } else {
+    elements.micButton.innerHTML = `<span aria-hidden="true">●</span>マイク開始`;
+  }
+}
+
 async function handleMicSelection() {
+  if (state.isMicStarting) {
+    return;
+  }
+
   state.selectedDeviceId = elements.micSelect.value;
   const selectedLabel =
     elements.micSelect.selectedOptions[0]?.textContent || "既定のマイク";
@@ -444,13 +472,21 @@ async function handleMicSelection() {
 
   if (state.isMicActive) {
     stopMicrophone();
+    state.isMicStarting = true;
+    updateMicButtonState("starting");
     try {
       await startMicrophone();
+      if (!state.isMicActive) {
+        updateMicButtonState("stopped");
+      }
     } catch (error) {
       elements.analysisStatus.textContent =
         "選択したマイクを開始できませんでした。別の入力を選択してください。";
       elements.micDeviceStatus.textContent = "マイクの切り替えに失敗しました。";
+      updateMicButtonState("stopped");
       console.error(error);
+    } finally {
+      state.isMicStarting = false;
     }
   }
 }

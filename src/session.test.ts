@@ -52,6 +52,36 @@ describe("session", () => {
     expect(summary.formattedOverallAverage).toBe("半音の5%");
   });
 
+  test("counts stable time only across consecutive in-range pitch samples", () => {
+    let stats = createInitialSessionStats(0);
+
+    stats = addSampleToSession(
+      stats,
+      createPitchSample(100, { frequency: 440, clarity: 0.9 }, 0.03, 440, 0),
+      20,
+    );
+    stats = addSampleToSession(
+      stats,
+      createPitchSample(300, { frequency: null, clarity: null }, 0.03, 440, 0),
+      20,
+    );
+    stats = addSampleToSession(
+      stats,
+      createPitchSample(600, { frequency: 440, clarity: 0.9 }, 0.03, 440, 0),
+      20,
+    );
+    stats = addSampleToSession(
+      stats,
+      createPitchSample(800, { frequency: 440, clarity: 0.9 }, 0.03, 440, 0),
+      20,
+    );
+
+    const summary = createSessionSummary(stats, 1000);
+
+    expect(stats.stableMs).toBe(200);
+    expect(summary.elapsedSec).toBe(1);
+  });
+
   test("trims samples outside the graph retention window", () => {
     const samples = [
       createPitchSample(1000, { frequency: 440, clarity: 0.9 }, 0.03, 440, 0),
