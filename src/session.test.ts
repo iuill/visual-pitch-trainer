@@ -102,7 +102,7 @@ describe("session", () => {
           20,
         ),
       ),
-    ).toBe("音が小さい、または無音です");
+    ).toBe("声が小さい、または無音です");
     expect(
       resolveAnalysisStatus(
         createPitchSample(0, { frequency: null, clarity: null }, 0.02, target, 0),
@@ -118,7 +118,7 @@ describe("session", () => {
           20,
         ),
       ),
-    ).toBe("目標範囲内です");
+    ).toBe("お手本の間合いです");
     expect(
       formatAnalysisStatus(
         resolveAnalysisStatus(
@@ -127,7 +127,7 @@ describe("session", () => {
           20,
         ),
       ),
-    ).toBe("目標より高い傾向です");
+    ).toBe("お手本より高めです");
     expect(
       formatAnalysisStatus(
         resolveAnalysisStatus(
@@ -136,7 +136,7 @@ describe("session", () => {
           20,
         ),
       ),
-    ).toBe("目標より低い傾向です");
-    expect(formatAnalysisStatus("undetected")).toBe("音程を検出できません");
+    ).toBe("お手本より低めです");
+    expect(formatAnalysisStatus("undetected")).toBe("声の高さをつかめません");
   });
 });

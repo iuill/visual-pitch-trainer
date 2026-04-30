@@ -24,6 +24,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family:
+    "Noto Sans JP",
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
@@ -55,29 +56,63 @@ button {
   padding: 18px 0 24px;
 }
 
-.eyebrow {
-  margin: 0 0 8px;
-  color: var(--accent);
-  font-size: 0.88rem;
-  font-weight: 700;
-}
-
 h1,
 h2,
 p {
   margin-top: 0;
 }
 
-h1 {
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2vw, 20px);
   margin-bottom: 10px;
-  font-size: clamp(2rem, 6vw, 4.6rem);
+}
+
+.app-logo {
+  flex: 0 0 auto;
+  width: clamp(56px, 8vw, 92px);
+  height: clamp(56px, 8vw, 92px);
+  object-fit: contain;
+}
+
+h1 {
+  margin-bottom: 0;
+  color: var(--accent-strong);
+  font-family:
+    "Kaisei Tokumin",
+    "Noto Sans JP",
+    serif;
+  font-size: clamp(2rem, 5.6vw, 4.6rem);
+  font-weight: 800;
   line-height: 1.02;
   max-width: 920px;
+  white-space: nowrap;
+  text-shadow: 0 2px 0 rgba(20, 108, 117, 0.1);
 }
 
 h2 {
   margin-bottom: 4px;
+  color: var(--accent-strong);
+  font-family:
+    "Kaisei Tokumin",
+    "Noto Sans JP",
+    serif;
   font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.with-icon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heading-icon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
 }
 
 .lead {
@@ -234,8 +269,8 @@ h2 {
 
 .setting-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 10px;
+  grid-template-columns: minmax(7.5em, auto) minmax(120px, 1fr) auto;
+  gap: 12px;
   align-items: center;
   margin-top: 18px;
   color: var(--muted);
@@ -247,6 +282,12 @@ h2 {
 
 input[type="range"] {
   width: 100%;
+  min-width: 0;
+}
+
+.setting-row output {
+  min-width: 4.8em;
+  text-align: right;
 }
 
 .setting-row select {
@@ -341,20 +382,25 @@ input[type="range"] {
   background: #fbfcfc;
 }
 
-@media (max-width: 820px) {
-  .app-shell {
-    width: min(100% - 20px, 720px);
-    padding-top: 12px;
-  }
-
-  .hero,
-  .practice-layout {
+@media (max-width: 1080px) {
+  .hero {
     grid-template-columns: 1fr;
   }
 
   .privacy-note {
     justify-self: start;
     white-space: normal;
+  }
+}
+
+@media (max-width: 820px) {
+  .app-shell {
+    width: min(100% - 20px, 720px);
+    padding-top: 12px;
+  }
+
+  .practice-layout {
+    grid-template-columns: 1fr;
   }
 
   .summary-grid {
@@ -382,5 +428,22 @@ input[type="range"] {
 
   .icon-button.wide {
     min-width: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .brand-lockup {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .app-logo {
+    width: 48px;
+    height: 48px;
+  }
+
+  h1 {
+    font-size: clamp(1.85rem, 8vw, 2.5rem);
+    white-space: normal;
   }
 }

@@ -178,13 +178,13 @@ function disableAudioControls() {
   elements.playScaleButton.disabled = true;
   elements.micButton.disabled = true;
   elements.analysisStatus.textContent =
-    "このブラウザでは音声機能を利用できません。別のブラウザで開いてください。";
-  elements.micDeviceStatus.textContent = "音声機能が利用できないため、マイク一覧を取得できません。";
+    "このブラウザでは声の稽古を始められません。別のブラウザで開いてください。";
+  elements.micDeviceStatus.textContent = "音声機能が使えないため、マイクを取得できません。";
 }
 
 function showAudioError(error: unknown) {
   elements.analysisStatus.textContent =
-    "音声機能を開始できませんでした。ブラウザの音声設定を確認してください。";
+    "声の稽古を開始できませんでした。ブラウザの音声設定を確認してください。";
   console.error(error);
 }
 
@@ -302,7 +302,7 @@ function stopReferenceTone() {
     state.referenceOscillator = null;
     state.referenceGain = null;
     elements.playToneButton.classList.remove("is-active");
-    elements.playToneButton.innerHTML = `<span aria-hidden="true">▶</span>参考音`;
+    elements.playToneButton.innerHTML = `<span aria-hidden="true">▶</span>お手本音`;
     return;
   }
 
@@ -315,7 +315,7 @@ function stopReferenceTone() {
   state.referenceGain = null;
 
   elements.playToneButton.classList.remove("is-active");
-  elements.playToneButton.innerHTML = `<span aria-hidden="true">▶</span>参考音`;
+  elements.playToneButton.innerHTML = `<span aria-hidden="true">▶</span>お手本音`;
 }
 
 function updateReferenceToneFrequency() {
@@ -373,7 +373,7 @@ async function toggleMicrophone() {
     }
   } catch (error) {
     elements.analysisStatus.textContent =
-      "マイクを開始できませんでした。ブラウザの許可を確認してください。";
+      "稽古を開始できませんでした。ブラウザのマイク許可を確認してください。";
     updateMicButtonState("stopped");
     console.error(error);
   } finally {
@@ -384,7 +384,7 @@ async function toggleMicrophone() {
 async function startMicrophone() {
   if (!navigator.mediaDevices?.getUserMedia) {
     elements.analysisStatus.textContent =
-      "この表示方法ではマイクを利用できません。外部ブラウザで localhost を開いてください。";
+      "この表示方法ではマイクを使えません。外部ブラウザで localhost を開いてください。";
     return;
   }
 
@@ -417,7 +417,7 @@ async function startMicrophone() {
   resetSessionStats(performance.now());
 
   updateMicButtonState("active");
-  elements.analysisStatus.textContent = "音程を解析中です";
+  elements.analysisStatus.textContent = "声の軌跡を見ています";
 
   await refreshAudioDevices();
   updateActiveDeviceFromStream(stream);
@@ -444,7 +444,7 @@ function stopMicrophone() {
   state.animationId = null;
 
   updateMicButtonState("stopped");
-  elements.analysisStatus.textContent = "マイクを停止しました";
+  elements.analysisStatus.textContent = "稽古を停止しました";
 }
 
 function updateMicButtonState(status: "active" | "starting" | "stopped") {
@@ -452,11 +452,11 @@ function updateMicButtonState(status: "active" | "starting" | "stopped") {
   elements.micButton.classList.toggle("is-active", status === "active");
 
   if (status === "active") {
-    elements.micButton.innerHTML = `<span aria-hidden="true">■</span>マイク停止`;
+    elements.micButton.innerHTML = `<span aria-hidden="true">■</span>稽古停止`;
   } else if (status === "starting") {
-    elements.micButton.innerHTML = `<span aria-hidden="true">●</span>マイク準備中`;
+    elements.micButton.innerHTML = `<span aria-hidden="true">●</span>稽古準備中`;
   } else {
-    elements.micButton.innerHTML = `<span aria-hidden="true">●</span>マイク開始`;
+    elements.micButton.innerHTML = `<span aria-hidden="true">●</span>稽古開始`;
   }
 }
 
@@ -481,7 +481,7 @@ async function handleMicSelection() {
       }
     } catch (error) {
       elements.analysisStatus.textContent =
-        "選択したマイクを開始できませんでした。別の入力を選択してください。";
+        "選択したマイクで稽古を始められませんでした。別の入力を選択してください。";
       elements.micDeviceStatus.textContent = "マイクの切り替えに失敗しました。";
       updateMicButtonState("stopped");
       console.error(error);
@@ -520,7 +520,7 @@ async function refreshAudioDevices() {
       elements.micDeviceStatus.textContent = "利用可能なマイクが見つかりません。";
     } else if (!state.isMicActive && inputs.some((device) => !device.label)) {
       elements.micDeviceStatus.textContent =
-        "マイク開始後にデバイス名を表示できます。";
+        "稽古開始後に入力名を表示できます。";
     } else {
       const selectedLabel =
         elements.micSelect.selectedOptions[0]?.textContent || "既定のマイク";
@@ -637,11 +637,11 @@ function updateSensitivity() {
   state.minRms = value / 1000;
 
   if (value <= 4) {
-    elements.sensitivityValue.textContent = "高い";
+    elements.sensitivityValue.textContent = "よく拾う";
   } else if (value >= 12) {
-    elements.sensitivityValue.textContent = "低い";
+    elements.sensitivityValue.textContent = "控えめ";
   } else {
-    elements.sensitivityValue.textContent = "標準";
+    elements.sensitivityValue.textContent = "ふつう";
   }
 }
 

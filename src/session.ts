@@ -149,14 +149,14 @@ export function resolveAnalysisStatus(
 export function formatAnalysisStatus(status: AnalysisStatus): string {
   switch (status) {
     case "quiet":
-      return "音が小さい、または無音です";
+      return "声が小さい、または無音です";
     case "undetected":
-      return "音程を検出できません";
+      return "声の高さをつかめません";
     case "inRange":
-      return "目標範囲内です";
+      return "お手本の間合いです";
     case "high":
-      return "目標より高い傾向です";
+      return "お手本より高めです";
     case "low":
-      return "目標より低い傾向です";
+      return "お手本より低めです";
   }
 }

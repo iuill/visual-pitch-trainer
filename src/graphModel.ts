@@ -30,7 +30,7 @@ export type GraphPoint = {
   startsLine: boolean;
 };
 
-export const DEFAULT_GRAPH_PADDING: GraphPadding = { top: 22, right: 20, bottom: 34, left: 54 };
+export const DEFAULT_GRAPH_PADDING: GraphPadding = { top: 38, right: 20, bottom: 34, left: 54 };
 
 export function createGraphViewport(
   width: number,
