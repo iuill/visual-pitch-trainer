@@ -4,7 +4,9 @@
     "includes": ["**", "!dist", "!node_modules", "!tmp"]
   },
   "formatter": {
-    "enabled": false
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
   },
   "linter": {
     "enabled": true,

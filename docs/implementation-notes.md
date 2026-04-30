@@ -28,6 +28,7 @@ bun run dev
 確認用コマンド:
 
 ```sh
+bun run format
 bun run typecheck
 bun run build
 ```
