@@ -58,6 +58,23 @@ describe("pitch math", () => {
     expect(best?.frequency).toBeCloseTo(target, 8);
   });
 
+  test("prefers a target-aligned candidate over a more confident semitone miss", () => {
+    const target = midiToFrequency(60);
+    const best = chooseBestLibraryPitch(
+      [
+        {
+          frequency: target * 2 ** (1 / 12),
+          confidence: 0.99,
+          source: "macleod",
+        },
+        { frequency: target, confidence: 0.86, source: "yin" },
+      ],
+      target,
+    );
+
+    expect(best?.frequency).toBeCloseTo(target, 8);
+  });
+
   test("rejects low-confidence pitch candidates", () => {
     expect(
       chooseBestLibraryPitch(

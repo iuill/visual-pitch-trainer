@@ -100,6 +100,23 @@ describe("session", () => {
     expect(summary.elapsedSec).toBe(1);
   });
 
+  test("caps stable time across long frame gaps", () => {
+    let stats = createInitialSessionStats(0);
+
+    stats = addSampleToSession(
+      stats,
+      createPitchSample(100, { frequency: 440, clarity: 0.9 }, 0.03, 440, 0),
+      20,
+    );
+    stats = addSampleToSession(
+      stats,
+      createPitchSample(2100, { frequency: 440, clarity: 0.9 }, 0.03, 440, 0),
+      20,
+    );
+
+    expect(stats.stableMs).toBe(250);
+  });
+
   test("trims samples outside the graph retention window", () => {
     const samples = [
       createPitchSample(1000, { frequency: 440, clarity: 0.9 }, 0.03, 440, 0),

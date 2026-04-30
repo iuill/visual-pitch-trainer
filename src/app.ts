@@ -37,6 +37,8 @@ type AppState = {
   pitchDetectors: LibraryDetectors | null;
   isMicActive: boolean;
   isMicStarting: boolean;
+  isScalePlaying: boolean;
+  scalePlaybackTimerId: number | null;
   animationId: number | null;
   buffer: Float32Array<ArrayBuffer> | null;
   session: SessionStats;
@@ -73,10 +75,12 @@ const state: AppState = {
   pitchDetectors: null,
   isMicActive: false,
   isMicStarting: false,
+  isScalePlaying: false,
+  scalePlaybackTimerId: null,
   animationId: null,
   buffer: null,
   session: createInitialSessionStats(),
-  tolerance: 20,
+  tolerance: 50,
   minRms: 0.006,
   selectedDeviceId: "",
   graphPixelRatio: 1,
@@ -112,6 +116,7 @@ const elements = {
   analysisStatus: queryElement<HTMLElement>("#analysisStatus"),
   graphVolume: queryElement<HTMLElement>("#graphVolume"),
   graphClarity: queryElement<HTMLElement>("#graphClarity"),
+  graphDescription: queryElement<HTMLElement>("#graphDescription"),
   durationReadout: queryElement<HTMLElement>("#durationReadout"),
   stableReadout: queryElement<HTMLElement>("#stableReadout"),
   averageReadout: queryElement<HTMLElement>("#averageReadout"),
@@ -364,13 +369,45 @@ function getReferenceGainValue(): number {
 }
 
 function playScale() {
-  getCurrentNotes().forEach((note, index) => {
+  if (state.isScalePlaying) {
+    return;
+  }
+
+  if (state.isMicStarting) {
+    elements.analysisStatus.textContent =
+      "マイクの準備中です。少し待ってからドレミ稽古を始めてください。";
+    return;
+  }
+
+  if (state.isMicActive) {
+    stopMicrophone();
+  }
+
+  stopReferenceTone();
+  state.isScalePlaying = true;
+  elements.playScaleButton.disabled = true;
+  elements.micButton.disabled = true;
+  elements.analysisStatus.textContent =
+    "ドレミ稽古中です。終わるまでマイクは停止しています。";
+
+  const notes = getCurrentNotes();
+  notes.forEach((note, index) => {
     playTone(note.frequency, 0.42, index * 0.5);
   });
+
+  const playbackMs = Math.ceil(((notes.length - 1) * 0.5 + 0.5) * 1000);
+  state.scalePlaybackTimerId = window.setTimeout(() => {
+    state.isScalePlaying = false;
+    state.scalePlaybackTimerId = null;
+    elements.playScaleButton.disabled = false;
+    updateMicButtonState("stopped");
+    elements.analysisStatus.textContent =
+      "ドレミ稽古が終わりました。稽古開始でマイクを使えます。";
+  }, playbackMs);
 }
 
 async function toggleMicrophone() {
-  if (state.isMicStarting) {
+  if (state.isMicStarting || state.isScalePlaying) {
     return;
   }
 
@@ -467,7 +504,7 @@ function stopMicrophone() {
 }
 
 function updateMicButtonState(status: "active" | "starting" | "stopped") {
-  elements.micButton.disabled = status === "starting";
+  elements.micButton.disabled = status === "starting" || state.isScalePlaying;
   elements.micButton.classList.toggle("is-active", status === "active");
 
   if (status === "active") {
@@ -607,8 +644,11 @@ function analyzeFrame(now: number) {
 }
 
 function updateReadouts(sample: PitchSample, now: number) {
-  elements.analysisStatus.textContent = formatAnalysisStatus(
-    resolveAnalysisStatus(sample, state.minRms, state.tolerance),
+  const status = resolveAnalysisStatus(sample, state.minRms, state.tolerance);
+  elements.analysisStatus.textContent = formatAnalysisStatus(status);
+  elements.graphDescription.textContent = formatGraphDescription(
+    sample,
+    status,
   );
 
   elements.graphVolume.textContent = `${Math.round(Math.min(sample.volume * 500, 100))}%`;
@@ -646,6 +686,35 @@ function resetSessionStats(startAt: number | null) {
   elements.stableReadout.textContent = "0.0 秒";
   elements.averageReadout.textContent = "--";
   elements.recentAverageReadout.textContent = "--";
+  elements.graphDescription.textContent = "声の軌跡はまだ記録されていません。";
+}
+
+function formatGraphDescription(
+  sample: PitchSample,
+  status: ReturnType<typeof resolveAnalysisStatus>,
+): string {
+  if (sample.frequency === null || sample.centsFromTarget === null) {
+    return `直近の状態: ${formatAnalysisStatus(status)}。声量は${Math.round(
+      Math.min(sample.volume * 500, 100),
+    )}%、確かさは${
+      sample.clarity === null ? "不明" : `${Math.round(sample.clarity * 100)}%`
+    }です。`;
+  }
+
+  const direction =
+    sample.centsFromTarget > state.tolerance
+      ? "高め"
+      : sample.centsFromTarget < -state.tolerance
+        ? "低め"
+        : "範囲内";
+
+  return `直近の声は${sample.note ?? "不明"}、目標${state.target.name}に対して半音の${Math.round(
+    Math.abs(sample.centsFromTarget),
+  )}%${direction}です。声量は${Math.round(
+    Math.min(sample.volume * 500, 100),
+  )}%、確かさは${
+    sample.clarity === null ? "不明" : `${Math.round(sample.clarity * 100)}%`
+  }です。`;
 }
 
 function updateTargetDisplay() {

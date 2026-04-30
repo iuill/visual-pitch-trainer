@@ -25,6 +25,8 @@ export type SessionStats = {
   lastSampleAt: number | null;
 };
 
+export const MAX_STABLE_SAMPLE_GAP_MS = 250;
+
 export type SessionSummary = {
   elapsedSec: number;
   stableSec: number;
@@ -90,7 +92,10 @@ export function addSampleToSession(
     Math.abs(previousSample.centsFromTarget) <= tolerance &&
     sample.centsFromTarget !== null &&
     Math.abs(sample.centsFromTarget) <= tolerance
-      ? sample.capturedAt - stats.lastSampleAt
+      ? Math.min(
+          sample.capturedAt - stats.lastSampleAt,
+          MAX_STABLE_SAMPLE_GAP_MS,
+        )
       : 0;
   const absCents =
     sample.centsFromTarget === null ? 0 : Math.abs(sample.centsFromTarget);

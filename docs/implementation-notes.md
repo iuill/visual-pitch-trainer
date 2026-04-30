@@ -137,6 +137,8 @@ bun run build
 
 Node.js は開発・ビルドに使うが、サーバアプリにするわけではない。
 
+表示フォントは Google Fonts から読み込む。音声解析とマイク入力は引き続きブラウザ内で完結し、フォント取得以外の目的で音声データや解析結果を外部へ送らない。
+
 ```text
 開発時:
 Node.js / Bun + Vite + TypeScript + npm package

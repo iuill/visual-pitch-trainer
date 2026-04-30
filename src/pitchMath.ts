@@ -43,7 +43,7 @@ const NOTE_NAMES = [
 const DETECTION_MIN_HZ = 80;
 const DETECTION_MAX_HZ = 1600;
 const MIN_CLARITY = 0.52;
-const TARGET_DISTANCE_CONFIDENCE_WEIGHT = 0.012;
+const TARGET_DISTANCE_CONFIDENCE_WEIGHT = 0.18;
 
 export function buildNoteRange(startMidi: number): Note[] {
   return SOLFEGE_NAMES.map((solfege, index) => {

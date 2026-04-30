@@ -94,8 +94,8 @@
 
           <div class="setting-row">
             <label for="toleranceInput">音程厳密さ</label>
-            <input id="toleranceInput" type="range" min="5" max="50" value="20" step="5" />
-            <output id="toleranceValue" for="toleranceInput">半音の20%</output>
+            <input id="toleranceInput" type="range" min="5" max="50" value="50" step="5" />
+            <output id="toleranceValue" for="toleranceInput">半音の50%</output>
           </div>
 
           <div class="setting-row">
@@ -123,7 +123,16 @@
             <span>声量: <b id="graphVolume">--</b></span>
             <span>確かさ: <b id="graphClarity">--</b></span>
           </div>
-          <canvas id="pitchCanvas" width="960" height="360" aria-label="声の高さグラフ"></canvas>
+          <p id="graphDescription" class="visually-hidden">
+            声の軌跡はまだ記録されていません。
+          </p>
+          <canvas
+            id="pitchCanvas"
+            width="960"
+            height="360"
+            aria-label="声の高さグラフ"
+            aria-describedby="graphDescription"
+          ></canvas>
         </div>
 
         <div class="summary-panel">

@@ -17,6 +17,8 @@
 
 音声解析、参考音再生、グラフ描画、練習中の判定はすべてブラウザ内で処理します。これにより、低遅延で動作し、音声データをサーバに送信しないプライバシー面でも扱いやすい構成にします。
 
+画面表示には Google Fonts を利用します。そのためフォント取得のための外部通信は発生しますが、マイク入力や解析した音程データは外部サービスへ送信しません。
+
 ```text
 Browser
   ├─ Web Audio API
@@ -95,6 +97,7 @@ bun run build
 - pitchfinder
 - Web Audio API
 - Canvas
+- Google Fonts（表示フォント）
 - localStorage または IndexedDB（履歴保存を追加する場合）
 
 詳細は [docs/design.md](docs/design.md) を参照してください。
