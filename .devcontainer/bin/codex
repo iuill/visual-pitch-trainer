@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+codex_bin="${BUN_INSTALL:-$HOME/.bun}/bin/codex"
+install_script="/workspace/.devcontainer/scripts/install-dev-tools.sh"
+
+if [ ! -x "${codex_bin}" ]; then
+  if [ -f "${install_script}" ]; then
+    printf '%s\n' "Codex CLI is not installed at ${codex_bin}; installing dev tools..." >&2
+    bash "${install_script}"
+  else
+    printf '%s\n' "Codex CLI is not installed at ${codex_bin}." >&2
+    printf '%s\n' "Run: bash .devcontainer/scripts/install-dev-tools.sh" >&2
+    exit 127
+  fi
+fi
+
+if [ ! -x "${codex_bin}" ]; then
+  printf '%s\n' "Codex CLI is still not installed at ${codex_bin} after running ${install_script}." >&2
+  exit 127
+fi
+
+exec "${codex_bin}" \
+  -c 'sandbox_mode="danger-full-access"' \
+  -c 'approval_policy="never"' \
+  "$@"

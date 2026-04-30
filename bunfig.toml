@@ -1,0 +1,6 @@
+[install]
+linker = "hoisted"
+minimumReleaseAge = 1209600
+
+[run]
+bun = true

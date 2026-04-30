@@ -1,0 +1,27 @@
+{
+  "name": "visual-pitch-trainer",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.13",
+  "scripts": {
+    "install:locked": "bun install --frozen-lockfile",
+    "audit:dependencies": "bun audit --audit-level=high",
+    "dev": "bunx --bun vite --host 0.0.0.0",
+    "build": "bunx --bun vite build",
+    "preview": "bunx --bun vite preview --host 0.0.0.0",
+    "format": "biome format . --write",
+    "format:check": "biome format .",
+    "lint": "biome check .",
+    "test": "bun test src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pitchfinder": "^2.3.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.12",
+    "@types/bun": "^1.3.12",
+    "typescript": "^6.0.2",
+    "vite": "8.0.10"
+  }
+}

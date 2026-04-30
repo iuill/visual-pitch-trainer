@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>音程トレーニング道場</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <meta
+      name="description"
+      content="お手本音に合わせて、声の高さをリアルタイムに見ながら稽古できるアプリ"
+    />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-labelledby="app-title">
+        <div>
+          <div class="brand-lockup">
+            <img class="app-logo" src="/icons/app-logo.png" alt="" aria-hidden="true" />
+            <h1 id="app-title">音程トレーニング道場</h1>
+          </div>
+          <p class="lead">
+            お手本音を鳴らし、マイクで声の高さを見ます。目標とのズレと声の軌跡をリアルタイムに表示します。
+          </p>
+        </div>
+        <div class="privacy-note">
+          <span class="status-dot" aria-hidden="true"></span>
+          声の解析はブラウザ内だけで行います
+        </div>
+      </section>
+
+      <section class="practice-layout" aria-label="音程トレーニング">
+        <div class="control-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="with-icon">
+                <img class="heading-icon" src="/icons/heading-tone.png" alt="" aria-hidden="true" />
+                お手本の音
+              </h2>
+              <p id="targetFrequency">C3 / 130.81 Hz</p>
+            </div>
+            <button id="playScaleButton" class="icon-button wide" type="button">
+              <span aria-hidden="true">♪</span>
+              ドレミ稽古
+            </button>
+          </div>
+
+          <div class="setting-row select-row">
+            <label for="noteRangeSelect">声の高さ</label>
+            <select id="noteRangeSelect">
+              <option value="48" selected>C3 - C4 / 低めの男性声</option>
+              <option value="60">C4 - C5 / 高めの男性声・低めの女性声</option>
+              <option value="72">C5 - C6 / 高めの女性声</option>
+            </select>
+          </div>
+
+          <div id="noteButtons" class="note-grid" aria-label="お手本の音を選択"></div>
+
+          <div class="action-row">
+            <button id="playToneButton" class="primary-button" type="button">
+              <span aria-hidden="true">▶</span>
+              お手本音
+            </button>
+            <button id="micButton" class="secondary-button" type="button">
+              <span aria-hidden="true">●</span>
+              稽古開始
+            </button>
+          </div>
+
+          <div class="setting-row">
+            <label for="referenceVolumeInput">お手本音量</label>
+            <input
+              id="referenceVolumeInput"
+              type="range"
+              min="0"
+              max="100"
+              value="35"
+              step="5"
+            />
+            <output id="referenceVolumeValue" for="referenceVolumeInput">35%</output>
+          </div>
+
+          <div class="device-row">
+            <label for="micSelect">マイク</label>
+            <select id="micSelect">
+              <option value="">未選択</option>
+            </select>
+            <p id="micDeviceStatus">稽古開始後に使える入力を表示します。</p>
+          </div>
+
+          <div class="setting-row">
+            <label for="toleranceInput">音程厳密さ</label>
+            <input id="toleranceInput" type="range" min="5" max="50" value="50" step="5" />
+            <output id="toleranceValue" for="toleranceInput">半音の50%</output>
+          </div>
+
+          <div class="setting-row">
+            <label for="sensitivityInput">声の拾いやすさ</label>
+            <input id="sensitivityInput" type="range" min="2" max="20" value="6" step="1" />
+            <output id="sensitivityValue" for="sensitivityInput">ふつう</output>
+          </div>
+        </div>
+
+        <div class="graph-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="with-icon">
+                <img class="heading-icon" src="/icons/heading-trail.png" alt="" aria-hidden="true" />
+                声の軌跡
+              </h2>
+              <p>直近12秒の声の高さを、音名のレーンに沿って表示します。</p>
+            </div>
+            <button id="clearGraphButton" class="icon-button" type="button" title="軌跡を消去">
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+          <div class="graph-status" aria-live="polite">
+            <strong id="analysisStatus">稽古を開始してください</strong>
+            <span>声量: <b id="graphVolume">--</b></span>
+            <span>確かさ: <b id="graphClarity">--</b></span>
+          </div>
+          <p id="graphDescription" class="visually-hidden">
+            声の軌跡はまだ記録されていません。
+          </p>
+          <canvas
+            id="pitchCanvas"
+            width="960"
+            height="360"
+            aria-label="声の高さグラフ"
+            aria-describedby="graphDescription"
+          ></canvas>
+        </div>
+
+        <div class="summary-panel">
+          <h2 class="with-icon">
+            <img class="heading-icon" src="/icons/heading-record.png" alt="" aria-hidden="true" />
+            稽古の記録
+          </h2>
+          <div class="summary-grid">
+            <div>
+              <span class="label">稽古時間</span>
+              <strong id="durationReadout">0.0 秒</strong>
+            </div>
+            <div>
+              <span class="label">合っていた時間</span>
+              <strong id="stableReadout">0.0 秒</strong>
+            </div>
+            <div>
+              <span class="label">全体の音程ズレ</span>
+              <strong id="averageReadout">--</strong>
+            </div>
+            <div>
+              <span class="label">直近の音程ズレ</span>
+              <strong id="recentAverageReadout">--</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/app.ts"></script>
+  </body>
+</html>

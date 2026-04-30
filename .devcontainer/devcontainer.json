@@ -1,0 +1,54 @@
+{
+  "name": "Visual Pitch Trainer",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "remoteUser": "node",
+  "containerEnv": {
+    "LANG": "ja_JP.UTF-8",
+    "LC_ALL": "ja_JP.UTF-8",
+    "TZ": "Asia/Tokyo"
+  },
+  "remoteEnv": {
+    "LANG": "${containerEnv:LANG}",
+    "LC_ALL": "${containerEnv:LC_ALL}",
+    "TZ": "${containerEnv:TZ}",
+    "BUN_INSTALL": "/home/node/.bun",
+    "PATH": "/workspace/.devcontainer/bin:/home/node/.bun/bin:${containerEnv:PATH}"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "forwardPorts": [3000, 5173],
+  "portsAttributes": {
+    "3000": {
+      "label": "Static dev server",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Vite dev server",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "chmod +x .devcontainer/bin/codex .devcontainer/scripts/*.sh && bash .devcontainer/scripts/install-dev-tools.sh",
+  "postStartCommand": "bash .devcontainer/scripts/configure-git-safe-directories.sh || true",
+  "postAttachCommand": "bash .devcontainer/scripts/configure-git-safe-directories.sh || true",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "openai.chatgpt",
+        "Anthropic.claude-code",
+        "mhutchie.git-graph",
+        "GitHub.copilot-chat",
+        "ms-vscode.live-server"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "liveServer.settings.host": "0.0.0.0"
+      }
+    }
+  }
+}
