@@ -70,6 +70,8 @@ bun run dev
 型チェックと本番ビルドは以下です。
 
 ```sh
+bun run lint
+bun run test
 bun run typecheck
 bun run build
 ```

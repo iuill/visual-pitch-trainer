@@ -1,11 +1,17 @@
 import { Macleod, YIN } from "pitchfinder";
+import {
+  buildNoteRange,
+  chooseBestLibraryPitch,
+  formatPitchGap,
+  getRms,
+  hzToCents,
+  hzToMidi,
+  hzToNoteName,
+  midiToNoteName,
+  type Note,
+  type PitchCandidate,
+} from "./pitchMath";
 import "../styles.css";
-
-type Note = {
-  solfege: string;
-  name: string;
-  frequency: number;
-};
 
 type PitchSample = {
   timeMs: number;
@@ -21,12 +27,6 @@ type PitchSample = {
 type PitchDetection = {
   frequency: number | null;
   clarity: number | null;
-};
-
-type PitchCandidate = {
-  frequency: number;
-  confidence: number;
-  source: "yin" | "macleod";
 };
 
 type GraphPadding = {
@@ -65,6 +65,7 @@ type AppState = {
   tolerance: number;
   minRms: number;
   selectedDeviceId: string;
+  graphPixelRatio: number;
 };
 
 declare global {
@@ -73,32 +74,13 @@ declare global {
   }
 }
 
-const SOLFEGE_NAMES = [
-  "ド",
-  "ド#",
-  "レ",
-  "レ#",
-  "ミ",
-  "ファ",
-  "ファ#",
-  "ソ",
-  "ソ#",
-  "ラ",
-  "ラ#",
-  "シ",
-  "ド",
-] as const;
-const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const DEFAULT_RANGE_START_MIDI = 48;
 const GRAPH_SECONDS = 12;
 const GRAPH_RANGE_SEMITONES = 12;
-const DETECTION_MIN_HZ = 80;
-const DETECTION_MAX_HZ = 1600;
 const YIN_THRESHOLD = 0.12;
 const MIN_CLARITY = 0.52;
 const MACLEOD_CUTOFF = 0.93;
 const MAX_REFERENCE_GAIN = 0.5;
-const TARGET_DISTANCE_CONFIDENCE_WEIGHT = 0.012;
 
 const state: AppState = {
   noteRangeStartMidi: DEFAULT_RANGE_START_MIDI,
@@ -123,6 +105,7 @@ const state: AppState = {
   tolerance: 20,
   minRms: 0.006,
   selectedDeviceId: "",
+  graphPixelRatio: 1,
 };
 
 function queryElement<T extends Element>(selector: string) {
@@ -175,13 +158,29 @@ function init() {
   updateReferenceVolume();
   updateTolerance();
   updateSensitivity();
+  setupPitchCanvas();
   drawGraph();
 
+  if (!isAudioContextSupported()) {
+    disableAudioControls();
+    return;
+  }
+
   elements.playToneButton.addEventListener("click", () => {
-    toggleReferenceTone();
+    try {
+      toggleReferenceTone();
+    } catch (error) {
+      showAudioError(error);
+    }
   });
 
-  elements.playScaleButton.addEventListener("click", playScale);
+  elements.playScaleButton.addEventListener("click", () => {
+    try {
+      playScale();
+    } catch (error) {
+      showAudioError(error);
+    }
+  });
   elements.micButton.addEventListener("click", toggleMicrophone);
   elements.clearGraphButton.addEventListener("click", clearSession);
   elements.noteRangeSelect.addEventListener("change", handleNoteRangeChange);
@@ -191,6 +190,25 @@ function init() {
   elements.micSelect.addEventListener("change", handleMicSelection);
 
   refreshAudioDevices();
+}
+
+function isAudioContextSupported(): boolean {
+  return Boolean(window.AudioContext || window.webkitAudioContext);
+}
+
+function disableAudioControls() {
+  elements.playToneButton.disabled = true;
+  elements.playScaleButton.disabled = true;
+  elements.micButton.disabled = true;
+  elements.analysisStatus.textContent =
+    "このブラウザでは音声機能を利用できません。別のブラウザで開いてください。";
+  elements.micDeviceStatus.textContent = "音声機能が利用できないため、マイク一覧を取得できません。";
+}
+
+function showAudioError(error: unknown) {
+  elements.analysisStatus.textContent =
+    "音声機能を開始できませんでした。ブラウザの音声設定を確認してください。";
+  console.error(error);
 }
 
 function renderNoteButtons() {
@@ -235,26 +253,18 @@ function getCurrentNotes(): Note[] {
   return buildNoteRange(state.noteRangeStartMidi);
 }
 
-function buildNoteRange(startMidi: number): Note[] {
-  return SOLFEGE_NAMES.map((solfege, index) => {
-    const midi = startMidi + index;
-
-    return {
-      solfege,
-      name: midiToNoteName(midi),
-      frequency: midiToFrequency(midi),
-    };
-  });
-}
-
 function getAudioContext(): AudioContext {
   if (!state.audioContext) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      throw new Error("AudioContext is not available.");
+    }
+
     state.audioContext = new AudioContextClass();
   }
 
   if (state.audioContext.state === "suspended") {
-    state.audioContext.resume();
+    void state.audioContext.resume();
   }
 
   return state.audioContext;
@@ -431,7 +441,9 @@ function stopMicrophone() {
     cancelAnimationFrame(state.animationId);
   }
 
-  state.mediaStream?.getTracks().forEach((track) => track.stop());
+  state.mediaStream?.getTracks().forEach((track) => {
+    track.stop();
+  });
   state.sourceNode?.disconnect();
 
   state.mediaStream = null;
@@ -455,7 +467,14 @@ async function handleMicSelection() {
 
   if (state.isMicActive) {
     stopMicrophone();
-    await startMicrophone();
+    try {
+      await startMicrophone();
+    } catch (error) {
+      elements.analysisStatus.textContent =
+        "選択したマイクを開始できませんでした。別の入力を選択してください。";
+      elements.micDeviceStatus.textContent = "マイクの切り替えに失敗しました。";
+      console.error(error);
+    }
   }
 }
 
@@ -645,10 +664,6 @@ function recordSessionStats(sample: PitchSample) {
   state.totalValidSamples += 1;
 }
 
-function formatPitchGap(value: number | null): string {
-  return value === null ? "--" : `半音の${Math.round(value)}%`;
-}
-
 function updateTargetDisplay() {
   elements.targetFrequency.textContent = `${state.target.name} / ${state.target.frequency.toFixed(2)} Hz`;
 }
@@ -669,6 +684,42 @@ function updateSensitivity() {
     elements.sensitivityValue.textContent = "低い";
   } else {
     elements.sensitivityValue.textContent = "標準";
+  }
+}
+
+function setupPitchCanvas() {
+  syncPitchCanvasSize();
+
+  const ResizeObserverClass = globalThis.ResizeObserver;
+  if (ResizeObserverClass) {
+    const observer = new ResizeObserverClass(() => {
+      syncPitchCanvasSize();
+      drawGraph();
+    });
+    observer.observe(elements.pitchCanvas);
+    return;
+  }
+
+  window.addEventListener("resize", () => {
+    syncPitchCanvasSize();
+    drawGraph();
+  });
+}
+
+function syncPitchCanvasSize() {
+  const canvas = elements.pitchCanvas;
+  const rect = canvas.getBoundingClientRect();
+  const cssWidth = Math.max(1, Math.round(rect.width || canvas.clientWidth || canvas.width));
+  const cssHeight = Math.max(1, Math.round(rect.height || canvas.clientHeight || canvas.height));
+  const pixelRatio = clamp(window.devicePixelRatio || 1, 1, 3);
+  const width = Math.round(cssWidth * pixelRatio);
+  const height = Math.round(cssHeight * pixelRatio);
+
+  state.graphPixelRatio = pixelRatio;
+
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
   }
 }
 
@@ -722,7 +773,7 @@ function detectPitch(buffer: Float32Array<ArrayBuffer>, sampleRate: number): Pit
     });
   }
 
-  const bestCandidate = chooseBestLibraryPitch(candidates);
+  const bestCandidate = chooseBestLibraryPitch(candidates, state.target.frequency);
 
   if (!bestCandidate) {
     const fallbackClarity =
@@ -736,79 +787,13 @@ function detectPitch(buffer: Float32Array<ArrayBuffer>, sampleRate: number): Pit
   };
 }
 
-function chooseBestLibraryPitch(candidates: PitchCandidate[]): PitchCandidate | null {
-  const targetMinHz = Math.max(DETECTION_MIN_HZ, state.target.frequency / 2);
-  const targetMaxHz = Math.min(DETECTION_MAX_HZ, state.target.frequency * 2);
-  let bestCandidate: PitchCandidate | null = null;
-  let bestScore = Infinity;
-
-  for (const candidate of candidates) {
-    if (
-      !Number.isFinite(candidate.frequency) ||
-      candidate.frequency < targetMinHz ||
-      candidate.frequency > targetMaxHz
-    ) {
-      continue;
-    }
-
-    const distanceSemitones = Math.abs(12 * Math.log2(candidate.frequency / state.target.frequency));
-    const sourceBonus = candidate.source === "yin" ? 0 : 0.04;
-    const score =
-      distanceSemitones * TARGET_DISTANCE_CONFIDENCE_WEIGHT +
-      (1 - candidate.confidence) +
-      sourceBonus;
-
-    if (score < bestScore) {
-      bestScore = score;
-      bestCandidate = candidate;
-    }
-  }
-
-  if (!bestCandidate || bestCandidate.confidence < MIN_CLARITY) {
-    return null;
-  }
-
-  return bestCandidate;
-}
-
-function getRms(buffer: Float32Array<ArrayBuffer>): number {
-  let sum = 0;
-  for (let i = 0; i < buffer.length; i += 1) {
-    sum += buffer[i] * buffer[i];
-  }
-
-  return Math.sqrt(sum / buffer.length);
-}
-
-function hzToCents(frequency: number, targetFrequency: number): number {
-  return 1200 * Math.log2(frequency / targetFrequency);
-}
-
-function hzToNoteName(frequency: number): string {
-  const midi = Math.round(hzToMidi(frequency));
-  const octave = Math.floor(midi / 12) - 1;
-  return `${NOTE_NAMES[((midi % 12) + 12) % 12]}${octave}`;
-}
-
-function hzToMidi(frequency: number): number {
-  return 69 + 12 * Math.log2(frequency / 440);
-}
-
-function midiToFrequency(midi: number): number {
-  return 440 * 2 ** ((midi - 69) / 12);
-}
-
-function midiToNoteName(midi: number): string {
-  const rounded = Math.round(midi);
-  const octave = Math.floor(rounded / 12) - 1;
-  return `${NOTE_NAMES[((rounded % 12) + 12) % 12]}${octave}`;
-}
-
 function drawGraph() {
+  syncPitchCanvasSize();
+
   const canvas = elements.pitchCanvas;
   const context = canvasContext;
-  const width = canvas.width;
-  const height = canvas.height;
+  const width = canvas.width / state.graphPixelRatio;
+  const height = canvas.height / state.graphPixelRatio;
   const padding: GraphPadding = { top: 22, right: 20, bottom: 34, left: 54 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
@@ -816,6 +801,7 @@ function drawGraph() {
   const minMidi = targetMidi - GRAPH_RANGE_SEMITONES;
   const maxMidi = targetMidi + GRAPH_RANGE_SEMITONES;
 
+  context.setTransform(state.graphPixelRatio, 0, 0, state.graphPixelRatio, 0, 0);
   context.clearRect(0, 0, width, height);
   context.fillStyle = "#fbfcfc";
   context.fillRect(0, 0, width, height);

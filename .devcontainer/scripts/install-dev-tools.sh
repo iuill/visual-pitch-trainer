@@ -17,6 +17,26 @@ get_codex_version() {
   "${BUN_INSTALL}/bin/codex" --version 2>/dev/null | awk '{print $NF}' || true
 }
 
+get_expected_bun_version() {
+  if [ -f /workspace/.bun-version ]; then
+    tr -d '[:space:]' </workspace/.bun-version
+    return 0
+  fi
+
+  node -e "const packageJson = require('/workspace/package.json'); console.log((packageJson.packageManager || '').replace(/^bun@/, ''))"
+}
+
+get_bun_version() {
+  bun --version 2>/dev/null || true
+}
+
+install_bun_version() {
+  local version="$1"
+
+  curl -fsSL https://bun.sh/install | bash -s "bun-v${version}"
+  export PATH="${BUN_INSTALL}/bin:${PATH}"
+}
+
 install_missing_apt_packages() {
   local packages_to_install=()
 
@@ -35,12 +55,17 @@ export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
 export PATH="${BUN_INSTALL}/bin:/workspace/.devcontainer/bin:${PATH}"
 
 OPENAI_CODEX_VERSION="${OPENAI_CODEX_VERSION:-0.125.0}"
+EXPECTED_BUN_VERSION="${BUN_VERSION:-$(get_expected_bun_version)}"
 
 install_missing_apt_packages
 
-if ! command -v bun >/dev/null 2>&1; then
-  curl -fsSL https://bun.sh/install | bash
-  export PATH="${BUN_INSTALL}/bin:${PATH}"
+if [ -z "${EXPECTED_BUN_VERSION}" ]; then
+  printf '%s\n' "Could not determine expected Bun version." >&2
+  exit 1
+fi
+
+if [ "$(get_bun_version)" != "${EXPECTED_BUN_VERSION}" ]; then
+  install_bun_version "${EXPECTED_BUN_VERSION}"
 fi
 
 ensure_line_in_file "${HOME}/.bashrc" 'export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"'
