@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Workflow"
+  short_description: "Open ready PRs and clean up merged branches"
+  default_prompt: "Use $pr-workflow to open a ready-for-review PR and clean up the merged branch."
