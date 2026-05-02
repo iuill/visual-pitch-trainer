@@ -66,6 +66,7 @@ const YIN_THRESHOLD = 0.12;
 const MIN_CLARITY = 0.52;
 const MACLEOD_CUTOFF = 0.93;
 const MAX_REFERENCE_GAIN = 0.5;
+const MOBILE_VIEWPORT_QUERY = "(max-width: 820px)";
 
 const state: AppState = {
   noteRangeStartMidi: DEFAULT_RANGE_START_MIDI,
@@ -103,6 +104,7 @@ function queryElement<T extends Element>(selector: string) {
 
 const elements = {
   noteButtons: queryElement<HTMLDivElement>("#noteButtons"),
+  graphTargetButtons: queryElement<HTMLDivElement>("#graphTargetButtons"),
   targetFrequency: queryElement<HTMLParagraphElement>("#targetFrequency"),
   playScaleButton: queryElement<HTMLButtonElement>("#playScaleButton"),
   playToneButton: queryElement<HTMLButtonElement>("#playToneButton"),
@@ -203,26 +205,49 @@ function renderNoteButtons() {
   const notes = getCurrentNotes();
 
   elements.noteButtons.replaceChildren(
-    ...notes.map((note) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "note-button";
-      button.setAttribute(
-        "aria-pressed",
-        String(note.name === state.target.name),
-      );
-      button.innerHTML = `<strong>${note.solfege}</strong><span>${note.name}</span>`;
-      button.addEventListener("click", () => {
-        state.target = note;
-        resetActiveSession();
-        updateTargetDisplay();
-        renderNoteButtons();
-        updateReferenceToneFrequency();
-        drawGraph();
-      });
-      return button;
-    }),
+    ...notes.map((note) => createNoteButton(note, "note-button")),
   );
+  elements.graphTargetButtons.replaceChildren(
+    ...notes.map((note) => createNoteButton(note, "target-note-button")),
+  );
+}
+
+function createNoteButton(note: Note, className: string) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.dataset.noteName = note.name;
+  button.setAttribute("aria-pressed", String(note.name === state.target.name));
+  button.innerHTML = `<strong>${note.solfege}</strong><span>${note.name}</span>`;
+  button.addEventListener("click", () => {
+    selectTargetNote(note);
+  });
+  return button;
+}
+
+function selectTargetNote(note: Note) {
+  state.target = note;
+  resetActiveSession();
+  updateTargetDisplay();
+  updateNoteButtonStates();
+  updateReferenceToneFrequency();
+  drawGraph();
+}
+
+function updateNoteButtonStates() {
+  const buttons = [
+    ...elements.noteButtons.querySelectorAll<HTMLButtonElement>("button"),
+    ...elements.graphTargetButtons.querySelectorAll<HTMLButtonElement>(
+      "button",
+    ),
+  ];
+
+  buttons.forEach((button) => {
+    button.setAttribute(
+      "aria-pressed",
+      String(button.dataset.noteName === state.target.name),
+    );
+  });
 }
 
 function handleNoteRangeChange() {
@@ -482,8 +507,22 @@ async function startMicrophone() {
 
   await refreshAudioDevices();
   updateActiveDeviceFromStream(stream);
+  focusGraphForPractice();
 
   state.animationId = requestAnimationFrame(analyzeFrame);
+}
+
+function focusGraphForPractice() {
+  if (!window.matchMedia(MOBILE_VIEWPORT_QUERY).matches) {
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    elements.analysisStatus.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  });
 }
 
 function stopMicrophone() {
