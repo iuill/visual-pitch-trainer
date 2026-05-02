@@ -13,6 +13,7 @@
     "format:check": "biome format .",
     "lint": "biome check .",
     "test": "bun test src",
+    "test:coverage": "bun test src --coverage",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
