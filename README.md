@@ -1,8 +1,10 @@
 # Visual Pitch Trainer
 
+[English README](README_en.md)
+
 難聴者向けに、音程練習を視覚的に支援するWebアプリです。
 
-参考音（ド・レ・ミなど）を再生しながら、利用者の発声をマイクでリアルタイム分析し、目標音とのズレや時間経過による音程の上下を画面上に表示することを目指します。
+参考音（ド・レ・ミなど）を再生しながら、利用者の発声をマイクでリアルタイム分析し、目標音とのズレや時間経過による音程の上下を画面上に表示します。
 
 ## 目的
 
@@ -13,7 +15,7 @@
 
 ## 基本方針
 
-初期バージョンは、サーバなしの静的Webアプリとして構築します。
+Visual Pitch Trainer は、サーバなしで動作する静的Webアプリです。
 
 音声解析、参考音再生、グラフ描画、練習中の判定はすべてブラウザ内で処理します。これにより、低遅延で動作し、音声データをサーバに送信しないプライバシー面でも扱いやすい構成にします。
 
@@ -29,23 +31,22 @@ Browser
   └─ Practice Summary
 ```
 
-## MVP
+## 主な機能
 
-最初に作る範囲は以下を想定します。
-
-- ドレミなどの参考音を選択して再生できる
+- 半音を含む1オクターブ分の参考音を選択して再生できる
 - C3-C4 / C4-C5 / C5-C6 の音域を声の高さの目安つきで選べる
 - 参考音量を調整できる
 - マイク入力から現在の音程を検出できる
 - 目標音との差をリアルタイムに表示できる
 - 高い・低い・合っていることを視覚的に表現できる
 - 時間経過による音程の上下をグラフで表示できる
-- PC、タブレット、スマートフォンで使えるレスポンシブUIにする
+- 音量、検出信頼度、連続キープ時間、練習サマリーを確認できる
+- PC、タブレット、スマートフォンで使えるレスポンシブUI
 
 ## ドキュメント
 
-- [設計メモ](docs/design.md)
-- [実装メモ](docs/implementation-notes.md)
+- [設計](docs/design.md)
+- [実装方針](docs/implementation-notes.md)
 
 ## ローカル起動
 
@@ -55,11 +56,13 @@ Browser
 
 VS Code でこのリポジトリを開き、`Dev Containers: Reopen in Container` を実行してください。
 
-コンテナには Node.js、Bun、GitHub CLI (`gh`)、OpenAI Codex CLI (`codex`) が入ります。Bun の期待バージョンは `.bun-version` と `package.json` の `packageManager` に記載し、Codex CLI は `.devcontainer/scripts/install-dev-tools.sh` でバージョンを指定してセットアップします。
+コンテナには Node.js、Bun、GitHub CLI (`gh`)、OpenAI Codex CLI (`codex`) などが入ります。Bun の期待バージョンは `.bun-version` と `package.json` の `packageManager` に記載しています。
 
-既存の Dev Container で `codex` 実行時に CLI が見つからない場合は、ラッパーが `.devcontainer/scripts/install-dev-tools.sh` を実行して不足分をセットアップします。自動セットアップが失敗する場合は、コンテナ内で `bash .devcontainer/scripts/install-dev-tools.sh` を再実行してエラー内容を確認してください。
+`codex` コマンドが未セットアップの場合は、`.devcontainer/bin/codex` が `.devcontainer/scripts/install-dev-tools.sh` を実行して必要な開発ツールを準備します。
 
-依存パッケージは Bun に統一し、`bunfig.toml` で公開直後のパッケージを既定で避ける設定にしています。lockfile がある場合は `bun install --frozen-lockfile`、ない場合は `bun install` を実行します。セキュリティ修正などで公開直後の依存へ更新する場合は、更新コマンドで release age の例外を明示します。
+このリポジトリでは、開発時のAIコーディングエージェントとして Codex を利用する前提で環境を整えています。エージェント向けのリポジトリルールは `AGENTS.md` にまとめ、Codex の Agent Skills は `.agents/skills/` 配下に配置しています。
+
+依存パッケージは Bun に統一しています。lockfile がある場合は `bun install --frozen-lockfile`、ない場合は `bun install` を実行します。
 
 起動後、以下で Vite の開発サーバを開始できます。
 
@@ -69,10 +72,9 @@ bun run dev
 
 ブラウザで Vite が表示するローカルURL、通常は `http://localhost:5173/` を開いてください。
 
-型チェックと本番ビルドは以下です。
+基本的な検証コマンドは以下です。
 
 ```sh
-bun run format
 bun run lint
 bun run test
 bun run typecheck
@@ -104,9 +106,9 @@ bun run build
 
 マイク入力はブラウザや表示方法によって制限されます。VS Code 内部のプレビュー画面でマイクが使えない場合は、Vite の `http://localhost:5173/` などのURLをChrome、Edge、Safariなどの外部ブラウザで開いてください。
 
-ローカルに置いた `index.html` を直接ブラウザで開いてマイクが使える場合もありますが、ブラウザ依存のため、基本はローカルHTTPサーバ経由で確認します。
+このリポジトリの `index.html` は Vite 経由で TypeScript を読み込むため、直接ファイルとして開くのではなく、`bun run dev` または `bun run preview` で配信して確認します。マイク入力は HTTPS、`localhost`、`127.0.0.1` などの安全なコンテキストで利用できます。
 
-## 想定技術
+## 技術構成
 
 - HTML
 - CSS
