@@ -189,7 +189,7 @@ h2 {
 }
 
 .build-info {
-  color: #6f7a81;
+  color: var(--muted);
 }
 
 .graph-panel {

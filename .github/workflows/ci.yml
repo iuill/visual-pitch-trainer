@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*.*.*"
   pull_request:
   workflow_dispatch:
 
@@ -42,10 +44,13 @@ jobs:
         run: bun run typecheck
 
       - name: Build
+        env:
+          APP_COMMIT_HASH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          APP_VERSION_BASE: ${{ vars.APP_VERSION_BASE || '0.1' }}
         run: bun run build
 
       - name: Upload GitHub Pages artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref_type == 'tag')
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist
@@ -53,7 +58,7 @@ jobs:
   deploy:
     name: Deploy GitHub Pages
     needs: verify
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref_type == 'tag')
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
