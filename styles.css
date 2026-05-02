@@ -78,9 +78,9 @@ p {
 h1 {
   margin-bottom: 0;
   color: var(--accent-strong);
-  font-family: "Kaisei Tokumin", "Noto Sans JP", serif;
+  font-family: "Yuji Syuku", "Noto Sans JP", serif;
   font-size: clamp(2rem, 5.6vw, 4.6rem);
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1.02;
   max-width: 920px;
   white-space: nowrap;
@@ -90,9 +90,9 @@ h1 {
 h2 {
   margin-bottom: 4px;
   color: var(--accent-strong);
-  font-family: "Kaisei Tokumin", "Noto Sans JP", serif;
+  font-family: "Yuji Syuku", "Noto Sans JP", serif;
   font-size: 1.05rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .with-icon {
