@@ -630,7 +630,7 @@ input[type="range"] {
   }
 
   .brand-lockup {
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
     margin-bottom: 6px;
   }
@@ -638,6 +638,7 @@ input[type="range"] {
   .app-logo {
     width: 46px;
     height: 46px;
+    transform: none;
   }
 
   h1 {
