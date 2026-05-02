@@ -81,6 +81,25 @@ bun run build
 
 `dist/` を GitHub Pages または Cloudflare Pages の配信ディレクトリに指定すれば、サーバなしで公開できます。
 
+### CI
+
+GitHub Actions で CI を実行します。
+
+- `main` への push
+- Pull Request
+- 手動実行（`workflow_dispatch`）
+
+CI では `.bun-version` の Bun を使い、依存関係を lockfile 固定でインストールした上で、以下を実行します。
+
+```sh
+bun run lint
+bun run test
+bun run typecheck
+bun run build
+```
+
+`main` への push では、検証が通った後に `dist/` を GitHub Pages へデプロイします。初回は GitHub のリポジトリ設定で Pages の Build and deployment source を `GitHub Actions` に設定してください。
+
 ### マイク入力
 
 マイク入力はブラウザや表示方法によって制限されます。VS Code 内部のプレビュー画面でマイクが使えない場合は、Vite の `http://localhost:5173/` などのURLをChrome、Edge、Safariなどの外部ブラウザで開いてください。
