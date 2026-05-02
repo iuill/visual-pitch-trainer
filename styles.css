@@ -259,6 +259,31 @@ h2 {
   color: var(--text);
 }
 
+.clear-graph-button {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.clear-graph-button:hover,
+.clear-graph-button:focus-visible {
+  border-color: var(--danger);
+  color: var(--danger);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.12);
+}
+
+.button-icon {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .secondary-button.is-active {
   border-color: var(--danger);
   color: var(--danger);
@@ -355,6 +380,7 @@ input[type="range"] {
 }
 
 .graph-status {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   gap: 10px 16px;
@@ -370,6 +396,75 @@ input[type="range"] {
 .graph-status strong,
 .graph-status b {
   color: var(--text);
+}
+
+.detection-readout,
+.status-help {
+  display: inline-flex;
+  align-items: center;
+}
+
+.detection-readout {
+  gap: 5px;
+}
+
+.status-help {
+  margin-left: -8px;
+}
+
+.info-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 1px solid #a9bcc3;
+  border-radius: 999px;
+  background: #eef6f7;
+  color: var(--accent-strong);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0;
+}
+
+.info-button:hover,
+.info-button:focus,
+.info-button:focus-visible {
+  border-color: var(--accent);
+  background: #e3f1f2;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(20, 108, 117, 0.14);
+}
+
+.tooltip {
+  position: absolute;
+  left: 12px;
+  top: calc(100% + 8px);
+  z-index: 2;
+  width: min(320px, calc(100% - 24px));
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(23, 32, 38, 0.12);
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.info-button:hover + .tooltip,
+.info-button:focus + .tooltip,
+.info-button:focus-visible + .tooltip {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .visually-hidden {

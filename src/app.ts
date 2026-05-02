@@ -9,7 +9,13 @@ import {
   detectPitchWithLibraries,
   type LibraryDetectors,
 } from "./pitchDetection";
-import { buildNoteRange, getRms, midiToNoteName, type Note } from "./pitchMath";
+import {
+  buildNoteRange,
+  getRms,
+  midiToNoteName,
+  midiToSolfegeName,
+  type Note,
+} from "./pitchMath";
 import {
   addSampleToSession,
   createInitialSessionStats,
@@ -695,7 +701,7 @@ function formatGraphDescription(
   if (sample.frequency === null || sample.centsFromTarget === null) {
     return `直近の状態: ${formatAnalysisStatus(status)}。声量は${Math.round(
       Math.min(sample.volume * 500, 100),
-    )}%、確かさは${
+    )}%、音程検出は${
       sample.clarity === null ? "不明" : `${Math.round(sample.clarity * 100)}%`
     }です。`;
   }
@@ -711,7 +717,7 @@ function formatGraphDescription(
     Math.abs(sample.centsFromTarget),
   )}%${direction}です。声量は${Math.round(
     Math.min(sample.volume * 500, 100),
-  )}%、確かさは${
+  )}%、音程検出は${
     sample.clarity === null ? "不明" : `${Math.round(sample.clarity * 100)}%`
   }です。`;
 }
@@ -888,6 +894,7 @@ function drawGraph() {
 
   context.stroke();
   drawGraphLabels(context, width, height, viewport.padding);
+  drawCurrentPitchLabel(context, width, viewport);
 }
 
 function drawGrid(
@@ -952,6 +959,45 @@ function drawGraphLabels(
   context.fillText("音名", 8, 20);
   context.fillText("12秒前", padding.left, height - 10);
   context.fillText("現在", width - padding.right - 38, height - 10);
+}
+
+function drawCurrentPitchLabel(
+  context: CanvasRenderingContext2D,
+  width: number,
+  viewport: ReturnType<typeof createGraphViewport>,
+) {
+  const latestSample = state.session.samples.at(-1);
+
+  if (
+    !latestSample ||
+    latestSample.midi === null ||
+    latestSample.note === null
+  ) {
+    return;
+  }
+
+  const label = `${midiToSolfegeName(latestSample.midi)} ${latestSample.note}`;
+  const x = width / 2;
+  const y = viewport.padding.top + 72;
+
+  context.save();
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.font = "800 48px system-ui, sans-serif";
+
+  const metrics = context.measureText(label);
+  const labelX = Math.max(
+    viewport.padding.left + metrics.width / 2 + 10,
+    Math.min(x, width - viewport.padding.right - metrics.width / 2 - 10),
+  );
+  const labelY = Math.max(viewport.padding.top + 18, y);
+
+  context.lineWidth = 10;
+  context.strokeStyle = "rgba(255, 255, 255, 0.96)";
+  context.strokeText(label, labelX, labelY);
+  context.fillStyle = "#0d4f56";
+  context.fillText(label, labelX, labelY);
+  context.restore();
 }
 
 init();
