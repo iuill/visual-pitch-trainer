@@ -1,3 +1,4 @@
+import type { PitchDetector } from "pitchy";
 import {
   chooseBestLibraryPitch,
   getRms,
@@ -7,11 +8,8 @@ import type { PitchDetection } from "./session";
 
 export type LibraryDetectors = {
   sampleRate: number;
-  yin: (buffer: Float32Array<ArrayBuffer>) => number | null;
-  macleod: (buffer: Float32Array<ArrayBuffer>) => {
-    freq: number;
-    probability: number;
-  };
+  bufferSize: number;
+  detector: PitchDetector<Float32Array>;
 };
 
 export type PitchDetectionOptions = {
@@ -31,26 +29,21 @@ export function detectPitchWithLibraries(
     return { frequency: null, clarity: null };
   }
 
-  const candidates: PitchCandidate[] = [];
-  const yinPitch = detectors.yin(buffer);
-
-  if (yinPitch !== null) {
-    candidates.push({
-      frequency: yinPitch,
-      confidence: 0.86,
-      source: "yin",
-    });
-  }
-
-  const macleodPitch = detectors.macleod(buffer);
-
-  if (macleodPitch.freq > 0 && macleodPitch.probability >= options.minClarity) {
-    candidates.push({
-      frequency: macleodPitch.freq,
-      confidence: clamp(macleodPitch.probability, 0, 1),
-      source: "macleod",
-    });
-  }
+  const [frequency, clarity] = detectors.detector.findPitch(
+    buffer,
+    detectors.sampleRate,
+  );
+  const confidence = clamp(clarity, 0, 1);
+  const candidates: PitchCandidate[] =
+    frequency > 0 && confidence >= options.minClarity
+      ? [
+          {
+            frequency,
+            confidence,
+            source: "pitchy",
+          },
+        ]
+      : [];
 
   const bestCandidate = chooseBestLibraryPitch(
     candidates,
@@ -58,8 +51,7 @@ export function detectPitchWithLibraries(
   );
 
   if (!bestCandidate) {
-    const fallbackClarity =
-      macleodPitch.freq > 0 ? clamp(macleodPitch.probability, 0, 1) : null;
+    const fallbackClarity = frequency > 0 ? confidence : null;
     return { frequency: null, clarity: fallbackClarity };
   }
 

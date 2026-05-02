@@ -7,7 +7,7 @@ export type Note = {
 export type PitchCandidate = {
   frequency: number;
   confidence: number;
-  source: "yin" | "macleod";
+  source: "pitchy";
 };
 
 export const SOLFEGE_NAMES = [
@@ -78,11 +78,9 @@ export function chooseBestLibraryPitch(
     const distanceSemitones = Math.abs(
       12 * Math.log2(candidate.frequency / targetFrequency),
     );
-    const sourceBonus = candidate.source === "yin" ? 0 : 0.04;
     const score =
       distanceSemitones * TARGET_DISTANCE_CONFIDENCE_WEIGHT +
-      (1 - candidate.confidence) +
-      sourceBonus;
+      (1 - candidate.confidence);
 
     if (score < bestScore) {
       bestScore = score;

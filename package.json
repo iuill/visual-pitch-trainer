@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "pitchfinder": "^2.3.4"
+    "pitchy": "4.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
