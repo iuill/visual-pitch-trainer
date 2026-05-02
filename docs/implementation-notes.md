@@ -47,6 +47,25 @@ bun run build
 
 `bun run build` で生成される `dist/` を GitHub Pages または Cloudflare Pages に配信する。
 
+## ビルドバージョン表示
+
+画面フッターには、ビルド時点のバージョン情報を表示する。
+
+- 表示バージョンはビルド時に自動生成し、手動でインクリメントしない
+- 通常ビルドでは `0.1.<build>` の SemVer 形式を使う
+- GitHub Actions では `<build>` に `GITHUB_RUN_NUMBER` を使う
+- ローカルビルドでは `<build>` に `git rev-list --count HEAD` を使う
+- major / minor を変えたい場合は、ビルド環境変数 `APP_VERSION_BASE` に `1.0` などを指定する
+- タグからビルドされた場合は `GITHUB_REF_NAME` の `v` を除いた値を優先して使う
+- コミット識別子は GitHub Actions では `GITHUB_SHA`、ローカルビルドでは `git rev-parse --short=12 HEAD` から取得する
+
+例:
+
+```text
+Version v0.1.123 (c8c76eaffa70)
+Version v1.0.0 (c8c76eaffa70)
+```
+
 ## 実装済みの主な機能
 
 - 目標音の選択

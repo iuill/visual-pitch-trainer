@@ -141,6 +141,7 @@ const elements = {
   stableReadout: queryElement<HTMLElement>("#stableReadout"),
   averageReadout: queryElement<HTMLElement>("#averageReadout"),
   recentAverageReadout: queryElement<HTMLElement>("#recentAverageReadout"),
+  appVersion: queryElement<HTMLElement>("#appVersion"),
   clearGraphButton: queryElement<HTMLButtonElement>("#clearGraphButton"),
   graphPanel: queryElement<HTMLElement>(".graph-panel"),
   pitchCanvas: queryElement<HTMLCanvasElement>("#pitchCanvas"),
@@ -155,6 +156,7 @@ if (!maybeCanvasContext) {
 const canvasContext = maybeCanvasContext;
 
 function init() {
+  updateBuildInfo();
   renderNoteButtons();
   updateTargetDisplay();
   updateReferenceVolume();
@@ -193,6 +195,17 @@ function init() {
   } else {
     disableAudioControls();
   }
+}
+
+function updateBuildInfo() {
+  const commitHash = import.meta.env.VITE_APP_COMMIT_HASH;
+  const versionName = `v${import.meta.env.VITE_APP_VERSION}`;
+  const commitSuffix = commitHash ? ` (${commitHash})` : "";
+
+  elements.appVersion.textContent = `Version ${versionName}${commitSuffix}`;
+  elements.appVersion.title = commitHash
+    ? `build commit: ${commitHash}`
+    : "build commit: unavailable";
 }
 
 function isAudioContextSupported(): boolean {
