@@ -143,6 +143,7 @@ const elements = {
   averageReadout: queryElement<HTMLElement>("#averageReadout"),
   recentAverageReadout: queryElement<HTMLElement>("#recentAverageReadout"),
   clearGraphButton: queryElement<HTMLButtonElement>("#clearGraphButton"),
+  graphPanel: queryElement<HTMLElement>(".graph-panel"),
   pitchCanvas: queryElement<HTMLCanvasElement>("#pitchCanvas"),
 };
 
@@ -532,9 +533,9 @@ function focusGraphForPractice() {
   }
 
   requestAnimationFrame(() => {
-    elements.analysisStatus.scrollIntoView({
+    elements.graphPanel.scrollIntoView({
       behavior: "smooth",
-      block: "center",
+      block: "start",
     });
   });
 }

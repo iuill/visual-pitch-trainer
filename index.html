@@ -89,26 +89,6 @@
             />
             <output id="referenceVolumeValue" for="referenceVolumeInput">35%</output>
           </div>
-
-          <div class="device-row">
-            <label for="micSelect">マイク</label>
-            <select id="micSelect">
-              <option value="">未選択</option>
-            </select>
-            <p id="micDeviceStatus">稽古開始後に使える入力を表示します。</p>
-          </div>
-
-          <div class="setting-row">
-            <label for="toleranceInput">音程厳密さ</label>
-            <input id="toleranceInput" type="range" min="5" max="50" value="50" step="5" />
-            <output id="toleranceValue" for="toleranceInput">半音の50%</output>
-          </div>
-
-          <div class="setting-row">
-            <label for="sensitivityInput">声の拾いやすさ</label>
-            <input id="sensitivityInput" type="range" min="2" max="20" value="6" step="1" />
-            <output id="sensitivityValue" for="sensitivityInput">ふつう</output>
-          </div>
         </div>
 
         <div class="graph-panel">
@@ -159,6 +139,13 @@
               </span>
             </span>
           </div>
+          <div class="device-row graph-device-row">
+            <label for="micSelect">マイク</label>
+            <select id="micSelect">
+              <option value="">未選択</option>
+            </select>
+            <p id="micDeviceStatus">稽古開始後に使える入力を表示します。</p>
+          </div>
           <div class="graph-target-control" aria-label="声の軌跡の目標ラインを変更">
             <span>目標ライン</span>
             <div id="graphTargetButtons" class="target-note-strip"></div>
@@ -173,6 +160,30 @@
             aria-label="声の高さグラフ"
             aria-describedby="graphDescription"
           ></canvas>
+        </div>
+
+        <div class="settings-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="with-icon">
+                <img class="heading-icon" src="/icons/heading-record.png" alt="" aria-hidden="true" />
+                稽古の設定
+              </h2>
+              <p>判定と声の拾い方を調整します。</p>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label for="toleranceInput">音程厳密さ</label>
+            <input id="toleranceInput" type="range" min="5" max="50" value="50" step="5" />
+            <output id="toleranceValue" for="toleranceInput">半音の50%</output>
+          </div>
+
+          <div class="setting-row">
+            <label for="sensitivityInput">声の拾いやすさ</label>
+            <input id="sensitivityInput" type="range" min="2" max="20" value="6" step="1" />
+            <output id="sensitivityValue" for="sensitivityInput">ふつう</output>
+          </div>
         </div>
 
         <div class="summary-panel">
