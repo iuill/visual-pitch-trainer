@@ -118,14 +118,41 @@
               </h2>
               <p>直近12秒の声の高さを、音名のレーンに沿って表示します。</p>
             </div>
-            <button id="clearGraphButton" class="icon-button" type="button" title="軌跡を消去">
-              <span aria-hidden="true">×</span>
+            <button
+              id="clearGraphButton"
+              class="icon-button clear-graph-button"
+              type="button"
+              aria-label="軌跡を消去"
+              title="軌跡を消去"
+            >
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+                <path d="M6 7l1 14h10l1-14" />
+                <path d="M9 7V4h6v3" />
+              </svg>
             </button>
           </div>
           <div class="graph-status" aria-live="polite">
             <strong id="analysisStatus">稽古を開始してください</strong>
             <span>声量: <b id="graphVolume">--</b></span>
-            <span>確かさ: <b id="graphClarity">--</b></span>
+            <span class="detection-readout">
+              音程検出: <b id="graphClarity">--</b>
+            </span>
+            <span class="status-help">
+              <button
+                class="info-button"
+                type="button"
+                aria-describedby="statusReadoutHelp"
+                aria-label="声量と音程検出の説明"
+              >
+                i
+              </button>
+              <span id="statusReadoutHelp" class="tooltip" role="tooltip">
+                声量はマイク入力の大きさ、音程検出は検出した音程の信頼度です。どちらも目安です。
+              </span>
+            </span>
           </div>
           <p id="graphDescription" class="visually-hidden">
             声の軌跡はまだ記録されていません。

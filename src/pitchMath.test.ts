@@ -9,6 +9,7 @@ import {
   hzToNoteName,
   midiToFrequency,
   midiToNoteName,
+  midiToSolfegeName,
 } from "./pitchMath";
 
 describe("pitch math", () => {
@@ -17,6 +18,7 @@ describe("pitch math", () => {
     expect(hzToMidi(440)).toBeCloseTo(69, 8);
     expect(hzToNoteName(440)).toBe("A4");
     expect(midiToNoteName(60)).toBe("C4");
+    expect(midiToSolfegeName(68)).toBe("ソ#");
   });
 
   test("builds a chromatic one-octave note range with repeated do", () => {

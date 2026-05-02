@@ -133,3 +133,8 @@ export function midiToNoteName(midi: number): string {
   const octave = Math.floor(rounded / 12) - 1;
   return `${NOTE_NAMES[((rounded % 12) + 12) % 12]}${octave}`;
 }
+
+export function midiToSolfegeName(midi: number): string {
+  const rounded = Math.round(midi);
+  return SOLFEGE_NAMES[((rounded % 12) + 12) % 12];
+}
