@@ -70,7 +70,9 @@ p {
   flex: 0 0 auto;
   width: clamp(56px, 8vw, 92px);
   height: clamp(56px, 8vw, 92px);
+  border-radius: 20%;
   object-fit: contain;
+  transform: translateY(clamp(2px, 0.45vw, 6px));
 }
 
 h1 {
