@@ -1,8 +1,16 @@
 import { Macleod, YIN } from "pitchfinder";
 import {
+  createInitialGameEffectState,
+  type GameEffectState,
+  getTargetGlowStrength,
+  updateGameEffectState,
+} from "./gameEffects";
+import {
   buildGraphPoints,
+  clamp,
   createGraphViewport,
   type GraphPadding,
+  midiToY,
   resolveCanvasBackingSize,
 } from "./graphModel";
 import {
@@ -22,6 +30,7 @@ import {
   createPitchSample,
   createSessionSummary,
   formatAnalysisStatus,
+  MAX_STABLE_SAMPLE_GAP_MS,
   type PitchSample,
   resolveAnalysisStatus,
   type SessionStats,
@@ -51,6 +60,7 @@ type AppState = {
   minRms: number;
   selectedDeviceId: string;
   graphPixelRatio: number;
+  gameEffects: GameEffectState;
 };
 
 declare global {
@@ -67,6 +77,8 @@ const MIN_CLARITY = 0.52;
 const MACLEOD_CUTOFF = 0.93;
 const MAX_REFERENCE_GAIN = 0.5;
 const MOBILE_VIEWPORT_QUERY = "(max-width: 820px)";
+const LANDING_RIPPLE_DURATION_MS = 850;
+const MAX_LANDING_RIPPLES = 8;
 
 const state: AppState = {
   noteRangeStartMidi: DEFAULT_RANGE_START_MIDI,
@@ -90,6 +102,7 @@ const state: AppState = {
   minRms: 0.006,
   selectedDeviceId: "",
   graphPixelRatio: 1,
+  gameEffects: createInitialGameEffectState(),
 };
 
 function queryElement<T extends Element>(selector: string) {
@@ -124,6 +137,7 @@ const elements = {
   graphVolume: queryElement<HTMLElement>("#graphVolume"),
   graphClarity: queryElement<HTMLElement>("#graphClarity"),
   graphDescription: queryElement<HTMLElement>("#graphDescription"),
+  comboReadout: queryElement<HTMLElement>("#comboReadout"),
   durationReadout: queryElement<HTMLElement>("#durationReadout"),
   stableReadout: queryElement<HTMLElement>("#stableReadout"),
   averageReadout: queryElement<HTMLElement>("#averageReadout"),
@@ -689,6 +703,7 @@ function analyzeFrame(now: number) {
 
 function updateReadouts(sample: PitchSample, now: number) {
   const status = resolveAnalysisStatus(sample, state.minRms, state.tolerance);
+  updateGameEffects(sample, status, now);
   elements.analysisStatus.textContent = formatAnalysisStatus(status);
   elements.graphDescription.textContent = formatGraphDescription(
     sample,
@@ -700,6 +715,31 @@ function updateReadouts(sample: PitchSample, now: number) {
     sample.clarity === null ? "--" : `${Math.round(sample.clarity * 100)}%`;
 
   updateSummary(now);
+}
+
+function updateGameEffects(
+  sample: PitchSample,
+  status: ReturnType<typeof resolveAnalysisStatus>,
+  now: number,
+) {
+  const isInTune = status === "inRange" && sample.centsFromTarget !== null;
+  const previousSample = state.session.samples.at(-2);
+
+  state.gameEffects = updateGameEffectState({
+    state: state.gameEffects,
+    sample,
+    previousSample,
+    isInTune,
+    tolerance: state.tolerance,
+    now,
+    maxStableGapMs: MAX_STABLE_SAMPLE_GAP_MS,
+    rippleDurationMs: LANDING_RIPPLE_DURATION_MS,
+    maxRipples: MAX_LANDING_RIPPLES,
+  });
+  elements.comboReadout.textContent =
+    state.gameEffects.stableComboMs > 0
+      ? `${(state.gameEffects.stableComboMs / 1000).toFixed(1)}秒`
+      : "--";
 }
 
 function updateSummary(now: number) {
@@ -726,6 +766,8 @@ function resetActiveSession() {
 
 function resetSessionStats(startAt: number | null) {
   state.session = createInitialSessionStats(startAt);
+  state.gameEffects = createInitialGameEffectState();
+  elements.comboReadout.textContent = "--";
   elements.durationReadout.textContent = "0.0 秒";
   elements.stableReadout.textContent = "0.0 秒";
   elements.averageReadout.textContent = "--";
@@ -903,6 +945,7 @@ function drawGraph() {
   );
 
   drawGrid(context, viewport);
+  drawTargetGlow(context, width, viewport);
 
   context.strokeStyle = "#146c75";
   context.lineWidth = 3;
@@ -932,8 +975,97 @@ function drawGraph() {
   });
 
   context.stroke();
+  drawLandingRipples(context, viewport);
   drawGraphLabels(context, width, height, viewport.padding);
   drawCurrentPitchLabel(context, width, viewport);
+}
+
+function drawTargetGlow(
+  context: CanvasRenderingContext2D,
+  width: number,
+  viewport: ReturnType<typeof createGraphViewport>,
+) {
+  const latestSample = state.session.samples.at(-1);
+
+  if (!latestSample || latestSample.centsFromTarget === null) {
+    return;
+  }
+
+  const distance = Math.abs(latestSample.centsFromTarget);
+  const glowStrength = getTargetGlowStrength(distance, state.tolerance);
+
+  if (glowStrength <= 0) {
+    return;
+  }
+
+  const centerX = viewport.padding.left + viewport.plotWidth / 2;
+  const glowWidth = viewport.plotWidth * (0.42 + glowStrength * 0.34);
+  const glowHeight = 24 + glowStrength * 34;
+  const gradient = context.createRadialGradient(
+    centerX,
+    viewport.zeroY,
+    4,
+    centerX,
+    viewport.zeroY,
+    glowWidth / 2,
+  );
+
+  gradient.addColorStop(0, `rgba(28, 148, 119, ${0.34 * glowStrength})`);
+  gradient.addColorStop(0.55, `rgba(247, 201, 72, ${0.2 * glowStrength})`);
+  gradient.addColorStop(1, "rgba(247, 201, 72, 0)");
+
+  context.save();
+  context.globalCompositeOperation = "source-over";
+  context.fillStyle = gradient;
+  context.fillRect(
+    Math.max(viewport.padding.left, centerX - glowWidth / 2),
+    viewport.zeroY - glowHeight / 2,
+    Math.min(glowWidth, width - viewport.padding.left - viewport.padding.right),
+    glowHeight,
+  );
+  context.restore();
+}
+
+function drawLandingRipples(
+  context: CanvasRenderingContext2D,
+  viewport: ReturnType<typeof createGraphViewport>,
+) {
+  const now = performance.now();
+
+  state.gameEffects.landingRipples.forEach((ripple) => {
+    if (ripple.timeMs < viewport.startTime) {
+      return;
+    }
+
+    const age = now - ripple.createdAt;
+    const progress = clamp(age / LANDING_RIPPLE_DURATION_MS, 0, 1);
+    const alpha = (1 - progress) * (0.28 + ripple.intensity * 0.32);
+    const radius = 12 + progress * (42 + ripple.intensity * 26);
+    const x =
+      viewport.padding.left +
+      ((ripple.timeMs - viewport.startTime) / (GRAPH_SECONDS * 1000)) *
+        viewport.plotWidth;
+    const y = midiToY(
+      ripple.midi,
+      viewport.minMidi,
+      viewport.maxMidi,
+      viewport.padding,
+      viewport.plotHeight,
+    );
+
+    context.save();
+    context.strokeStyle = `rgba(247, 201, 72, ${alpha})`;
+    context.lineWidth = 2 + ripple.intensity * 2;
+    context.beginPath();
+    context.arc(x, y, radius, 0, Math.PI * 2);
+    context.stroke();
+
+    context.fillStyle = `rgba(28, 148, 119, ${alpha * 0.72})`;
+    context.beginPath();
+    context.arc(x, y, 4 + ripple.intensity * 3, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+  });
 }
 
 function drawGrid(

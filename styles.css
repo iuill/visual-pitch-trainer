@@ -435,12 +435,14 @@ input[type="range"] {
 }
 
 .detection-readout,
+.combo-readout,
 .status-help {
   display: inline-flex;
   align-items: center;
 }
 
-.detection-readout {
+.detection-readout,
+.combo-readout {
   gap: 5px;
 }
 
