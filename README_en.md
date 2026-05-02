@@ -86,6 +86,7 @@ To publish the app without a server, configure GitHub Pages or Cloudflare Pages 
 GitHub Actions runs CI for:
 
 - Pushes to `main`
+- Pushes to SemVer tags such as `v1.2.3`
 - Pull requests
 - Manual runs through `workflow_dispatch`
 
@@ -98,7 +99,9 @@ bun run typecheck
 bun run build
 ```
 
-On pushes to `main`, the app is deployed to GitHub Pages after verification passes. For the first deployment, set the GitHub Pages Build and deployment source to `GitHub Actions` in the repository settings.
+On pushes to `main` or SemVer tags, the app is deployed to GitHub Pages after verification passes. For the first deployment, set the GitHub Pages Build and deployment source to `GitHub Actions` in the repository settings.
+
+The deployed app shows a build version and short commit hash in the footer. Regular GitHub Pages deployments use `GITHUB_RUN_NUMBER` to generate labels such as `v0.1.N`, so you do not need to manually increment `package.json`. `N` is the CI workflow run number and may include gaps from pull requests or manual runs. Tag deployments display the SemVer tag name, such as `v1.2.3`.
 
 ### Microphone Input
 

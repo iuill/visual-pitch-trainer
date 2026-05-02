@@ -188,6 +188,10 @@ h2 {
   text-underline-offset: 0.18em;
 }
 
+.build-info {
+  color: var(--muted);
+}
+
 .graph-panel {
   grid-column: 2;
   grid-row: 1 / span 2;
