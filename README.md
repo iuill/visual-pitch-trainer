@@ -113,7 +113,7 @@ bun run build
 - TypeScript
 - Vite
 - Bun
-- pitchfinder
+- pitchy
 - Web Audio API
 - Canvas
 - Google Fonts（表示フォント）

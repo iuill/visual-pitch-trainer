@@ -46,13 +46,13 @@ describe("pitch math", () => {
     const target = midiToFrequency(60);
     const best = chooseBestLibraryPitch(
       [
-        { frequency: target * 2.2, confidence: 0.99, source: "macleod" },
+        { frequency: target * 2.2, confidence: 0.99, source: "pitchy" },
         {
           frequency: target * 2 ** (1 / 12),
           confidence: 0.8,
-          source: "macleod",
+          source: "pitchy",
         },
-        { frequency: target, confidence: 0.86, source: "yin" },
+        { frequency: target, confidence: 0.86, source: "pitchy" },
       ],
       target,
     );
@@ -67,9 +67,9 @@ describe("pitch math", () => {
         {
           frequency: target * 2 ** (1 / 12),
           confidence: 0.99,
-          source: "macleod",
+          source: "pitchy",
         },
-        { frequency: target, confidence: 0.86, source: "yin" },
+        { frequency: target, confidence: 0.86, source: "pitchy" },
       ],
       target,
     );
@@ -80,7 +80,7 @@ describe("pitch math", () => {
   test("rejects low-confidence pitch candidates", () => {
     expect(
       chooseBestLibraryPitch(
-        [{ frequency: 440, confidence: 0.3, source: "macleod" }],
+        [{ frequency: 440, confidence: 0.3, source: "pitchy" }],
         440,
       ),
     ).toBeNull();

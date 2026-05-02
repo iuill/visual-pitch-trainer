@@ -1,4 +1,4 @@
-import { Macleod, YIN } from "pitchfinder";
+import { PitchDetector } from "pitchy";
 import {
   createInitialGameEffectState,
   type GameEffectState,
@@ -72,9 +72,8 @@ declare global {
 const DEFAULT_RANGE_START_MIDI = 48;
 const GRAPH_SECONDS = 12;
 const GRAPH_RANGE_SEMITONES = 6;
-const YIN_THRESHOLD = 0.12;
 const MIN_CLARITY = 0.52;
-const MACLEOD_CUTOFF = 0.93;
+const PITCHY_CLARITY_THRESHOLD = 0.93;
 const MAX_REFERENCE_GAIN = 0.5;
 const MOBILE_VIEWPORT_QUERY = "(max-width: 820px)";
 const LANDING_RIPPLE_DURATION_MS = 850;
@@ -817,6 +816,9 @@ function updateTolerance() {
 function updateSensitivity() {
   const value = Number(elements.sensitivityInput.value);
   state.minRms = value / 1000;
+  if (state.pitchDetectors) {
+    state.pitchDetectors.detector.minVolumeAbsolute = state.minRms;
+  }
 
   if (value <= 4) {
     elements.sensitivityValue.textContent = "よく拾う";
@@ -878,24 +880,21 @@ function createPitchDetectors(
   sampleRate: number,
   bufferSize: number,
 ): LibraryDetectors {
+  const detector = PitchDetector.forFloat32Array(bufferSize);
+  detector.clarityThreshold = PITCHY_CLARITY_THRESHOLD;
+  detector.minVolumeAbsolute = state.minRms;
+
   return {
     sampleRate,
-    yin: YIN({
-      sampleRate,
-      threshold: YIN_THRESHOLD,
-      probabilityThreshold: MIN_CLARITY,
-    }),
-    macleod: Macleod({
-      sampleRate,
-      bufferSize,
-      cutoff: MACLEOD_CUTOFF,
-    }),
+    bufferSize,
+    detector,
   };
 }
 
 function detectPitch(buffer: Float32Array<ArrayBuffer>, sampleRate: number) {
   const detectors =
-    state.pitchDetectors?.sampleRate === sampleRate
+    state.pitchDetectors?.sampleRate === sampleRate &&
+    state.pitchDetectors.bufferSize === buffer.length
       ? state.pitchDetectors
       : createPitchDetectors(sampleRate, buffer.length);
   state.pitchDetectors = detectors;

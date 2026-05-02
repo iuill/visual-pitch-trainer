@@ -16,7 +16,7 @@
   - `styles.css`: 画面全体のスタイル。
   - `src/app.ts`: UI、Web Audio API、マイク制御、描画の統合。
   - `src/pitchMath.ts`: 音名、MIDI、周波数、音程差などの計算。
-  - `src/pitchDetection.ts`: `pitchfinder` を使った音程検出。
+  - `src/pitchDetection.ts`: `pitchy` を使った音程検出。
   - `src/graphModel.ts`: グラフ描画用の座標・表示範囲計算。
   - `src/session.ts`: 練習サンプルとサマリー計算。
   - `docs/`: 設計メモと実装メモ。
@@ -62,7 +62,7 @@
 
 - 参考音再生は Web Audio API の `OscillatorNode` を前提とする。
 - マイク入力は `getUserMedia` と `AnalyserNode.getFloatTimeDomainData()` を前提とする。
-- 音程検出は現在 `pitchfinder` の YIN と McLeod Pitch Method を併用している。強い理由なしに手書きアルゴリズムへ戻さない。
+- 音程検出は現在 `pitchy` の McLeod Pitch Method を使っている。強い理由なしに手書きアルゴリズムへ戻さない。
 - 音量が小さい、検出不能、参考音の回り込み、オクターブ誤認などの状態を UI とロジックの両方で丁寧に扱う。
 - マイク権限、HTTPS/localhost 制約、ブラウザ差異を考慮する。
 
