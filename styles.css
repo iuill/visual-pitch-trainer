@@ -36,6 +36,7 @@ select {
 
 button {
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .app-shell {
@@ -206,6 +207,36 @@ h2 {
   color: var(--accent-strong);
 }
 
+.graph-target-control {
+  display: none;
+}
+
+.target-note-strip {
+  min-width: 0;
+}
+
+.target-note-button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+
+.target-note-button strong,
+.target-note-button span {
+  display: block;
+}
+
+.target-note-button span {
+  color: var(--muted);
+}
+
+.target-note-button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #e7f3f4;
+  color: var(--accent-strong);
+}
+
 .action-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -235,6 +266,11 @@ h2 {
   border: 1px solid transparent;
   padding: 0 14px;
   font-weight: 700;
+}
+
+.primary-button,
+.secondary-button {
+  min-height: 48px;
 }
 
 .primary-button {
@@ -507,6 +543,15 @@ input[type="range"] {
     padding-top: 12px;
   }
 
+  .hero {
+    gap: 12px;
+    padding-bottom: 16px;
+  }
+
+  .lead {
+    line-height: 1.65;
+  }
+
   .practice-layout {
     grid-template-columns: 1fr;
   }
@@ -518,40 +563,223 @@ input[type="range"] {
   .panel-header {
     align-items: stretch;
   }
+
+  .graph-target-control {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+  }
+
+  .graph-target-control > span {
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .target-note-strip {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    padding-bottom: 2px;
+  }
+
+  .target-note-button {
+    flex: 0 0 58px;
+    min-height: 48px;
+    padding: 4px 6px;
+    scroll-snap-align: start;
+  }
+
+  .target-note-button strong {
+    font-size: 0.96rem;
+  }
+
+  .target-note-button span {
+    margin-top: 1px;
+    font-size: 0.68rem;
+  }
+
+  #pitchCanvas {
+    height: min(50svh, 420px);
+    min-height: 300px;
+  }
 }
 
 @media (max-width: 520px) {
-  .note-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  body {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
 
-  .action-row,
+  .app-shell {
+    width: min(100% - 12px, 480px);
+    padding-top: 8px;
+  }
+
+  .hero {
+    padding-bottom: 12px;
+  }
+
+  .brand-lockup {
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .app-logo {
+    width: 46px;
+    height: 46px;
+  }
+
+  h1 {
+    font-size: clamp(1.7rem, 7.6vw, 2.25rem);
+    white-space: normal;
+  }
+
+  h2 {
+    font-size: 1rem;
+  }
+
+  .lead {
+    font-size: 0.92rem;
+  }
+
+  .privacy-note {
+    min-height: 36px;
+    padding: 7px 10px;
+    font-size: 0.86rem;
+  }
+
+  .control-panel,
+  .graph-panel,
+  .summary-panel {
+    padding: 14px;
+  }
+
+  .panel-header {
+    gap: 10px;
+  }
+
+  .heading-icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .note-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 14px 0;
+  }
+
+  .note-button {
+    min-height: 58px;
+    padding: 6px 4px;
+  }
+
+  .note-button strong {
+    font-size: 1.08rem;
+  }
+
+  .note-button span {
+    margin-top: 2px;
+    font-size: 0.74rem;
+  }
+
+  .action-row {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px max(10px, env(safe-area-inset-left))
+      calc(10px + env(safe-area-inset-bottom))
+      max(10px, env(safe-area-inset-right));
+    border-top: 1px solid var(--line);
+    background: rgba(245, 247, 248, 0.96);
+    box-shadow: 0 -10px 28px rgba(23, 32, 38, 0.12);
+    backdrop-filter: blur(10px);
+  }
+
+  .primary-button,
+  .secondary-button {
+    min-height: 50px;
+    padding: 0 10px;
+  }
+
   .setting-row {
     grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .setting-row.select-row {
+    grid-template-columns: 1fr;
+  }
+
+  .setting-row output {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .compatibility-note {
+    margin-top: 12px;
+    font-size: 0.8rem;
+  }
+
+  .device-row {
+    margin-top: 14px;
+  }
+
+  .graph-status {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
+    align-items: center;
+    font-size: 0.9rem;
+  }
+
+  .graph-status strong {
+    grid-column: 1 / -1;
+    font-size: 1.02rem;
+  }
+
+  .graph-target-control {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .target-note-button {
+    flex-basis: 52px;
+    min-height: 46px;
   }
 
   .summary-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .summary-grid > div {
+    min-height: 68px;
+    padding: 10px;
+  }
+
+  .summary-grid strong {
+    font-size: 1.05rem;
+  }
+
+  #pitchCanvas {
+    height: min(48svh, 340px);
+    min-height: 280px;
   }
 
   .icon-button.wide {
     min-width: 0;
-  }
-}
-
-@media (max-width: 520px) {
-  .brand-lockup {
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .app-logo {
-    width: 48px;
-    height: 48px;
-  }
-
-  h1 {
-    font-size: clamp(1.85rem, 8vw, 2.5rem);
-    white-space: normal;
   }
 }
