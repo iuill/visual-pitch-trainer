@@ -155,6 +155,24 @@ GitHub Pages または Cloudflare Pages
 
 GitHub Pages や Cloudflare Pages への静的配信は、この方針と相性がよい。
 
+## アプリアイコン
+
+アプリアイコンのオリジナル画像は `assets/originals/app-icon.png` に置く。`public/` 配下の favicon や画面表示用ロゴは、この画像から生成した配信用画像として扱う。
+
+現在の生成先:
+
+- `public/favicon.png`: 64x64
+- `public/apple-touch-icon.png`: 180x180
+- `public/icons/app-logo.png`: 128x128
+
+再生成する場合は、ImageMagick の `convert` を使う。
+
+```sh
+convert assets/originals/app-icon.png -resize 64x64 public/favicon.png
+convert assets/originals/app-icon.png -resize 180x180 public/apple-touch-icon.png
+convert assets/originals/app-icon.png -resize 128x128 public/icons/app-logo.png
+```
+
 ## 音程検出ライブラリ
 
 現在の採用:
