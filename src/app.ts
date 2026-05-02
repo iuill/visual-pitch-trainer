@@ -481,7 +481,7 @@ async function toggleMicrophone() {
 async function startMicrophone() {
   if (!navigator.mediaDevices?.getUserMedia) {
     elements.analysisStatus.textContent =
-      "この表示方法ではマイクを使えません。外部ブラウザで localhost を開いてください。";
+      "この表示方法ではマイクを使えません。HTTPS対応のブラウザ、またはローカル開発サーバで開いてください。";
     return;
   }
 
