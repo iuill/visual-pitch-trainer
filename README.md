@@ -72,10 +72,9 @@ bun run dev
 
 ブラウザで Vite が表示するローカルURL、通常は `http://localhost:5173/` を開いてください。
 
-型チェックと本番ビルドは以下です。
+基本的な検証コマンドは以下です。
 
 ```sh
-bun run format
 bun run lint
 bun run test
 bun run typecheck
@@ -107,7 +106,7 @@ bun run build
 
 マイク入力はブラウザや表示方法によって制限されます。VS Code 内部のプレビュー画面でマイクが使えない場合は、Vite の `http://localhost:5173/` などのURLをChrome、Edge、Safariなどの外部ブラウザで開いてください。
 
-ローカルに置いた `index.html` を直接ブラウザで開いてマイクが使える場合もありますが、ブラウザ依存のため、基本はローカルHTTPサーバ経由で確認します。
+このリポジトリの `index.html` は Vite 経由で TypeScript を読み込むため、直接ファイルとして開くのではなく、`bun run dev` または `bun run preview` で配信して確認します。マイク入力は HTTPS、`localhost`、`127.0.0.1` などの安全なコンテキストで利用できます。
 
 ## 技術構成
 

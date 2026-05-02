@@ -9,9 +9,20 @@
 ```text
 index.html
 styles.css
-src/app.ts
+package.json
+bun.lock
+biome.json
 vite.config.ts
 tsconfig.json
+src/app.ts
+src/pitchMath.ts
+src/pitchDetection.ts
+src/graphModel.ts
+src/session.ts
+src/gameEffects.ts
+src/*.test.ts
+public/
+assets/
 docs/
 ```
 
@@ -69,7 +80,7 @@ bun run build
 
 確認方針:
 
-- `file://` で直接開くと動くブラウザもあるが、安定しない
+- `index.html` は Vite 経由で TypeScript を読み込むため、`file://` で直接開かない
 - Vite が提供する `http://localhost:5173/` などのURLを外部ブラウザで開くのが望ましい
 - GitHub Pages や Cloudflare Pages のような HTTPS 静的配信ではマイク利用が可能
 

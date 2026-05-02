@@ -32,11 +32,11 @@ Browser
 ## Main Features
 
 - Select and play reference tones across one chromatic octave
-- Choose vocal ranges with rough voice-height guides: C3-C4 / C4-C5 / C5-C6
+- Choose vocal ranges with voice range guides: C3-C4 / C4-C5 / C5-C6
 - Adjust reference tone volume
 - Detect the current pitch from microphone input
 - Display the pitch difference from the target note in real time
-- Show whether the voice is high, low, or within range using visual feedback
+- Show whether the voice is high, low, or in tune using visual feedback
 - Display pitch movement over time in a graph
 - Show volume, detection confidence, continuous in-range time, and a practice summary
 - Responsive UI for desktop, tablet, and smartphone browsers
@@ -70,10 +70,9 @@ bun run dev
 
 Open the local URL shown by Vite in your browser. It is usually `http://localhost:5173/`.
 
-Type checking and production build commands:
+Basic verification commands:
 
 ```sh
-bun run format
 bun run lint
 bun run test
 bun run typecheck
@@ -105,7 +104,7 @@ On pushes to `main`, the app is deployed to GitHub Pages after verification pass
 
 Microphone access depends on the browser and how the page is opened. If the microphone does not work in the VS Code preview, open the Vite URL, such as `http://localhost:5173/`, in an external browser such as Chrome, Edge, or Safari.
 
-Some browsers may allow microphone input when opening a local `index.html` file directly, but this is browser-dependent. For reliable local testing, use a local HTTP server.
+This repository's `index.html` loads TypeScript through Vite, so use `bun run dev` or `bun run preview` instead of opening the file directly. For local microphone testing, open the app on a secure context such as `http://localhost` or `http://127.0.0.1`.
 
 For deployed sites, microphone access generally requires a secure context such as HTTPS.
 
