@@ -210,6 +210,94 @@
             </div>
           </div>
         </div>
+
+        <div class="audio-file-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="with-icon">
+                <img class="heading-icon" src="/icons/heading-trail.png" alt="" aria-hidden="true" />
+                音源の声域推定
+              </h2>
+              <p>ボーカルのみの音源から、歌声らしい音程の範囲を推定します。</p>
+            </div>
+          </div>
+
+          <div class="file-analysis-controls">
+            <label class="file-picker" for="audioFileInput">
+              <span>解析用音源ファイル</span>
+              <input id="audioFileInput" type="file" accept="audio/*" />
+            </label>
+            <div class="file-picker playback-file-picker">
+              <label class="checkbox-row" for="useSeparatePlaybackAudioInput">
+                <input id="useSeparatePlaybackAudioInput" type="checkbox" />
+                別の再生用音源を使う
+              </label>
+              <input id="playbackAudioFileInput" type="file" accept="audio/*" disabled />
+            </div>
+          </div>
+          <div class="audio-action-row">
+            <button id="analyzeAudioFileButton" class="secondary-button" type="button" disabled>
+              <span class="loading-spinner" aria-hidden="true"></span>
+              <span id="analyzeAudioFileButtonLabel">解析</span>
+            </button>
+            <div class="audio-playback-status" aria-live="polite">
+              <div class="audio-transport-controls" aria-label="音源の再生操作">
+                <button id="playAudioFileButton" class="secondary-button" type="button" disabled>
+                  再生
+                </button>
+                <button id="pauseAudioFileButton" class="secondary-button" type="button" disabled>
+                  一時停止
+                </button>
+                <button id="stopAudioFileButton" class="secondary-button" type="button" disabled>
+                  停止
+                </button>
+              </div>
+              <div class="audio-seek-controls" aria-label="音源の再生位置調整">
+                <button class="mini-button" type="button" data-audio-seek="-10" disabled>-10秒</button>
+                <button class="mini-button" type="button" data-audio-seek="-5" disabled>-5秒</button>
+                <button class="mini-button" type="button" data-audio-seek="5" disabled>+5秒</button>
+                <button class="mini-button" type="button" data-audio-seek="10" disabled>+10秒</button>
+              </div>
+              <span id="audioPlaybackTime">0:00 / 0:00</span>
+            </div>
+          </div>
+
+          <p id="audioFileStatus" class="file-analysis-status" aria-live="polite">
+            音源はブラウザ内だけで処理します。
+          </p>
+
+          <div class="voice-range-grid" aria-label="音源の声域推定結果">
+            <div>
+              <span class="label">推定声域</span>
+              <strong id="voiceRangeReadout">--</strong>
+            </div>
+            <div>
+              <span class="label">よく出る範囲</span>
+              <strong id="commonVoiceRangeReadout">--</strong>
+            </div>
+            <div>
+              <span class="label">中心付近</span>
+              <strong id="medianVoiceReadout">--</strong>
+            </div>
+            <div>
+              <span class="label">検出できた歌声</span>
+              <strong id="voicedRatioReadout">--</strong>
+            </div>
+          </div>
+
+          <p id="audioRangeDescription" class="visually-hidden">
+            音源の声域推定はまだ実行されていません。
+          </p>
+          <div class="audio-range-scroll">
+            <canvas
+              id="audioRangeCanvas"
+              width="960"
+              height="260"
+              aria-label="音源から推定した声域グラフ"
+              aria-describedby="audioRangeDescription"
+            ></canvas>
+          </div>
+        </div>
       </section>
 
       <footer class="app-footer">

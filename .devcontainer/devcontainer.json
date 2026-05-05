@@ -22,15 +22,16 @@
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
-  "forwardPorts": [3000, 5173],
+  "appPort": ["35173:5173"],
+  "forwardPorts": [3000],
   "portsAttributes": {
     "3000": {
       "label": "Static dev server",
       "onAutoForward": "notify"
     },
     "5173": {
-      "label": "Vite dev server",
-      "onAutoForward": "notify"
+      "label": "Vite dev server (host 35173)",
+      "onAutoForward": "ignore"
     }
   },
   "postCreateCommand": "chmod +x .devcontainer/bin/codex .devcontainer/scripts/*.sh && bash .devcontainer/scripts/install-dev-tools.sh",
