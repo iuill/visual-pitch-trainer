@@ -6,7 +6,7 @@
   "scripts": {
     "install:locked": "bun install --frozen-lockfile",
     "audit:dependencies": "bun audit --audit-level=high",
-    "dev": "bunx --bun vite --host 0.0.0.0",
+    "dev": "bun run scripts/dev.ts",
     "build": "bunx --bun vite build",
     "preview": "bunx --bun vite preview --host 0.0.0.0",
     "format": "biome format . --write",

@@ -26,7 +26,7 @@
 - 日常的な開発は Dev Container 上で行う前提とする。
 - パッケージ管理とスクリプト実行は Bun に統一する。
 - Bun の期待バージョンは `.bun-version` と `package.json` の `packageManager` を参照する。
-- ローカル起動は `bun run dev` を使い、通常は `http://localhost:5173/` で確認する。
+- ローカル起動は `bun run dev` を使う。Vite はコンテナ内の 5173 番で起動し、Dev Container ではホスト側の `http://localhost:35173/` で確認する。
 - マイク入力はブラウザや表示方法に依存するため、挙動確認は可能な限り外部ブラウザで行う。
 
 ## 仕様の優先順位

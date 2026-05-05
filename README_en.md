@@ -45,6 +45,8 @@ Browser
 - Show whether the voice is high, low, or in tune using visual feedback
 - Display pitch movement over time in a graph
 - Show volume, detection confidence, continuous in-range time, and a practice summary
+- Estimate a rough vocal range from a vocal-only audio file
+- Play either the analyzed audio file or a separately selected playback audio file while following the current position on the vocal range graph
 - Responsive UI for desktop, tablet, and smartphone browsers
 
 ## Documentation
@@ -74,7 +76,7 @@ Start the Vite development server with:
 bun run dev
 ```
 
-Open the local URL shown by Vite in your browser. It is usually `http://localhost:5173/`.
+In the Dev Container, the Vite development server runs on port 5173 inside the container and is available from the host at `http://localhost:35173/`.
 
 Basic verification commands:
 
@@ -111,11 +113,23 @@ The deployed app shows a build version and short commit hash in the footer. Regu
 
 ### Microphone Input
 
-Microphone access depends on the browser and how the page is opened. If the microphone does not work in the VS Code preview, open the Vite URL, such as `http://localhost:5173/`, in an external browser such as Chrome, Edge, or Safari.
+Microphone access depends on the browser and how the page is opened. If the microphone does not work in the VS Code preview, open the Dev Container host URL, such as `http://localhost:35173/`, in an external browser such as Chrome, Edge, or Safari.
 
 This repository's `index.html` loads TypeScript through Vite, so use `bun run dev` or `bun run preview` instead of opening the file directly. For local microphone testing, open the app on a secure context such as `http://localhost` or `http://127.0.0.1`.
 
 For deployed sites, microphone access generally requires a secure context such as HTTPS.
+
+### Audio File Voice Range Estimation
+
+Audio file analysis assumes a vocal-only audio file. If a normal mixed song is loaded directly, bass, guitar, synth, backing vocals, and other pitched sounds can be detected as well, which makes the estimated range and graph unreliable.
+
+When using a song with accompaniment, first separate the vocal with an external tool, then load the extracted vocal file into the app. In a Windows host environment with Docker Desktop and a GPU available, run the command from PowerShell in the directory that contains the source audio file. This example is intended for Windows host PowerShell, not CMD or inside WSL2:
+
+```powershell
+docker run --rm -it --gpus all -v ${PWD}:/workdir beveradb/audio-separator:gpu "input.mp3" --model_filename model_bs_roformer_ep_317_sdr_12.9755.ckpt --output_format MP3
+```
+
+After loading the generated vocal-side MP3, the app shows the estimated vocal range, the commonly used range, the center area, and the percentage of audio where voice-like pitch was detected. The result is still an approximation because breaths, consonants, reverb, backing vocals, and separation artifacts may remain.
 
 ## Technology Stack
 

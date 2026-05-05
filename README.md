@@ -47,6 +47,8 @@ Browser
 - 高い・低い・合っていることを視覚的に表現できる
 - 時間経過による音程の上下をグラフで表示できる
 - 音量、検出信頼度、連続キープ時間、練習サマリーを確認できる
+- ボーカルのみの音源ファイルから歌声らしい音程を抽出し、声域の目安を表示できる
+- 解析対象または別指定の再生用音源を再生しながら、声域グラフ上の現在位置を確認できる
 - PC、タブレット、スマートフォンで使えるレスポンシブUI
 
 ## ドキュメント
@@ -76,7 +78,7 @@ VS Code でこのリポジトリを開き、`Dev Containers: Reopen in Container
 bun run dev
 ```
 
-ブラウザで Vite が表示するローカルURL、通常は `http://localhost:5173/` を開いてください。
+Dev Container ではコンテナ内の Vite 開発サーバは 5173 番で起動し、ホスト側では `http://localhost:35173/` からアクセスできます。`bun run dev` は起動時にホスト側URLも表示します。
 
 基本的な検証コマンドは以下です。
 
@@ -113,9 +115,21 @@ bun run build
 
 ### マイク入力
 
-マイク入力はブラウザや表示方法によって制限されます。VS Code 内部のプレビュー画面でマイクが使えない場合は、Vite の `http://localhost:5173/` などのURLをChrome、Edge、Safariなどの外部ブラウザで開いてください。
+マイク入力はブラウザや表示方法によって制限されます。VS Code 内部のプレビュー画面でマイクが使えない場合は、Dev Container のホスト側URLである `http://localhost:35173/` などをChrome、Edge、Safariなどの外部ブラウザで開いてください。
 
 このリポジトリの `index.html` は Vite 経由で TypeScript を読み込むため、直接ファイルとして開くのではなく、`bun run dev` または `bun run preview` で配信して確認します。マイク入力は HTTPS、`localhost`、`127.0.0.1` などの安全なコンテキストで利用できます。
+
+### 音源ファイルの声域推定
+
+音源ファイル解析は、ボーカルのみの音源を読み込む前提です。伴奏とボーカルが混ざった通常の楽曲では、ベース、ギター、シンセ、ハモリなどの音程も拾いやすく、声域推定やグラフが大きく乱れます。
+
+伴奏入り音源を使う場合は、先に別ツールでボーカルを抽出してから、そのボーカル音源をアプリに読み込ませてください。Windows ホストで GPU が使える Docker Desktop 環境では、PowerShell から対象音源のあるディレクトリに移動し、例えば以下のように `audio-separator` を実行します。CMD や WSL2 内からではなく、Windows ホスト側の PowerShell で実行する前提です。
+
+```powershell
+docker run --rm -it --gpus all -v ${PWD}:/workdir beveradb/audio-separator:gpu "input.mp3" --model_filename model_bs_roformer_ep_317_sdr_12.9755.ckpt --output_format MP3
+```
+
+出力されたボーカル側のMP3をアプリで解析すると、推定声域、よく出る範囲、中心付近の音、検出できた歌声の割合を確認できます。音源や分離モデルによっては息、子音、リバーブ、ハモリ、分離ノイズが残るため、結果はあくまで声域の目安として扱います。
 
 ## 技術構成
 

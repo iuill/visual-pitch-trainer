@@ -145,7 +145,8 @@ h2 {
 .control-panel,
 .graph-panel,
 .settings-panel,
-.summary-panel {
+.summary-panel,
+.audio-file-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -166,6 +167,11 @@ h2 {
 }
 
 .summary-panel {
+  grid-column: 1 / -1;
+  padding: 18px;
+}
+
+.audio-file-panel {
   grid-column: 1 / -1;
   padding: 18px;
 }
@@ -332,6 +338,30 @@ h2 {
   color: var(--text);
 }
 
+.secondary-button:not(:disabled),
+.icon-button:not(:disabled) {
+  cursor: pointer;
+}
+
+.secondary-button:disabled,
+.icon-button:disabled {
+  border-color: #dfe5e8;
+  background: #eef2f3;
+  color: #8b969d;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.secondary-button:not(:disabled):hover,
+.secondary-button:not(:disabled):focus-visible,
+.icon-button:not(:disabled):hover,
+.icon-button:not(:disabled):focus-visible {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(20, 108, 117, 0.12);
+}
+
 .clear-graph-button {
   width: 44px;
   min-width: 44px;
@@ -360,6 +390,26 @@ h2 {
 .secondary-button.is-active {
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.loading-spinner {
+  display: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+}
+
+.secondary-button.is-loading .loading-spinner {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .icon-button.wide {
@@ -443,7 +493,8 @@ input[type="range"] {
   gap: 10px;
 }
 
-.summary-grid > div {
+.summary-grid > div,
+.voice-range-grid > div {
   min-height: 76px;
   padding: 12px;
   border: 1px solid var(--line);
@@ -460,6 +511,181 @@ input[type="range"] {
 
 .summary-grid strong {
   font-size: 1.35rem;
+}
+
+.file-analysis-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin-top: 16px;
+}
+
+.audio-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: stretch;
+  margin-top: 10px;
+}
+
+#analyzeAudioFileButton {
+  min-width: 96px;
+}
+
+.audio-action-row > .secondary-button {
+  align-self: flex-start;
+}
+
+.file-picker {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.file-picker input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  padding: 9px 10px;
+}
+
+.checkbox-row {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.playback-file-picker input[type="checkbox"] {
+  width: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+
+.playback-file-picker input[type="file"]:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.file-analysis-status {
+  margin: 12px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.audio-playback-status {
+  display: flex;
+  flex: 1 1 520px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: 8px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.audio-action-row .audio-playback-status {
+  margin-top: 0;
+}
+
+.audio-transport-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.audio-transport-controls .secondary-button {
+  min-width: 88px;
+}
+
+.audio-transport-controls .secondary-button:not(:disabled) {
+  border-width: 2px;
+  background: #fff;
+  box-shadow: 0 2px 0 rgba(23, 32, 38, 0.08);
+}
+
+#playAudioFileButton:not(:disabled) {
+  border-color: #2f855a;
+  color: #216341;
+}
+
+#pauseAudioFileButton:not(:disabled) {
+  border-color: #a86d1d;
+  color: #7a4c12;
+}
+
+#stopAudioFileButton:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.audio-seek-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mini-button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mini-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.voice-range-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.voice-range-grid strong {
+  display: block;
+  font-size: 1.16rem;
+  line-height: 1.25;
+}
+
+.audio-range-scroll {
+  width: 100%;
+  margin-top: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+}
+
+#audioRangeCanvas {
+  display: block;
+  width: 100%;
+  min-width: 100%;
+  height: 260px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+  touch-action: none;
+}
+
+#audioRangeCanvas.is-hovering-playback-cursor {
+  cursor: col-resize;
+}
+
+#audioRangeCanvas.is-dragging-playback-cursor {
+  cursor: grabbing;
 }
 
 .graph-status {
@@ -608,12 +834,14 @@ input[type="range"] {
   .control-panel,
   .graph-panel,
   .settings-panel,
-  .summary-panel {
+  .summary-panel,
+  .audio-file-panel {
     grid-column: auto;
     grid-row: auto;
   }
 
-  .summary-grid {
+  .summary-grid,
+  .voice-range-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -671,11 +899,12 @@ input[type="range"] {
 @media (max-width: 520px) {
   body {
     padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    font-size: 16px;
   }
 
   .app-shell {
-    width: min(100% - 12px, 480px);
-    padding-top: 8px;
+    width: min(100% - 16px, 480px);
+    padding-top: 10px;
   }
 
   .hero {
@@ -704,7 +933,7 @@ input[type="range"] {
   }
 
   .lead {
-    font-size: 0.92rem;
+    font-size: 0.96rem;
   }
 
   .privacy-note {
@@ -716,8 +945,9 @@ input[type="range"] {
   .control-panel,
   .graph-panel,
   .settings-panel,
-  .summary-panel {
-    padding: 14px;
+  .summary-panel,
+  .audio-file-panel {
+    padding: 18px;
   }
 
   .panel-header {
@@ -768,8 +998,9 @@ input[type="range"] {
 
   .primary-button,
   .secondary-button {
-    min-height: 50px;
-    padding: 0 10px;
+    min-height: 54px;
+    padding: 0 12px;
+    font-size: 1rem;
   }
 
   .setting-row {
@@ -833,8 +1064,74 @@ input[type="range"] {
     padding: 10px;
   }
 
-  .summary-grid strong {
+  .summary-grid strong,
+  .voice-range-grid strong {
     font-size: 1.05rem;
+  }
+
+  .file-analysis-controls {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 16px;
+    margin-top: 18px;
+  }
+
+  .file-picker {
+    gap: 9px;
+    font-size: 0.98rem;
+  }
+
+  .file-picker input {
+    min-height: 52px;
+    padding: 11px 12px;
+    font-size: 1rem;
+  }
+
+  .audio-action-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  #analyzeAudioFileButton {
+    width: 100%;
+  }
+
+  .audio-playback-status {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .audio-transport-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .audio-transport-controls .secondary-button {
+    min-width: 0;
+  }
+
+  .audio-seek-controls {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mini-button {
+    min-height: 42px;
+    padding: 8px 6px;
+    font-size: 0.95rem;
+  }
+
+  #audioPlaybackTime {
+    text-align: right;
+    font-size: 1.08rem;
+  }
+
+  #audioRangeCanvas {
+    height: 340px;
   }
 
   #pitchCanvas {
