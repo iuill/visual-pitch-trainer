@@ -172,8 +172,9 @@ export function formatMidiRange(
 
 export function formatDuration(seconds: number): string {
   if (seconds >= 60) {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.round(seconds % 60);
+    const roundedSeconds = Math.round(seconds);
+    const minutes = Math.floor(roundedSeconds / 60);
+    const remainingSeconds = roundedSeconds % 60;
     return `${minutes}分${remainingSeconds.toString().padStart(2, "0")}秒`;
   }
 

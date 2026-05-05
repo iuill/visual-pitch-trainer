@@ -133,5 +133,6 @@ describe("audio file analysis", () => {
   test("formats durations for short and minute-long audio", () => {
     expect(formatDuration(12.34)).toBe("12.3秒");
     expect(formatDuration(125.2)).toBe("2分05秒");
+    expect(formatDuration(119.6)).toBe("2分00秒");
   });
 });
