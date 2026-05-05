@@ -22,6 +22,11 @@ import {
   resolveCanvasBackingSize,
 } from "./graphModel";
 import {
+  createWavBlobFromDecodedAudio,
+  decodeMediaAudio,
+  mixChannelsToMono,
+} from "./mediaAudioExtraction";
+import {
   detectPitchWithLibraries,
   type LibraryDetectors,
 } from "./pitchDetection";
@@ -44,6 +49,12 @@ import {
   type SessionStats,
   trimSamples,
 } from "./session";
+import {
+  assertVocalSeparationSupported,
+  extractVocalsWithDemucs,
+  getVocalSeparationSupportMessage,
+  type VocalSeparationProgress,
+} from "./vocalSeparation";
 import "../styles.css";
 
 type AppState = {
@@ -72,12 +83,16 @@ type AppState = {
   selectedAudioFile: File | null;
   selectedPlaybackAudioFile: File | null;
   useSeparatePlaybackAudio: boolean;
+  useVocalExtraction: boolean;
+  audioPlaybackSource: "original" | "vocals";
   selectedPlaybackAudioFileUrl: string | null;
+  extractedVocalAudioUrl: string | null;
   audioFilePlayer: HTMLAudioElement | null;
   audioFilePlaybackSource: MediaElementAudioSourceNode | null;
   audioFilePlaybackGain: GainNode | null;
   audioFileAnalysis: AudioFileAnalysis | null;
   isAnalyzingAudioFile: boolean;
+  audioAnalysisMemoryTimerId: number | null;
   isAudioPlaybackDurationCompatible: boolean;
   audioPlaybackAnimationId: number | null;
   isDraggingAudioPlaybackCursor: boolean;
@@ -87,6 +102,14 @@ type AppState = {
 declare global {
   interface Window {
     webkitAudioContext?: typeof AudioContext;
+  }
+
+  interface Performance {
+    memory?: {
+      jsHeapSizeLimit: number;
+      totalJSHeapSize: number;
+      usedJSHeapSize: number;
+    };
   }
 }
 
@@ -126,12 +149,16 @@ const state: AppState = {
   selectedAudioFile: null,
   selectedPlaybackAudioFile: null,
   useSeparatePlaybackAudio: false,
+  useVocalExtraction: false,
+  audioPlaybackSource: "original",
   selectedPlaybackAudioFileUrl: null,
+  extractedVocalAudioUrl: null,
   audioFilePlayer: null,
   audioFilePlaybackSource: null,
   audioFilePlaybackGain: null,
   audioFileAnalysis: null,
   isAnalyzingAudioFile: false,
+  audioAnalysisMemoryTimerId: null,
   isAudioPlaybackDurationCompatible: true,
   audioPlaybackAnimationId: null,
   isDraggingAudioPlaybackCursor: false,
@@ -186,6 +213,12 @@ const elements = {
   useSeparatePlaybackAudioInput: queryElement<HTMLInputElement>(
     "#useSeparatePlaybackAudioInput",
   ),
+  useVocalExtractionInput: queryElement<HTMLInputElement>(
+    "#useVocalExtractionInput",
+  ),
+  audioPlaybackSourceSelect: queryElement<HTMLSelectElement>(
+    "#audioPlaybackSourceSelect",
+  ),
   playAudioFileButton: queryElement<HTMLButtonElement>("#playAudioFileButton"),
   pauseAudioFileButton: queryElement<HTMLButtonElement>(
     "#pauseAudioFileButton",
@@ -198,6 +231,7 @@ const elements = {
     "#analyzeAudioFileButtonLabel",
   ),
   audioFileStatus: queryElement<HTMLElement>("#audioFileStatus"),
+  audioMemoryStatus: queryElement<HTMLElement>("#audioMemoryStatus"),
   audioPlaybackTime: queryElement<HTMLElement>("#audioPlaybackTime"),
   audioSeekButtons: [
     ...document.querySelectorAll<HTMLButtonElement>("[data-audio-seek]"),
@@ -261,6 +295,14 @@ function init() {
   elements.useSeparatePlaybackAudioInput.addEventListener(
     "change",
     handleUseSeparatePlaybackAudioChange,
+  );
+  elements.useVocalExtractionInput.addEventListener(
+    "change",
+    handleUseVocalExtractionChange,
+  );
+  elements.audioPlaybackSourceSelect.addEventListener(
+    "change",
+    handleAudioPlaybackSourceChange,
   );
   elements.playAudioFileButton.addEventListener(
     "click",
@@ -332,6 +374,8 @@ function disableAudioControls() {
   elements.audioFileInput.disabled = true;
   elements.playbackAudioFileInput.disabled = true;
   elements.useSeparatePlaybackAudioInput.disabled = true;
+  elements.useVocalExtractionInput.disabled = true;
+  elements.audioPlaybackSourceSelect.disabled = true;
   elements.analyzeAudioFileButton.disabled = true;
   elements.playAudioFileButton.disabled = true;
   elements.pauseAudioFileButton.disabled = true;
@@ -357,6 +401,9 @@ function handleAudioFileSelection() {
   state.selectedAudioFile = file;
   state.audioFileAnalysis = null;
   state.isAudioPlaybackDurationCompatible = true;
+  state.audioPlaybackSource = "original";
+  elements.audioPlaybackSourceSelect.value = state.audioPlaybackSource;
+  cleanupExtractedVocalAudioUrl();
   resetAudioFileReadouts();
 
   if (!state.useSeparatePlaybackAudio) {
@@ -365,13 +412,13 @@ function handleAudioFileSelection() {
 
   if (!file) {
     elements.audioFileStatus.textContent =
-      "解析用音源と再生用音源はブラウザ内だけで処理します。";
+      "音源や動画はブラウザ内だけで処理します。";
     updateAudioFileControls();
     drawAudioRangeGraph();
     return;
   }
 
-  elements.audioFileStatus.textContent = `解析用に ${file.name} を選択しました。解析ボタンで声域を推定します。`;
+  elements.audioFileStatus.textContent = `解析用に ${file.name} を選択しました。動画の場合は音声トラックを取り出してから声域を推定します。`;
   updateAudioFileControls();
   drawAudioRangeGraph();
 }
@@ -380,6 +427,8 @@ function handlePlaybackAudioFileSelection() {
   const file = elements.playbackAudioFileInput.files?.[0] ?? null;
   state.selectedPlaybackAudioFile = file;
   state.isAudioPlaybackDurationCompatible = true;
+  state.audioPlaybackSource = "original";
+  elements.audioPlaybackSourceSelect.value = state.audioPlaybackSource;
 
   if (state.useSeparatePlaybackAudio) {
     resetAudioFilePlayerForSelectedSource();
@@ -410,11 +459,49 @@ function handleUseSeparatePlaybackAudioChange() {
   drawAudioRangeGraph();
 }
 
+function handleUseVocalExtractionChange() {
+  state.useVocalExtraction = elements.useVocalExtractionInput.checked;
+  state.audioFileAnalysis = null;
+  state.audioPlaybackSource = "original";
+  elements.audioPlaybackSourceSelect.value = state.audioPlaybackSource;
+  cleanupExtractedVocalAudioUrl();
+  resetAudioFilePlayerForSelectedSource();
+  resetAudioFileReadouts();
+  updateAudioFileControls();
+  drawAudioRangeGraph();
+
+  if (state.useVocalExtraction) {
+    const supportMessage = getVocalSeparationSupportMessage();
+    elements.audioFileStatus.textContent =
+      supportMessage ??
+      "ボーカル抽出を有効にしました。初回は大きなモデルを読み込むため、PCでも時間がかかります。";
+  } else if (state.selectedAudioFile) {
+    elements.audioFileStatus.textContent = `解析用に ${state.selectedAudioFile.name} を選択しました。解析ボタンで声域を推定します。`;
+  } else {
+    elements.audioFileStatus.textContent =
+      "音源や動画はブラウザ内だけで処理します。";
+  }
+}
+
+function handleAudioPlaybackSourceChange() {
+  state.audioPlaybackSource =
+    elements.audioPlaybackSourceSelect.value === "vocals"
+      ? "vocals"
+      : "original";
+  state.isAudioPlaybackDurationCompatible = true;
+  resetAudioFilePlayerForSelectedSource();
+  updateAudioFileControls();
+  updateAudioPlaybackReadout();
+  drawAudioRangeGraph();
+}
+
 function resetAudioFilePlayerForSelectedSource() {
   cleanupAudioFilePlayer();
-  const file = getSelectedAudioPlaybackFile();
+  const file = getSelectedOriginalAudioPlaybackFile();
 
-  if (file) {
+  if (state.audioPlaybackSource === "vocals" && state.extractedVocalAudioUrl) {
+    setupAudioFilePlayerFromUrl(state.extractedVocalAudioUrl);
+  } else if (file) {
     setupAudioFilePlayer(file);
   }
 }
@@ -426,9 +513,13 @@ async function handleAudioFilePlayback() {
     return;
   }
 
-  const selectedPlaybackFile = getSelectedAudioPlaybackFile();
+  const selectedPlaybackFile = getSelectedOriginalAudioPlaybackFile();
 
-  if (!selectedPlaybackFile) {
+  if (state.audioPlaybackSource === "original" && !selectedPlaybackFile) {
+    return;
+  }
+
+  if (state.audioPlaybackSource === "vocals" && !state.extractedVocalAudioUrl) {
     return;
   }
 
@@ -439,7 +530,9 @@ async function handleAudioFilePlayback() {
     return;
   }
 
-  if (!state.audioFilePlayer) {
+  if (!state.audioFilePlayer && state.audioPlaybackSource === "vocals") {
+    resetAudioFilePlayerForSelectedSource();
+  } else if (!state.audioFilePlayer && selectedPlaybackFile) {
     setupAudioFilePlayer(selectedPlaybackFile);
   }
 
@@ -521,7 +614,7 @@ function seekAudioPlayback(offsetSec: number) {
   updateAudioPlaybackView();
 }
 
-function getSelectedAudioPlaybackFile(): File | null {
+function getSelectedOriginalAudioPlaybackFile(): File | null {
   return state.useSeparatePlaybackAudio
     ? state.selectedPlaybackAudioFile
     : state.selectedAudioFile;
@@ -529,16 +622,27 @@ function getSelectedAudioPlaybackFile(): File | null {
 
 function updateAudioFileControls() {
   const isAudioSupported = isAudioContextSupported();
-  const selectedPlaybackFile = getSelectedAudioPlaybackFile();
+  const selectedPlaybackFile = getSelectedOriginalAudioPlaybackFile();
   const hasPlayableAnalysis = hasPlayableAudioFileAnalysis();
+  const hasSelectedPlaybackSource =
+    state.audioPlaybackSource === "vocals"
+      ? Boolean(state.extractedVocalAudioUrl)
+      : Boolean(selectedPlaybackFile);
   const canUsePlayback =
     isAudioSupported &&
-    Boolean(selectedPlaybackFile) &&
+    hasSelectedPlaybackSource &&
     hasPlayableAnalysis &&
     state.isAudioPlaybackDurationCompatible;
 
+  elements.useSeparatePlaybackAudioInput.disabled =
+    !isAudioSupported || state.isAnalyzingAudioFile;
   elements.playbackAudioFileInput.disabled =
-    !isAudioSupported || !state.useSeparatePlaybackAudio;
+    !isAudioSupported ||
+    !state.useSeparatePlaybackAudio ||
+    state.isAnalyzingAudioFile;
+  elements.useVocalExtractionInput.disabled =
+    !isAudioSupported || state.isAnalyzingAudioFile;
+  updateAudioPlaybackSourceControl(isAudioSupported);
   elements.analyzeAudioFileButton.disabled =
     !isAudioSupported || !state.selectedAudioFile || state.isAnalyzingAudioFile;
   elements.analyzeAudioFileButton.classList.toggle(
@@ -565,17 +669,41 @@ function updateAudioFileControls() {
   });
 }
 
+function updateAudioPlaybackSourceControl(isAudioSupported: boolean) {
+  const vocalOption = elements.audioPlaybackSourceSelect.querySelector(
+    'option[value="vocals"]',
+  );
+
+  if (vocalOption instanceof HTMLOptionElement) {
+    vocalOption.disabled = !state.extractedVocalAudioUrl;
+  }
+
+  if (!state.extractedVocalAudioUrl && state.audioPlaybackSource === "vocals") {
+    state.audioPlaybackSource = "original";
+    elements.audioPlaybackSourceSelect.value = state.audioPlaybackSource;
+  }
+
+  elements.audioPlaybackSourceSelect.disabled =
+    !isAudioSupported ||
+    !state.extractedVocalAudioUrl ||
+    state.isAnalyzingAudioFile;
+}
+
 function hasPlayableAudioFileAnalysis(): boolean {
   return (state.audioFileAnalysis?.summary.validFrames ?? 0) > 0;
 }
 
 function setupAudioFilePlayer(file: File) {
   const url = URL.createObjectURL(file);
+  setupAudioFilePlayerFromUrl(url);
+  state.selectedPlaybackAudioFileUrl = url;
+}
+
+function setupAudioFilePlayerFromUrl(url: string) {
   const player = new Audio(url);
   player.preload = "metadata";
   player.volume = 1;
 
-  state.selectedPlaybackAudioFileUrl = url;
   state.audioFilePlayer = player;
 
   player.addEventListener("loadedmetadata", () => {
@@ -647,6 +775,27 @@ function cleanupAudioFilePlayer() {
 
   state.selectedPlaybackAudioFileUrl = null;
   state.audioFilePlayer = null;
+}
+
+function cleanupExtractedVocalAudioUrl() {
+  const extractedVocalAudioUrl = state.extractedVocalAudioUrl;
+
+  if (!extractedVocalAudioUrl) {
+    return;
+  }
+
+  const isPlayingExtractedVocals =
+    state.audioPlaybackSource === "vocals" ||
+    state.audioFilePlayer?.src === extractedVocalAudioUrl;
+
+  if (isPlayingExtractedVocals) {
+    cleanupAudioFilePlayer();
+    state.audioPlaybackSource = "original";
+    elements.audioPlaybackSourceSelect.value = state.audioPlaybackSource;
+  }
+
+  URL.revokeObjectURL(extractedVocalAudioUrl);
+  state.extractedVocalAudioUrl = null;
 }
 
 function startAudioPlaybackTracking() {
@@ -751,7 +900,19 @@ async function handleAudioFileAnalysis() {
     return;
   }
 
+  if (state.useVocalExtraction) {
+    try {
+      await assertVocalSeparationSupported();
+    } catch (error) {
+      elements.audioFileStatus.textContent =
+        formatAudioFileAnalysisError(error);
+      updateAudioFileControls();
+      return;
+    }
+  }
+
   state.isAnalyzingAudioFile = true;
+  startAudioAnalysisMemoryTracking();
   updateAudioFileControls();
   elements.audioFileInput.disabled = true;
   elements.audioFileStatus.textContent =
@@ -760,45 +921,51 @@ async function handleAudioFileAnalysis() {
   try {
     await waitForPaint();
     const audioContext = getAudioContext();
-    const arrayBuffer = await state.selectedAudioFile.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    const monoData = mixAudioBufferToMono(audioBuffer);
+    let decodedAudio = await decodeMediaAudio(
+      state.selectedAudioFile,
+      audioContext,
+    );
+
+    if (state.useVocalExtraction) {
+      cleanupExtractedVocalAudioUrl();
+      decodedAudio = await extractVocalsWithDemucs(decodedAudio, {
+        onProgress: updateVocalExtractionProgress,
+      });
+      state.extractedVocalAudioUrl = URL.createObjectURL(
+        createWavBlobFromDecodedAudio(decodedAudio),
+      );
+      state.audioPlaybackSource = "vocals";
+      elements.audioPlaybackSourceSelect.value = state.audioPlaybackSource;
+      resetAudioFilePlayerForSelectedSource();
+    } else {
+      cleanupExtractedVocalAudioUrl();
+    }
+
+    const monoData = mixChannelsToMono(decodedAudio.channels);
 
     elements.audioFileStatus.textContent =
       "声の高さを推定しています。画面はこのままにしてください。";
     await waitForPaint();
 
     state.audioFileAnalysis = analyzeAudioData(monoData, {
-      sampleRate: audioBuffer.sampleRate,
+      sampleRate: decodedAudio.sampleRate,
     });
     updateAudioFileReadouts(state.audioFileAnalysis);
     validateAudioPlaybackDuration();
     drawAudioRangeGraph();
   } catch (error) {
     state.audioFileAnalysis = null;
+    cleanupExtractedVocalAudioUrl();
     resetAudioFileReadouts();
     drawAudioRangeGraph();
-    elements.audioFileStatus.textContent =
-      "音源を解析できませんでした。別形式の音源ファイルで試してください。";
+    elements.audioFileStatus.textContent = formatAudioFileAnalysisError(error);
     console.error(error);
   } finally {
     state.isAnalyzingAudioFile = false;
+    stopAudioAnalysisMemoryTracking();
     elements.audioFileInput.disabled = false;
     updateAudioFileControls();
   }
-}
-
-function mixAudioBufferToMono(audioBuffer: AudioBuffer): Float32Array {
-  const mixed = new Float32Array(audioBuffer.length);
-
-  for (let channel = 0; channel < audioBuffer.numberOfChannels; channel += 1) {
-    const data = audioBuffer.getChannelData(channel);
-    for (let index = 0; index < data.length; index += 1) {
-      mixed[index] += data[index] / audioBuffer.numberOfChannels;
-    }
-  }
-
-  return mixed;
 }
 
 function updateAudioFileReadouts(analysis: AudioFileAnalysis) {
@@ -841,6 +1008,119 @@ function resetAudioFileReadouts() {
   elements.voicedRatioReadout.textContent = "--";
   elements.audioRangeDescription.textContent =
     "音源の声域推定はまだ実行されていません。";
+}
+
+function updateVocalExtractionProgress(progress: VocalSeparationProgress) {
+  updateAudioMemoryStatus();
+
+  if (progress.phase === "loading-runtime") {
+    elements.audioFileStatus.textContent =
+      "ボーカル抽出の実行環境を読み込んでいます。";
+    return;
+  }
+
+  if (progress.phase === "loading-model") {
+    elements.audioFileStatus.textContent =
+      progress.loadedBytes !== undefined && progress.totalBytes !== undefined
+        ? `ボーカル抽出モデルを読み込んでいます。${formatPercent(
+            progress.loadedBytes / progress.totalBytes,
+          )}`
+        : "ボーカル抽出モデルを読み込んでいます。初回は時間がかかります。";
+    return;
+  }
+
+  elements.audioFileStatus.textContent =
+    progress.currentSegment !== undefined &&
+    progress.totalSegments !== undefined
+      ? `ボーカルを抽出しています。${progress.currentSegment} / ${progress.totalSegments} Chunks`
+      : `ボーカルを抽出しています。${formatPercent(progress.progress ?? 0)}`;
+}
+
+function startAudioAnalysisMemoryTracking() {
+  updateAudioMemoryStatus();
+
+  if (state.audioAnalysisMemoryTimerId !== null) {
+    return;
+  }
+
+  state.audioAnalysisMemoryTimerId = window.setInterval(
+    updateAudioMemoryStatus,
+    500,
+  );
+}
+
+function stopAudioAnalysisMemoryTracking() {
+  if (state.audioAnalysisMemoryTimerId === null) {
+    updateAudioMemoryStatus();
+    return;
+  }
+
+  window.clearInterval(state.audioAnalysisMemoryTimerId);
+  state.audioAnalysisMemoryTimerId = null;
+  updateAudioMemoryStatus();
+}
+
+function updateAudioMemoryStatus() {
+  elements.audioMemoryStatus.textContent = `メモリ使用量: ${formatMemoryStatus()}`;
+}
+
+function formatMemoryStatus(): string {
+  const memory = performance.memory;
+
+  if (memory) {
+    return `${formatBytes(memory.usedJSHeapSize)} / ${formatBytes(
+      memory.jsHeapSizeLimit,
+    )}`;
+  }
+
+  const deviceMemory = (
+    navigator as Navigator & {
+      deviceMemory?: number;
+    }
+  ).deviceMemory;
+
+  if (deviceMemory !== undefined) {
+    return `端末メモリ目安 ${deviceMemory} GB / 使用量は取得不可`;
+  }
+
+  return "このブラウザでは取得不可";
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return "--";
+  }
+
+  const mib = bytes / 1024 / 1024;
+
+  if (mib >= 1024) {
+    return `${(mib / 1024).toFixed(1)} GB`;
+  }
+
+  return `${Math.round(mib)} MB`;
+}
+
+function formatAudioFileAnalysisError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+
+  if (
+    message.includes("WebGPU") ||
+    message.includes("安全な接続") ||
+    message.includes("Cross-Origin") ||
+    message.includes("WebGPUアダプタ")
+  ) {
+    return message;
+  }
+
+  if (state.useVocalExtraction) {
+    return "ボーカル抽出または声域推定に失敗しました。PC版Chrome/EdgeなどのWebGPU対応ブラウザで、短めの音源から試してください。";
+  }
+
+  return "音源を解析できませんでした。別形式の音源ファイル、または音声トラックを含む動画で試してください。";
+}
+
+function formatPercent(ratio: number): string {
+  return `${Math.round(clamp(ratio, 0, 1) * 100)}%`;
 }
 
 function waitForPaint(): Promise<void> {
