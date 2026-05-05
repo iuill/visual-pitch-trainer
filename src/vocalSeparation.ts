@@ -24,6 +24,8 @@ export async function extractVocalsWithDemucs(
   decodedAudio: DecodedMediaAudio,
   options: VocalSeparationOptions = {},
 ): Promise<DecodedMediaAudio> {
+  await assertVocalSeparationSupported();
+
   options.onProgress?.({ phase: "loading-runtime" });
   const [demucs, ort] = await Promise.all([
     import("demucs-web"),
@@ -37,31 +39,53 @@ export async function extractVocalsWithDemucs(
   options.onProgress?.({ phase: "loading-model" });
   await processor.loadModel(getDemucsModelUrl());
 
-  options.onProgress?.({ phase: "separating", progress: 0 });
-  const stereoAudio = await resampleToDemucsStereo(decodedAudio);
-  const separated = await processor.separate(
-    stereoAudio.left,
-    stereoAudio.right,
-  );
+  try {
+    options.onProgress?.({ phase: "separating", progress: 0 });
+    const stereoAudio = await resampleToDemucsStereo(decodedAudio);
+    const separated = await processor.separate(
+      stereoAudio.left,
+      stereoAudio.right,
+    );
 
-  return {
-    sampleRate: DEMUCS_SAMPLE_RATE,
-    channels: [separated.vocals.left, separated.vocals.right],
-    durationSec: separated.vocals.left.length / DEMUCS_SAMPLE_RATE,
-    source: decodedAudio.source,
-  };
+    return {
+      sampleRate: DEMUCS_SAMPLE_RATE,
+      channels: [separated.vocals.left, separated.vocals.right],
+      durationSec: separated.vocals.left.length / DEMUCS_SAMPLE_RATE,
+      source: decodedAudio.source,
+    };
+  } finally {
+    await releaseDemucsProcessorSession(processor);
+  }
 }
 
 export function getVocalSeparationSupportMessage(): string | null {
-  if (!("gpu" in navigator)) {
-    return "このブラウザではWebGPUが使えないため、ボーカル抽出はPC版Chrome/Edgeなどで試してください。";
-  }
-
   if (!window.isSecureContext) {
     return "ボーカル抽出にはHTTPSまたはlocalhostの安全な接続が必要です。";
   }
 
+  if (!window.crossOriginIsolated || typeof SharedArrayBuffer === "undefined") {
+    return "ボーカル抽出にはCross-Origin-Opener-PolicyとCross-Origin-Embedder-Policyが有効な配信環境が必要です。";
+  }
+
+  if (!getNavigatorGpu()) {
+    return "このブラウザではWebGPUが使えないため、ボーカル抽出はPC版Chrome/Edgeなどで試してください。";
+  }
+
   return null;
+}
+
+export async function assertVocalSeparationSupported(): Promise<void> {
+  const supportMessage = getVocalSeparationSupportMessage();
+  if (supportMessage) {
+    throw new Error(supportMessage);
+  }
+
+  const adapter = await getNavigatorGpu()?.requestAdapter?.();
+  if (!adapter) {
+    throw new Error(
+      "この環境ではWebGPUアダプタを取得できないため、ボーカル抽出を使えません。",
+    );
+  }
 }
 
 function createDemucsProcessor(
@@ -98,6 +122,18 @@ function createDemucsProcessor(
   });
 }
 
+async function releaseDemucsProcessorSession(
+  processor: InstanceType<DemucsModule["DemucsProcessor"]>,
+) {
+  try {
+    await processor.session?.release();
+  } catch (error) {
+    console.warn("Failed to release Demucs ONNX session.", error);
+  } finally {
+    processor.session = null;
+  }
+}
+
 function configureOnnxRuntime(ort: OnnxRuntimeWebGpu) {
   ort.env.wasm.numThreads = window.crossOriginIsolated
     ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
@@ -106,6 +142,20 @@ function configureOnnxRuntime(ort: OnnxRuntimeWebGpu) {
 
 function getDemucsModelUrl(): string {
   return import.meta.env.VITE_DEMUCS_MODEL_URL || DEFAULT_MODEL_URL;
+}
+
+function getNavigatorGpu():
+  | {
+      requestAdapter?: () => Promise<unknown>;
+    }
+  | undefined {
+  return (
+    navigator as Navigator & {
+      gpu?: {
+        requestAdapter?: () => Promise<unknown>;
+      };
+    }
+  ).gpu;
 }
 
 async function resampleToDemucsStereo(

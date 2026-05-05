@@ -63,6 +63,45 @@ describe("media audio extraction", () => {
     expect(decoded.channels[1]?.[0]).toBeCloseTo(0.3, 7);
     expect(decoded.channels[1]?.[1]).toBeCloseTo(0.4, 7);
   });
+
+  test("wraps Web Audio and Mediabunny failures in an aggregate error", async () => {
+    const file = new File([new Uint8Array([0])], "broken.wav", {
+      type: "audio/wav",
+    });
+    const decodeError = new Error("decodeAudioData failed");
+
+    try {
+      await decodeMediaAudio(file, {
+        decodeAudioData: async () => {
+          throw decodeError;
+        },
+      } as unknown as AudioContext);
+      throw new Error("Expected decodeMediaAudio to reject.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      expect((error as AggregateError).errors).toContain(decodeError);
+    }
+  });
+
+  test("sends video files directly to Mediabunny without Web Audio decoding", async () => {
+    const file = new File([new Uint8Array([0])], "clip.mp4", {
+      type: "video/mp4",
+    });
+    let triedWebAudio = false;
+
+    try {
+      await decodeMediaAudio(file, {
+        decodeAudioData: async () => {
+          triedWebAudio = true;
+          throw new Error("Web Audio should not be used for video files.");
+        },
+      } as unknown as AudioContext);
+      throw new Error("Expected decodeMediaAudio to reject.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      expect(triedWebAudio).toBe(false);
+    }
+  });
 });
 
 function readAscii(view: DataView, offset: number, length: number): string {

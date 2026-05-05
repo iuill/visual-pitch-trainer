@@ -6,6 +6,8 @@ declare module "demucs-web" {
   };
 
   export class DemucsProcessor {
+    session: import("onnxruntime-web").InferenceSession | null;
+
     constructor(options: {
       ort: typeof import("onnxruntime-web/webgpu");
       modelPath?: string;

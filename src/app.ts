@@ -50,6 +50,7 @@ import {
   trimSamples,
 } from "./session";
 import {
+  assertVocalSeparationSupported,
   extractVocalsWithDemucs,
   getVocalSeparationSupportMessage,
   type VocalSeparationProgress,
@@ -899,6 +900,17 @@ async function handleAudioFileAnalysis() {
     return;
   }
 
+  if (state.useVocalExtraction) {
+    try {
+      await assertVocalSeparationSupported();
+    } catch (error) {
+      elements.audioFileStatus.textContent =
+        formatAudioFileAnalysisError(error);
+      updateAudioFileControls();
+      return;
+    }
+  }
+
   state.isAnalyzingAudioFile = true;
   startAudioAnalysisMemoryTracking();
   updateAudioFileControls();
@@ -916,17 +928,15 @@ async function handleAudioFileAnalysis() {
 
     if (state.useVocalExtraction) {
       cleanupExtractedVocalAudioUrl();
-      const supportMessage = getVocalSeparationSupportMessage();
-      if (supportMessage) {
-        throw new Error(supportMessage);
-      }
-
       decodedAudio = await extractVocalsWithDemucs(decodedAudio, {
         onProgress: updateVocalExtractionProgress,
       });
       state.extractedVocalAudioUrl = URL.createObjectURL(
         createWavBlobFromDecodedAudio(decodedAudio),
       );
+      state.audioPlaybackSource = "vocals";
+      elements.audioPlaybackSourceSelect.value = state.audioPlaybackSource;
+      resetAudioFilePlayerForSelectedSource();
     } else {
       cleanupExtractedVocalAudioUrl();
     }
@@ -1093,7 +1103,12 @@ function formatBytes(bytes: number): string {
 function formatAudioFileAnalysisError(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
 
-  if (message.includes("WebGPU") || message.includes("安全な接続")) {
+  if (
+    message.includes("WebGPU") ||
+    message.includes("安全な接続") ||
+    message.includes("Cross-Origin") ||
+    message.includes("WebGPUアダプタ")
+  ) {
     return message;
   }
 

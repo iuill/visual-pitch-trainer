@@ -37,6 +37,7 @@ bun run dev
 ```
 
 このコマンドは Vite の開発サーバをコンテナ内の 5173 番で起動し、起動時に Dev Container のホスト側URLである `http://localhost:35173/` も表示する。
+Vite の dev server と preview server は、ボーカル抽出で使う SharedArrayBuffer を有効にするため、Cross-Origin-Opener-Policy と Cross-Origin-Embedder-Policy をレスポンスヘッダに付与する。
 
 確認用コマンド:
 

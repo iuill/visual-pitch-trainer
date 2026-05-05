@@ -80,6 +80,7 @@ bun run dev
 ```
 
 Dev Container ではコンテナ内の Vite 開発サーバは 5173 番で起動し、ホスト側では `http://localhost:35173/` からアクセスできます。`bun run dev` は起動時にホスト側URLも表示します。
+ローカル開発時の Vite dev server と `bun run preview` では、ボーカル抽出に必要な Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy ヘッダを返すように設定しています。
 
 基本的な検証コマンドは以下です。
 

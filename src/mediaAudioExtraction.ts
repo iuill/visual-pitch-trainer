@@ -9,6 +9,17 @@ export async function decodeMediaAudio(
   file: File,
   audioContext: AudioContext,
 ): Promise<DecodedMediaAudio> {
+  if (shouldDecodeWithMediabunnyFirst(file)) {
+    try {
+      return await decodeWithMediabunny(file);
+    } catch (mediabunnyError) {
+      throw new AggregateError(
+        [mediabunnyError],
+        "Could not decode media audio.",
+      );
+    }
+  }
+
   try {
     return await decodeWithWebAudio(file, audioContext);
   } catch (webAudioError) {
@@ -21,6 +32,14 @@ export async function decodeMediaAudio(
       );
     }
   }
+}
+
+function shouldDecodeWithMediabunnyFirst(file: File): boolean {
+  if (file.type.startsWith("video/")) {
+    return true;
+  }
+
+  return /\.(mkv|mov|mp4|webm)$/i.test(file.name);
 }
 
 export function mixChannelsToMono(channels: Float32Array[]): Float32Array {

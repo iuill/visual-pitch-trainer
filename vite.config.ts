@@ -5,6 +5,10 @@ const VERSION_BASE_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const VERSION_BUILD_PATTERN = /^(0|[1-9]\d*)$/;
 const VERSION_TAG_PATTERN =
   /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
+const CROSS_ORIGIN_ISOLATION_HEADERS = {
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Embedder-Policy": "require-corp",
+};
 
 function readGitCommitHash(): string {
   if (process.env.APP_COMMIT_HASH) {
@@ -75,5 +79,11 @@ export default defineConfig({
   define: {
     "import.meta.env.VITE_APP_COMMIT_HASH": JSON.stringify(readGitCommitHash()),
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(readVersion()),
+  },
+  server: {
+    headers: CROSS_ORIGIN_ISOLATION_HEADERS,
+  },
+  preview: {
+    headers: CROSS_ORIGIN_ISOLATION_HEADERS,
   },
 });
