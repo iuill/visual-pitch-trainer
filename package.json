@@ -17,6 +17,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "demucs-web": "^1.0.2",
+    "mediabunny": "^1.40.1",
+    "onnxruntime-web": "^1.24.3",
     "pitchy": "4.1.0"
   },
   "devDependencies": {

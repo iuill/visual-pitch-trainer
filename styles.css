@@ -574,6 +574,24 @@ input[type="range"] {
   padding: 0;
 }
 
+.vocal-extraction-row {
+  width: fit-content;
+  margin-top: 12px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.vocal-extraction-row input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.playback-source-row {
+  max-width: 420px;
+  grid-template-columns: auto minmax(160px, 1fr);
+  margin-top: 10px;
+}
+
 .playback-file-picker input[type="file"]:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -583,6 +601,14 @@ input[type="range"] {
   margin: 12px 0 0;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.memory-status {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .audio-playback-status {

@@ -228,7 +228,7 @@
               <input
                 id="audioFileInput"
                 type="file"
-                accept="audio/*,.mp3,.m4a,.aac,.wav"
+                accept="audio/*,video/*,.mp3,.m4a,.aac,.wav,.mp4,.mov,.webm,.mkv"
               />
             </label>
             <div class="file-picker playback-file-picker">
@@ -239,10 +239,21 @@
               <input
                 id="playbackAudioFileInput"
                 type="file"
-                accept="audio/*,.mp3,.m4a,.aac,.wav"
+                accept="audio/*,video/*,.mp3,.m4a,.aac,.wav,.mp4,.mov,.webm,.mkv"
                 disabled
               />
             </div>
+          </div>
+          <label class="checkbox-row vocal-extraction-row" for="useVocalExtractionInput">
+            <input id="useVocalExtractionInput" type="checkbox" />
+            ボーカルを抽出してから解析する
+          </label>
+          <div class="setting-row playback-source-row">
+            <label for="audioPlaybackSourceSelect">再生する音</label>
+            <select id="audioPlaybackSourceSelect" disabled>
+              <option value="original">元の音源</option>
+              <option value="vocals" disabled>抽出ボーカル</option>
+            </select>
           </div>
           <div class="audio-action-row">
             <button id="analyzeAudioFileButton" class="secondary-button" type="button" disabled>
@@ -273,6 +284,9 @@
 
           <p id="audioFileStatus" class="file-analysis-status" aria-live="polite">
             音源はブラウザ内だけで処理します。
+          </p>
+          <p id="audioMemoryStatus" class="memory-status" aria-live="polite">
+            メモリ使用量: --
           </p>
 
           <div class="voice-range-grid" aria-label="音源の声域推定結果">
