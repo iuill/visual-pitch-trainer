@@ -17,6 +17,8 @@ export type VocalSeparationOptions = {
 };
 
 const DEMUCS_SAMPLE_RATE = 44_100;
+const ONNX_RUNTIME_WASM_URL =
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.3/dist/ort-wasm-simd-threaded.asyncify.wasm";
 const DEFAULT_MODEL_URL =
   "https://huggingface.co/timcsy/demucs-web-onnx/resolve/main/htdemucs_embedded.onnx";
 
@@ -138,6 +140,9 @@ function configureOnnxRuntime(ort: OnnxRuntimeWebGpu) {
   ort.env.wasm.numThreads = window.crossOriginIsolated
     ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
     : 1;
+  ort.env.wasm.wasmPaths = {
+    wasm: ONNX_RUNTIME_WASM_URL,
+  };
 }
 
 function getDemucsModelUrl(): string {

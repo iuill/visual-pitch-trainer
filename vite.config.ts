@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 
 const VERSION_BASE_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const VERSION_BUILD_PATTERN = /^(0|[1-9]\d*)$/;
@@ -9,6 +9,8 @@ const CROSS_ORIGIN_ISOLATION_HEADERS = {
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Embedder-Policy": "require-corp",
 };
+const UNUSED_ONNX_WASM_ASSET_PATTERN =
+  /^assets\/ort-wasm-simd-threaded\.asyncify-[A-Za-z0-9_-]+\.wasm$/;
 
 function readGitCommitHash(): string {
   if (process.env.APP_COMMIT_HASH) {
@@ -80,6 +82,7 @@ export default defineConfig({
     "import.meta.env.VITE_APP_COMMIT_HASH": JSON.stringify(readGitCommitHash()),
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(readVersion()),
   },
+  plugins: [dropUnusedOnnxWasmAsset()],
   server: {
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
   },
@@ -87,3 +90,16 @@ export default defineConfig({
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
   },
 });
+
+function dropUnusedOnnxWasmAsset(): Plugin {
+  return {
+    name: "drop-unused-onnx-wasm-asset",
+    generateBundle(_, bundle) {
+      for (const fileName of Object.keys(bundle)) {
+        if (UNUSED_ONNX_WASM_ASSET_PATTERN.test(fileName)) {
+          delete bundle[fileName];
+        }
+      }
+    },
+  };
+}
