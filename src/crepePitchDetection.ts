@@ -37,16 +37,17 @@ const DEFAULT_MIN_FREQUENCY = 82;
 const DEFAULT_MAX_FREQUENCY = 1047;
 const DEFAULT_BATCH_SIZE = 256;
 const WEIGHTED_ARGMAX_RADIUS = 4;
+const LOW_PASS_TAP_COUNT = 31;
 const ONNX_RUNTIME_WASM_URL =
   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.3/dist/ort-wasm-simd-threaded.asyncify.wasm";
-export const CREPE_MODEL_URLS = {
-  small: "/models/crepe-small.onnx",
-  medium: "/models/crepe-medium.onnx",
-  large: "/models/crepe-large.onnx",
-  full: "/models/crepe-full.onnx",
+const CREPE_MODEL_PATHS = {
+  small: "models/crepe-small.onnx",
+  medium: "models/crepe-medium.onnx",
+  large: "models/crepe-large.onnx",
+  full: "models/crepe-full.onnx",
 } as const;
 
-export type CrepeModelSize = keyof typeof CREPE_MODEL_URLS;
+export type CrepeModelSize = keyof typeof CREPE_MODEL_PATHS;
 
 const crepeSessionPromises = new Map<
   string,
@@ -70,7 +71,7 @@ export async function analyzeAudioDataWithCrepe(
   const maxFrequency = options.maxFrequency ?? DEFAULT_MAX_FREQUENCY;
   const batchSize = Math.max(1, options.batchSize ?? DEFAULT_BATCH_SIZE);
   const modelUrl = options.modelUrl ?? getCrepeModelUrl("small");
-  const resampledAudio = resampleLinear(
+  const resampledAudio = await resampleAudioForPitchModel(
     audioData,
     options.sampleRate,
     CREPE_SAMPLE_RATE,
@@ -229,6 +230,37 @@ export function resampleLinear(
   return output;
 }
 
+export async function resampleAudioForPitchModel(
+  audioData: Float32Array,
+  sourceSampleRate: number,
+  targetSampleRate: number,
+): Promise<Float32Array> {
+  if (sourceSampleRate === targetSampleRate) {
+    return new Float32Array(audioData);
+  }
+
+  const offlineAudioContext = getOfflineAudioContextConstructor();
+  if (offlineAudioContext) {
+    try {
+      return await resampleWithOfflineAudioContext(
+        audioData,
+        sourceSampleRate,
+        targetSampleRate,
+        offlineAudioContext,
+      );
+    } catch {
+      // Fall back to the deterministic path below when a browser rejects the
+      // source rate or cannot create an OfflineAudioContext.
+    }
+  }
+
+  return resampleLinear(
+    lowPassBeforeDownsampling(audioData, sourceSampleRate, targetSampleRate),
+    sourceSampleRate,
+    targetSampleRate,
+  );
+}
+
 export function decodeCrepeFrame(
   probabilities: Float32Array,
   frameIndex: number,
@@ -280,7 +312,113 @@ export function getCrepeModelUrl(modelSize: CrepeModelSize): string {
     return envModelUrl;
   }
 
-  return CREPE_MODEL_URLS[modelSize];
+  return CREPE_MODEL_PATHS[modelSize];
+}
+
+async function resampleWithOfflineAudioContext(
+  audioData: Float32Array,
+  sourceSampleRate: number,
+  targetSampleRate: number,
+  offlineAudioContext: typeof OfflineAudioContext,
+): Promise<Float32Array> {
+  const outputLength = Math.max(
+    1,
+    Math.round((audioData.length / sourceSampleRate) * targetSampleRate),
+  );
+  const context = new offlineAudioContext(1, outputLength, targetSampleRate);
+  const buffer = context.createBuffer(1, audioData.length, sourceSampleRate);
+  buffer.copyToChannel(new Float32Array(audioData), 0);
+
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.connect(context.destination);
+  source.start();
+
+  const renderedBuffer = await context.startRendering();
+  return new Float32Array(renderedBuffer.getChannelData(0));
+}
+
+function lowPassBeforeDownsampling(
+  audioData: Float32Array,
+  sourceSampleRate: number,
+  targetSampleRate: number,
+): Float32Array {
+  if (targetSampleRate >= sourceSampleRate) {
+    return audioData;
+  }
+
+  const cutoffRatio = Math.min(
+    0.45,
+    (targetSampleRate / sourceSampleRate) * 0.45,
+  );
+  const taps = createLowPassKernel(LOW_PASS_TAP_COUNT, cutoffRatio);
+  const output = new Float32Array(audioData.length);
+  const center = Math.floor(taps.length / 2);
+
+  for (let index = 0; index < audioData.length; index += 1) {
+    let sum = 0;
+
+    for (let tapIndex = 0; tapIndex < taps.length; tapIndex += 1) {
+      const sourceIndex = clampIndex(
+        index + tapIndex - center,
+        audioData.length,
+      );
+      sum += (audioData[sourceIndex] ?? 0) * (taps[tapIndex] ?? 0);
+    }
+
+    output[index] = sum;
+  }
+
+  return output;
+}
+
+function createLowPassKernel(
+  tapCount: number,
+  cutoffRatio: number,
+): Float32Array {
+  const taps = new Float32Array(tapCount);
+  const center = (tapCount - 1) / 2;
+  let sum = 0;
+
+  for (let index = 0; index < tapCount; index += 1) {
+    const offset = index - center;
+    const sinc =
+      offset === 0
+        ? 2 * cutoffRatio
+        : Math.sin(2 * Math.PI * cutoffRatio * offset) / (Math.PI * offset);
+    const window =
+      0.54 - 0.46 * Math.cos((2 * Math.PI * index) / (tapCount - 1));
+    const value = sinc * window;
+    taps[index] = value;
+    sum += value;
+  }
+
+  for (let index = 0; index < taps.length; index += 1) {
+    taps[index] /= sum;
+  }
+
+  return taps;
+}
+
+function clampIndex(index: number, length: number): number {
+  return Math.max(0, Math.min(length - 1, index));
+}
+
+function getOfflineAudioContextConstructor():
+  | typeof OfflineAudioContext
+  | undefined {
+  return (
+    (
+      globalThis as typeof globalThis & {
+        webkitOfflineAudioContext?: typeof OfflineAudioContext;
+      }
+    ).OfflineAudioContext ??
+    (
+      globalThis as typeof globalThis & {
+        webkitOfflineAudioContext?: typeof OfflineAudioContext;
+      }
+    ).webkitOfflineAudioContext
+  );
 }
 
 async function getCrepeSession(

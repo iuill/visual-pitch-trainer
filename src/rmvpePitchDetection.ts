@@ -4,7 +4,7 @@ import {
   refineAudioPitchPoints,
   summarizeVoiceRange,
 } from "./audioFileAnalysis";
-import { resampleLinear } from "./crepePitchDetection";
+import { resampleAudioForPitchModel } from "./crepePitchDetection";
 import { getRms, hzToMidi } from "./pitchMath";
 
 type OnnxRuntimeWebGpu = typeof import("onnxruntime-web/webgpu");
@@ -44,7 +44,7 @@ const WEIGHTED_ARGMAX_RADIUS = 4;
 const ONNX_RUNTIME_WASM_URL =
   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.3/dist/ort-wasm-simd-threaded.asyncify.wasm";
 const RMVPE_MODEL_URL =
-  import.meta.env.VITE_RMVPE_MODEL_URL || "/models/rmvpe.onnx";
+  import.meta.env.VITE_RMVPE_MODEL_URL || "models/rmvpe.onnx";
 
 let rmvpeSessionPromise: Promise<{
   ort: OnnxRuntimeWebGpu;
@@ -63,7 +63,7 @@ export async function analyzeAudioDataWithRmvpe(
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
   const minFrequency = options.minFrequency ?? DEFAULT_MIN_FREQUENCY;
   const maxFrequency = options.maxFrequency ?? DEFAULT_MAX_FREQUENCY;
-  const resampledAudio = resampleLinear(
+  const resampledAudio = await resampleAudioForPitchModel(
     audioData,
     options.sampleRate,
     RMVPE_SAMPLE_RATE,

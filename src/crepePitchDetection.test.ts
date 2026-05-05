@@ -33,9 +33,9 @@ describe("CREPE pitch detection helpers", () => {
   });
 
   test("resolves bundled model URLs by size", () => {
-    expect(getCrepeModelUrl("small")).toBe("/models/crepe-small.onnx");
-    expect(getCrepeModelUrl("medium")).toBe("/models/crepe-medium.onnx");
-    expect(getCrepeModelUrl("large")).toBe("/models/crepe-large.onnx");
-    expect(getCrepeModelUrl("full")).toBe("/models/crepe-full.onnx");
+    expect(getCrepeModelUrl("small")).toBe("models/crepe-small.onnx");
+    expect(getCrepeModelUrl("medium")).toBe("models/crepe-medium.onnx");
+    expect(getCrepeModelUrl("large")).toBe("models/crepe-large.onnx");
+    expect(getCrepeModelUrl("full")).toBe("models/crepe-full.onnx");
   });
 });
