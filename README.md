@@ -131,6 +131,12 @@ bun run build
 
 ボーカル抽出後は、音源の再生対象として元の音源または抽出ボーカルを選べます。
 
+伴奏入り音源を外部ツールで先に分離する場合は、抽出したボーカル音源をこのアプリに読み込ませます。Windows ホストで Docker Desktop と GPU が使える環境では、元音源があるディレクトリを PowerShell で開き、以下のように実行できます。この例は Windows ホストの PowerShell 向けで、CMD や WSL2 内での実行例ではありません。
+
+```powershell
+docker run --rm -it --gpus all -v ${PWD}:/workdir beveradb/audio-separator:gpu "input.mp3" --model_filename model_bs_roformer_ep_317_sdr_12.9755.ckpt --output_format MP3
+```
+
 ボーカル抽出は SharedArrayBuffer を使う実行環境を想定するため、公開環境では Cross-Origin-Opener-Policy と Cross-Origin-Embedder-Policy のレスポンスヘッダが必要になる場合があります。Cloudflare Pages では `public/_headers` を配信に含めます。GitHub Pages ではこのヘッダを設定できないため、ボーカル抽出が動かない可能性があります。
 
 音源や分離モデルによっては息、子音、リバーブ、ハモリ、分離ノイズが残るため、結果はあくまで声域の目安として扱います。
