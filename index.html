@@ -334,14 +334,22 @@
           <p id="audioRangeDescription" class="visually-hidden">
             音源の声域推定はまだ実行されていません。
           </p>
-          <div class="audio-range-scroll">
+          <div class="audio-range-viewport">
             <canvas
-              id="audioRangeCanvas"
-              width="960"
+              id="audioRangeAxisCanvas"
+              width="54"
               height="260"
-              aria-label="音源から推定した声域グラフ"
-              aria-describedby="audioRangeDescription"
+              aria-hidden="true"
             ></canvas>
+            <div class="audio-range-scroll">
+              <canvas
+                id="audioRangeCanvas"
+                width="960"
+                height="260"
+                aria-label="音源から推定した声域グラフ"
+                aria-describedby="audioRangeDescription"
+              ></canvas>
+            </div>
           </div>
         </div>
       </section>

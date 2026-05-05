@@ -275,10 +275,15 @@ const elements = {
   voicedRatioReadout: queryElement<HTMLElement>("#voicedRatioReadout"),
   audioRangeDescription: queryElement<HTMLElement>("#audioRangeDescription"),
   audioRangeScroll: queryElement<HTMLElement>(".audio-range-scroll"),
+  audioRangeAxisCanvas: queryElement<HTMLCanvasElement>(
+    "#audioRangeAxisCanvas",
+  ),
   audioRangeCanvas: queryElement<HTMLCanvasElement>("#audioRangeCanvas"),
 };
 
 const maybeCanvasContext = elements.pitchCanvas.getContext("2d");
+const maybeAudioRangeAxisCanvasContext =
+  elements.audioRangeAxisCanvas.getContext("2d");
 const maybeAudioRangeCanvasContext = elements.audioRangeCanvas.getContext("2d");
 
 if (!maybeCanvasContext) {
@@ -289,7 +294,12 @@ if (!maybeAudioRangeCanvasContext) {
   throw new Error("Audio range canvas 2D context is not available.");
 }
 
+if (!maybeAudioRangeAxisCanvasContext) {
+  throw new Error("Audio range axis canvas 2D context is not available.");
+}
+
 const canvasContext = maybeCanvasContext;
+const audioRangeAxisCanvasContext = maybeAudioRangeAxisCanvasContext;
 const audioRangeCanvasContext = maybeAudioRangeCanvasContext;
 const AUDIO_RANGE_MIN_WIDTH = 960;
 const AUDIO_RANGE_MAX_WIDTH = 28800;
@@ -2446,6 +2456,7 @@ function syncPitchCanvasSize() {
 
 function syncAudioRangeCanvasSize() {
   const canvas = elements.audioRangeCanvas;
+  const axisCanvas = elements.audioRangeAxisCanvas;
   updateAudioRangeCanvasWidth();
 
   const rect = canvas.getBoundingClientRect();
@@ -2471,6 +2482,25 @@ function syncAudioRangeCanvasSize() {
   ) {
     canvas.width = backingSize.width;
     canvas.height = backingSize.height;
+  }
+
+  const axisRect = axisCanvas.getBoundingClientRect();
+  const axisCssWidth = Math.max(
+    1,
+    Math.round(axisRect.width || axisCanvas.clientWidth || axisCanvas.width),
+  );
+  const axisBackingSize = resolveCanvasBackingSize(
+    axisCssWidth,
+    cssHeight,
+    state.audioRangePixelRatio,
+  );
+
+  if (
+    axisCanvas.width !== axisBackingSize.width ||
+    axisCanvas.height !== axisBackingSize.height
+  ) {
+    axisCanvas.width = axisBackingSize.width;
+    axisCanvas.height = axisBackingSize.height;
   }
 }
 
@@ -2854,6 +2884,12 @@ function drawAudioRangeGraph() {
     width,
     height,
   });
+  drawAudioRangeAxis({
+    padding,
+    plotHeight,
+    minMidi,
+    maxMidi,
+  });
 
   if (!analysis || analysis.summary.validFrames === 0) {
     context.fillStyle = "#5c6870";
@@ -2959,6 +2995,46 @@ function drawAudioRangeGrid(
   context.fillText("音名", 8, 20);
   context.fillText("開始", padding.left, height - 10);
   context.fillText("終わり", width - padding.right - 44, height - 10);
+}
+
+function drawAudioRangeAxis(options: {
+  padding: GraphPadding;
+  plotHeight: number;
+  minMidi: number;
+  maxMidi: number;
+}) {
+  const canvas = elements.audioRangeAxisCanvas;
+  const context = audioRangeAxisCanvasContext;
+  const width = canvas.width / state.audioRangePixelRatio;
+  const height = canvas.height / state.audioRangePixelRatio;
+  const { padding, plotHeight, minMidi, maxMidi } = options;
+
+  context.setTransform(
+    state.audioRangePixelRatio,
+    0,
+    0,
+    state.audioRangePixelRatio,
+    0,
+    0,
+  );
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "#fbfcfc";
+  context.fillRect(0, 0, width, height);
+
+  context.font = "14px system-ui, sans-serif";
+
+  for (let midi = minMidi; midi <= maxMidi; midi += 1) {
+    const y = midiToY(midi, minMidi, maxMidi, padding, plotHeight);
+    const isOctave = midi % 12 === 0;
+
+    if (isOctave || midi % 2 === 0) {
+      context.fillStyle = "#73808a";
+      context.fillText(midiToNoteName(midi), 8, y + 5);
+    }
+  }
+
+  context.fillStyle = "#5c6870";
+  context.fillText("音名", 8, 20);
 }
 
 function drawAudioTimeGrid(
