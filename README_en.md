@@ -123,6 +123,8 @@ For deployed sites, microphone access generally requires a secure context such a
 
 Audio file analysis assumes a vocal-only audio file. If a normal mixed song is loaded directly, bass, guitar, synth, backing vocals, and other pitched sounds can be detected as well, which makes the estimated range and graph unreliable.
 
+Recommended audio formats are MP3, M4A, AAC, and WAV. The file picker lists these extensions to make them easier to choose, but actual decoding depends on the browser's audio decoding support. DRM-protected audio, such as tracks from Apple Music, and formats the browser cannot decode cannot be analyzed.
+
 When using a song with accompaniment, first separate the vocal with an external tool, then load the extracted vocal file into the app. In a Windows host environment with Docker Desktop and a GPU available, run the command from PowerShell in the directory that contains the source audio file. This example is intended for Windows host PowerShell, not CMD or inside WSL2:
 
 ```powershell
