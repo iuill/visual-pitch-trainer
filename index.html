@@ -225,14 +225,23 @@
           <div class="file-analysis-controls">
             <label class="file-picker" for="audioFileInput">
               <span>解析用音源ファイル</span>
-              <input id="audioFileInput" type="file" accept="audio/*" />
+              <input
+                id="audioFileInput"
+                type="file"
+                accept="audio/*,.mp3,.m4a,.aac,.wav"
+              />
             </label>
             <div class="file-picker playback-file-picker">
               <label class="checkbox-row" for="useSeparatePlaybackAudioInput">
                 <input id="useSeparatePlaybackAudioInput" type="checkbox" />
                 別の再生用音源を使う
               </label>
-              <input id="playbackAudioFileInput" type="file" accept="audio/*" disabled />
+              <input
+                id="playbackAudioFileInput"
+                type="file"
+                accept="audio/*,.mp3,.m4a,.aac,.wav"
+                disabled
+              />
             </div>
           </div>
           <div class="audio-action-row">
