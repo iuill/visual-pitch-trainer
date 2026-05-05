@@ -103,3 +103,39 @@ Additional bundled/transitive packages introduced by ONNX Runtime Web include:
 - protobufjs: BSD-3-Clause
 - flatbuffers: Apache-2.0
 - guid-typescript: ISC
+
+onnxcrepe / CREPE ONNX models
+https://github.com/yqzhishen/onnxcrepe
+
+MIT License
+
+The CREPE pitch estimation model files are included in the published application at:
+public/models/crepe-small.onnx
+public/models/crepe-medium.onnx
+public/models/crepe-large.onnx
+public/models/crepe-full.onnx
+
+The bundled models are from:
+https://github.com/yqzhishen/onnxcrepe/releases/download/v1.1.0/small.onnx
+https://github.com/yqzhishen/onnxcrepe/releases/download/v1.1.0/medium.onnx
+https://github.com/yqzhishen/onnxcrepe/releases/download/v1.1.0/large.onnx
+https://github.com/yqzhishen/onnxcrepe/releases/download/v1.1.0/full.onnx
+
+onnxcrepe is based on CREPE and torchcrepe model weights and implementation.
+CREPE reference:
+J. W. Kim, J. Salamon, P. Li, and J. P. Bello, "Crepe: A Convolutional
+Representation for Pitch Estimation," ICASSP 2018.
+
+RMVPE model
+https://huggingface.co/lj1995/VoiceConversionWebUI
+
+MIT License
+
+The RMVPE pitch estimation model file is included in the published application at:
+public/models/rmvpe.onnx
+
+RMVPE reference implementation:
+https://github.com/Dream-High/RMVPE
+
+RMVPE browser integration was informed by rmvpe-onnx:
+https://github.com/NewComer00/rmvpe-onnx

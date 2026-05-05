@@ -248,6 +248,21 @@
             <input id="useVocalExtractionInput" type="checkbox" />
             ボーカルを抽出してから解析する
           </label>
+          <div class="setting-row pitch-estimator-row">
+            <label for="audioPitchEstimatorSelect">ピッチ推定</label>
+            <select id="audioPitchEstimatorSelect">
+              <option value="rmvpe">おすすめ: RMVPE</option>
+              <option value="pitchy">軽量: pitchy</option>
+              <option value="crepe-small">CREPE small</option>
+              <option value="crepe-medium">CREPE medium</option>
+              <option value="crepe-large">CREPE large</option>
+              <option value="crepe-full">CREPE full</option>
+            </select>
+          </div>
+          <p id="audioPitchEstimatorHelp" class="setting-help info-note">
+            <span class="info-note-icon" aria-hidden="true">i</span>
+            通常のPCやスマホでは軽量なpitchyを選んでください。ゲーミングPCではRMVPEがおすすめです。RMVPEは初回ロードに時間がかかりますが推定は高速です。CREPEは初回ロードは軽めですが推定は重めです。
+          </p>
           <div class="setting-row playback-source-row">
             <label for="audioPlaybackSourceSelect">再生する音</label>
             <select id="audioPlaybackSourceSelect" disabled>
@@ -281,6 +296,14 @@
               <span id="audioPlaybackTime">0:00 / 0:00</span>
             </div>
           </div>
+          <details class="dev-tools-panel">
+            <summary>開発用ツール</summary>
+            <div class="dev-tools-actions">
+              <button id="captureCrepeComparisonButton" class="secondary-button" type="button" disabled>
+                ピッチ推定モデル比較PNG出力
+              </button>
+            </div>
+          </details>
 
           <p id="audioFileStatus" class="file-analysis-status" aria-live="polite">
             音源はブラウザ内だけで処理します。

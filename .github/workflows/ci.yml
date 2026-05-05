@@ -20,7 +20,7 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -42,6 +42,17 @@ jobs:
 
       - name: Typecheck
         run: bun run typecheck
+
+      - name: Restore pitch model cache
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref_type == 'tag')
+        uses: actions/cache@v4
+        with:
+          path: public/models
+          key: pitch-models-v1
+
+      - name: Download pitch models for GitHub Pages
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref_type == 'tag')
+        run: bun run download:pitch-models
 
       - name: Build
         env:

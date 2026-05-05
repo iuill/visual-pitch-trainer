@@ -4,5 +4,6 @@ dist/
 .env
 .env.*
 .tmp/
+public/models/*.onnx
 
 /tmp/

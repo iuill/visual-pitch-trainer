@@ -544,6 +544,32 @@ input[type="range"] {
   align-self: flex-start;
 }
 
+.dev-tools-panel {
+  max-width: 680px;
+  margin-top: 10px;
+}
+
+.dev-tools-panel summary {
+  width: fit-content;
+  min-height: 36px;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.dev-tools-panel summary::marker {
+  color: var(--accent);
+}
+
+.dev-tools-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding-left: 18px;
+}
+
 .file-picker {
   display: grid;
   gap: 7px;
@@ -586,10 +612,47 @@ input[type="range"] {
   min-height: 18px;
 }
 
-.playback-source-row {
+.playback-source-row,
+.pitch-estimator-row {
   max-width: 420px;
   grid-template-columns: auto minmax(160px, 1fr);
   margin-top: 10px;
+}
+
+.setting-help {
+  max-width: 680px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.info-note {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border: 1px solid #b8d7f0;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #2f74b5 0 4px, #f2f8ff 4px);
+  color: #17324d;
+  padding: 10px 12px 10px 16px;
+}
+
+.info-note-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  background: #2f74b5;
+  border: 1px solid #2f74b5;
+  border-radius: 50%;
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .playback-file-picker input[type="file"]:disabled {
@@ -1130,6 +1193,14 @@ input[type="range"] {
   }
 
   #analyzeAudioFileButton {
+    width: 100%;
+  }
+
+  .dev-tools-actions {
+    padding-left: 0;
+  }
+
+  .dev-tools-actions .secondary-button {
     width: 100%;
   }
 
