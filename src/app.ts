@@ -1696,13 +1696,14 @@ function syncAudioRangeCanvasSize() {
 function updateAudioRangeCanvasWidth() {
   const durationSec = getAudioFileDurationSec();
   const visibleWidth = Math.max(1, elements.audioRangeScroll.clientWidth);
+  const minWidth = durationSec > 0 ? AUDIO_RANGE_MIN_WIDTH : visibleWidth;
   const expandedWidth =
     durationSec > 0
       ? Math.ceil(durationSec * AUDIO_RANGE_PIXELS_PER_SECOND)
-      : AUDIO_RANGE_MIN_WIDTH;
+      : visibleWidth;
   const cssWidth = Math.min(
     AUDIO_RANGE_MAX_WIDTH,
-    Math.max(visibleWidth, AUDIO_RANGE_MIN_WIDTH, expandedWidth),
+    Math.max(visibleWidth, minWidth, expandedWidth),
   );
 
   elements.audioRangeCanvas.style.width = `${cssWidth}px`;

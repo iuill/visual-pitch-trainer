@@ -140,6 +140,7 @@ h2 {
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
   gap: 16px;
   align-items: stretch;
+  min-width: 0;
 }
 
 .control-panel,
@@ -147,6 +148,7 @@ h2 {
 .settings-panel,
 .summary-panel,
 .audio-file-panel {
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -210,6 +212,11 @@ h2 {
   gap: 14px;
   justify-content: space-between;
   align-items: flex-start;
+  min-width: 0;
+}
+
+.panel-header > div {
+  min-width: 0;
 }
 
 .panel-header p {
@@ -663,6 +670,8 @@ input[type="range"] {
 
 .audio-range-scroll {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin-top: 14px;
   overflow-x: auto;
   overflow-y: hidden;
