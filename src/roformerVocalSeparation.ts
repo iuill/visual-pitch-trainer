@@ -325,7 +325,7 @@ async function separateWithRoformerSession(
 
   const vocalsLeft = new Float32Array(totalSamples);
   const vocalsRight = new Float32Array(totalSamples);
-  const overlapCount = new Float32Array(totalSamples);
+  const overlapWeights = new Float32Array(totalSamples);
   const window = hannWindow(config.winLength);
   const inputName = session.inputNames[0] ?? "stft_features";
   const outputName = session.outputNames[0] ?? "mask";
@@ -395,11 +395,21 @@ async function separateWithRoformerSession(
         maskStats,
       });
 
+      const overlapWindow = createChunkOverlapWindow({
+        chunkLength,
+        fadeSize: Math.max(1, Math.floor(config.chunkSize / 10)),
+        isFirstChunk: chunkIndex === 0,
+        isLastChunk: chunkIndex === chunkStarts.length - 1,
+      });
+
       for (let sampleIndex = 0; sampleIndex < chunkLength; sampleIndex += 1) {
         const outputIndex = start + sampleIndex;
-        vocalsLeft[outputIndex] += reconstructed.left[sampleIndex] ?? 0;
-        vocalsRight[outputIndex] += reconstructed.right[sampleIndex] ?? 0;
-        overlapCount[outputIndex] += 1;
+        const weight = overlapWindow[sampleIndex] ?? 0;
+        vocalsLeft[outputIndex] +=
+          (reconstructed.left[sampleIndex] ?? 0) * weight;
+        vocalsRight[outputIndex] +=
+          (reconstructed.right[sampleIndex] ?? 0) * weight;
+        overlapWeights[outputIndex] += weight;
       }
     } finally {
       disposeTensor(tensor);
@@ -417,9 +427,9 @@ async function separateWithRoformerSession(
   }
 
   for (let index = 0; index < totalSamples; index += 1) {
-    if (overlapCount[index] > 0) {
-      vocalsLeft[index] /= overlapCount[index];
-      vocalsRight[index] /= overlapCount[index];
+    if (overlapWeights[index] > 0) {
+      vocalsLeft[index] /= overlapWeights[index];
+      vocalsRight[index] /= overlapWeights[index];
     }
   }
 
@@ -780,6 +790,31 @@ function hannWindow(length: number): Float32Array {
 
   for (let index = 0; index < length; index += 1) {
     window[index] = 0.5 * (1 - Math.cos((2 * Math.PI * index) / length));
+  }
+
+  return window;
+}
+
+function createChunkOverlapWindow({
+  chunkLength,
+  fadeSize,
+  isFirstChunk,
+  isLastChunk,
+}: {
+  chunkLength: number;
+  fadeSize: number;
+  isFirstChunk: boolean;
+  isLastChunk: boolean;
+}): Float32Array {
+  const window = new Float32Array(chunkLength);
+  const effectiveFadeSize = Math.max(1, Math.min(fadeSize, chunkLength));
+
+  for (let index = 0; index < chunkLength; index += 1) {
+    const fadeIn = isFirstChunk ? 1 : Math.min(1, index / effectiveFadeSize);
+    const fadeOut = isLastChunk
+      ? 1
+      : Math.min(1, (chunkLength - index) / effectiveFadeSize);
+    window[index] = Math.min(fadeIn, fadeOut);
   }
 
   return window;

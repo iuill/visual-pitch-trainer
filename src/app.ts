@@ -422,7 +422,7 @@ function init() {
     "click",
     handleVocalSeparationComparisonCapture,
   );
-  window.addEventListener("pagehide", cleanupRuntimeResources);
+  window.addEventListener("pagehide", handlePageHide);
   elements.noteRangeSelect.addEventListener("change", handleNoteRangeChange);
   elements.referenceVolumeInput.addEventListener(
     "input",
@@ -2333,6 +2333,14 @@ function stopMicrophone() {
 
   updateMicButtonState("stopped");
   elements.analysisStatus.textContent = "稽古を停止しました";
+}
+
+function handlePageHide(event: PageTransitionEvent) {
+  if (event.persisted) {
+    return;
+  }
+
+  cleanupRuntimeResources();
 }
 
 function cleanupRuntimeResources() {
