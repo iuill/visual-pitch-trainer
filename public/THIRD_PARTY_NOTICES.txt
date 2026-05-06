@@ -139,3 +139,15 @@ https://github.com/Dream-High/RMVPE
 
 RMVPE browser integration was informed by rmvpe-onnx:
 https://github.com/NewComer00/rmvpe-onnx
+
+BS-RoFormer ONNX model
+https://huggingface.co/xycld/BS-RoFormer-ONNX
+
+MIT License
+
+The optional BS-RoFormer vocal separation model is not committed to this Git
+repository. For local development it can be generated under:
+public/models/bs-roformer-fp16-webgpu.onnx
+
+The upstream project recommends checking training-data conditions before
+commercial use.

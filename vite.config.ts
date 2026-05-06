@@ -9,6 +9,7 @@ const CROSS_ORIGIN_ISOLATION_HEADERS = {
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Embedder-Policy": "require-corp",
 };
+const DEV_SERVER_WATCH_IGNORES = ["**/.tmp/**", "**/public/models/**"];
 const UNUSED_ONNX_WASM_ASSET_PATTERN =
   /^assets\/ort-wasm-simd-threaded\.asyncify-[A-Za-z0-9_-]+\.wasm$/;
 
@@ -85,6 +86,9 @@ export default defineConfig({
   plugins: [dropUnusedOnnxWasmAsset()],
   server: {
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
+    watch: {
+      ignored: DEV_SERVER_WATCH_IGNORES,
+    },
   },
   preview: {
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
