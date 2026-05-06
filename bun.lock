@@ -5,6 +5,7 @@
     "": {
       "name": "visual-pitch-trainer",
       "dependencies": {
+        "@mediabunny/mp3-encoder": "1.40.1",
         "demucs-web": "^1.0.2",
         "mediabunny": "^1.40.1",
         "onnxruntime-web": "^1.24.3",
@@ -42,6 +43,8 @@
     "@emnapi/runtime": ["@emnapi/runtime@1.10.0", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-ewvYlk86xUoGI0zQRNq/mC+16R1QeDlKQy21Ki3oSYXNgLb45GV1P6A0M+/s6nyCuNDqe5VpaY84BzXGwVbwFA=="],
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
+
+    "@mediabunny/mp3-encoder": ["@mediabunny/mp3-encoder@1.40.1", "", { "peerDependencies": { "mediabunny": "^1.0.0" } }, "sha512-+kG7EmaF/J7nOyiHa0SmtGVnVuyOMK5jYiC8rXLSlHbpHKfQuRvI8xMdUfFlVyK7On2z9FInv/w1x51uz0nIeA=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.1.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.1" }, "peerDependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1" } }, "sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow=="],
 

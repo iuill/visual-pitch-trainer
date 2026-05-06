@@ -248,27 +248,57 @@
             <input id="useVocalExtractionInput" type="checkbox" />
             ボーカルを抽出してから解析する
           </label>
-          <div class="setting-row pitch-estimator-row">
+          <div class="setting-row vocal-model-row model-select-row">
+            <label for="vocalSeparationModelSelect">抽出モデル</label>
+            <select id="vocalSeparationModelSelect" disabled>
+              <option value="demucs">標準: Demucs v4（約172MB）</option>
+              <option value="bs-roformer-fp16">高品質: BS-RoFormer fp16 2-stem（約310MB）</option>
+            </select>
+            <span id="vocalSeparationModelHelp" class="setting-help info-note compact-info-note">
+              <span class="info-note-icon" tabindex="0" role="img" aria-label="抽出モデルの補足">i</span>
+              <span class="info-note-popup" role="tooltip">
+                ボーカル抽出はDemucs / BS-RoFormerのどちらもWebGPUと大きなモデルを使うため、ゲーミングPC相当の環境での利用を推奨します。通常のPCやスマホでは、抽出済みボーカル音源を読み込むか、ボーカル抽出を使わずに解析してください。
+              </span>
+            </span>
+          </div>
+          <div class="setting-row pitch-estimator-row model-select-row">
             <label for="audioPitchEstimatorSelect">ピッチ推定</label>
             <select id="audioPitchEstimatorSelect">
-              <option value="rmvpe">おすすめ: RMVPE</option>
-              <option value="pitchy">軽量: pitchy</option>
-              <option value="crepe-small">CREPE small</option>
-              <option value="crepe-medium">CREPE medium</option>
-              <option value="crepe-large">CREPE large</option>
-              <option value="crepe-full">CREPE full</option>
+              <option value="rmvpe">おすすめ: RMVPE（約362MB）</option>
+              <option value="pitchy">軽量: pitchy（モデルなし）</option>
+              <option value="crepe-small">CREPE small（約7MB）</option>
+              <option value="crepe-medium">CREPE medium（約24MB）</option>
+              <option value="crepe-large">CREPE large（約52MB）</option>
+              <option value="crepe-full">CREPE full（約89MB）</option>
             </select>
+            <span id="audioPitchEstimatorHelp" class="setting-help info-note compact-info-note">
+              <span class="info-note-icon" tabindex="0" role="img" aria-label="ピッチ推定の補足">i</span>
+              <span class="info-note-popup" role="tooltip">
+                既定のRMVPEはゲーミングPCでの利用想定です。通常のPCやスマホでは軽量なpitchyを選んでください。RMVPEは初回ロードに時間がかかりますが推定は高速です。CREPEは初回ロードは軽めですが推定は重めです。
+              </span>
+            </span>
           </div>
-          <p id="audioPitchEstimatorHelp" class="setting-help info-note">
-            <span class="info-note-icon" aria-hidden="true">i</span>
-            通常のPCやスマホでは軽量なpitchyを選んでください。ゲーミングPCではRMVPEがおすすめです。RMVPEは初回ロードに時間がかかりますが推定は高速です。CREPEは初回ロードは軽めですが推定は重めです。
-          </p>
           <div class="setting-row playback-source-row">
             <label for="audioPlaybackSourceSelect">再生する音</label>
             <select id="audioPlaybackSourceSelect" disabled>
               <option value="original">元の音源</option>
               <option value="vocals" disabled>抽出ボーカル</option>
             </select>
+            <button
+              id="downloadExtractedVocalButton"
+              class="icon-button download-vocal-button"
+              type="button"
+              aria-label="抽出ボーカル保存"
+              title="抽出ボーカル保存"
+              disabled
+            >
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 3h12l2 2v16H5z" />
+                <path d="M8 3v6h8V3" />
+                <path d="M8 21v-7h8v7" />
+                <path d="M10 16h4" />
+              </svg>
+            </button>
           </div>
           <div class="audio-action-row">
             <button id="analyzeAudioFileButton" class="secondary-button" type="button" disabled>
@@ -301,6 +331,9 @@
             <div class="dev-tools-actions">
               <button id="captureCrepeComparisonButton" class="secondary-button" type="button" disabled>
                 ピッチ推定モデル比較PNG出力
+              </button>
+              <button id="captureVocalSeparationComparisonButton" class="secondary-button" type="button" disabled>
+                全ボーカル抽出モデルMP3出力
               </button>
             </div>
           </details>

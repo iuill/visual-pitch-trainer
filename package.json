@@ -8,6 +8,7 @@
     "audit:dependencies": "bun audit --audit-level=high",
     "dev": "bun run scripts/dev.ts",
     "download:pitch-models": "bun run scripts/download-pitch-models.ts",
+    "prepare:bs-roformer-webgpu": "bash scripts/prepare-bs-roformer-webgpu.sh --variant fp16",
     "build": "bunx --bun vite build",
     "preview": "bunx --bun vite preview --host 0.0.0.0",
     "format": "biome format . --write",
@@ -18,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@mediabunny/mp3-encoder": "1.40.1",
     "demucs-web": "^1.0.2",
     "mediabunny": "^1.40.1",
     "onnxruntime-web": "^1.24.3",

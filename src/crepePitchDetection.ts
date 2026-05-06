@@ -4,6 +4,7 @@ import {
   refineAudioPitchPoints,
   summarizeVoiceRange,
 } from "./audioFileAnalysis";
+import { assertModelUrlAccessible } from "./modelAccess";
 import { getRms, hzToMidi } from "./pitchMath";
 
 type OnnxRuntimeWebGpu = typeof import("onnxruntime-web/webgpu");
@@ -113,40 +114,44 @@ export async function analyzeAudioDataWithCrepe(
       currentBatchSize,
       CREPE_FRAME_SIZE,
     ]);
-    const output = await session.run({ frames: input });
-    const probabilities = output.probabilities;
+    let output: Record<string, { data: unknown; dispose?: () => void }> = {};
 
-    if (!probabilities || probabilities.data.length === 0) {
-      throw new Error("CREPEモデルからピッチ候補を取得できませんでした。");
+    try {
+      output = await session.run({ frames: input });
+      const probabilities = output.probabilities;
+
+      const values = probabilities?.data as Float32Array | undefined;
+
+      if (!values || values.length === 0) {
+        throw new Error("CREPEモデルからピッチ候補を取得できませんでした。");
+      }
+
+      for (let batchIndex = 0; batchIndex < currentBatchSize; batchIndex += 1) {
+        const frameIndex = frameStartIndex + batchIndex;
+        const timeMs =
+          ((frameIndex * CREPE_HOP_SIZE + CREPE_FRAME_SIZE / 2) /
+            CREPE_SAMPLE_RATE) *
+          1000;
+        const volume = volumes[batchIndex] ?? 0;
+        const prediction = decodeCrepeFrame(values, batchIndex);
+        const isAccepted =
+          volume >= minRms &&
+          prediction.confidence >= minConfidence &&
+          prediction.frequency >= minFrequency &&
+          prediction.frequency <= maxFrequency;
+
+        points.push({
+          timeMs,
+          frequency: isAccepted ? prediction.frequency : null,
+          midi: isAccepted ? hzToMidi(prediction.frequency) : null,
+          clarity: prediction.confidence,
+          volume,
+        });
+      }
+    } finally {
+      disposeTensor(input);
+      disposeTensors(Object.values(output));
     }
-
-    const values = probabilities.data as Float32Array;
-
-    for (let batchIndex = 0; batchIndex < currentBatchSize; batchIndex += 1) {
-      const frameIndex = frameStartIndex + batchIndex;
-      const timeMs =
-        ((frameIndex * CREPE_HOP_SIZE + CREPE_FRAME_SIZE / 2) /
-          CREPE_SAMPLE_RATE) *
-        1000;
-      const volume = volumes[batchIndex] ?? 0;
-      const prediction = decodeCrepeFrame(values, batchIndex);
-      const isAccepted =
-        volume >= minRms &&
-        prediction.confidence >= minConfidence &&
-        prediction.frequency >= minFrequency &&
-        prediction.frequency <= maxFrequency;
-
-      points.push({
-        timeMs,
-        frequency: isAccepted ? prediction.frequency : null,
-        midi: isAccepted ? hzToMidi(prediction.frequency) : null,
-        clarity: prediction.confidence,
-        volume,
-      });
-    }
-
-    disposeTensor(input);
-    disposeTensor(probabilities);
 
     options.onProgress?.({
       phase: "analyzing",
@@ -315,6 +320,34 @@ export function getCrepeModelUrl(modelSize: CrepeModelSize): string {
   return CREPE_MODEL_PATHS[modelSize];
 }
 
+export async function assertCrepeModelAccessible(
+  modelSize: CrepeModelSize,
+): Promise<void> {
+  await assertModelUrlAccessible({
+    label: `CREPE ${modelSize}`,
+    modelUrl: getCrepeModelUrl(modelSize),
+    minBytes: 1024 * 1024,
+    setupHint:
+      "ローカル開発や Cloudflare Pages など GitHub Pages 以外の配信では、build 前に bun run download:pitch-models を実行して public/models/ にモデルを取得してください。",
+  });
+}
+
+export async function releaseCrepeSessions() {
+  const sessionPromises = Array.from(crepeSessionPromises.values());
+  crepeSessionPromises.clear();
+
+  await Promise.all(
+    sessionPromises.map(async (sessionPromise) => {
+      try {
+        const { session } = await sessionPromise;
+        await session.release();
+      } catch (error) {
+        console.warn("Failed to release CREPE ONNX session.", error);
+      }
+    }),
+  );
+}
+
 async function resampleWithOfflineAudioContext(
   audioData: Float32Array,
   sourceSampleRate: number,
@@ -432,7 +465,12 @@ async function getCrepeSession(
 
   if (!crepeSessionPromise) {
     onCreate?.();
-    crepeSessionPromise = createCrepeSession(modelUrl);
+    crepeSessionPromise = createCrepeSession(modelUrl).catch((error) => {
+      if (crepeSessionPromises.get(modelUrl) === crepeSessionPromise) {
+        crepeSessionPromises.delete(modelUrl);
+      }
+      throw error;
+    });
     crepeSessionPromises.set(modelUrl, crepeSessionPromise);
   }
 
@@ -446,12 +484,37 @@ async function createCrepeSession(modelUrl: string): Promise<{
   const ort = await import("onnxruntime-web/webgpu");
   configureOnnxRuntime(ort);
 
-  const session = await ort.InferenceSession.create(modelUrl, {
-    executionProviders: ["webgpu"],
-    graphOptimizationLevel: "all",
-  });
+  let session: Awaited<
+    ReturnType<OnnxRuntimeWebGpu["InferenceSession"]["create"]>
+  >;
+  try {
+    session = await ort.InferenceSession.create(modelUrl, {
+      executionProviders: ["webgpu"],
+      graphOptimizationLevel: "all",
+    });
+  } catch (error) {
+    throw createOnnxModelLoadError("CREPE", modelUrl, error);
+  }
 
   return { ort, session };
+}
+
+function createOnnxModelLoadError(
+  label: string,
+  modelUrl: string,
+  error: unknown,
+) {
+  const message = error instanceof Error ? error.message : "";
+  if (
+    !message.includes("protobuf parsing failed") &&
+    !message.includes("Failed to load model")
+  ) {
+    return error;
+  }
+
+  return new Error(
+    `${label}モデルを読み込めませんでした。${modelUrl} が有効な ONNX モデルとして配信されているか確認してください。ローカル開発や Cloudflare Pages など GitHub Pages 以外の配信では、build 前に bun run download:pitch-models を実行して public/models/ にモデルを取得してください。元のエラー: ${message}`,
+  );
 }
 
 function configureOnnxRuntime(ort: OnnxRuntimeWebGpu) {
@@ -478,4 +541,10 @@ function getNavigatorGpu():
 
 function disposeTensor(tensor: { dispose?: () => void }) {
   tensor.dispose?.();
+}
+
+function disposeTensors(tensors: Array<{ dispose?: () => void } | undefined>) {
+  for (const tensor of tensors) {
+    tensor?.dispose?.();
+  }
 }

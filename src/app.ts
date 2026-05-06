@@ -9,10 +9,12 @@ import {
 } from "./audioFileAnalysis";
 import {
   analyzeAudioDataWithCrepe,
+  assertCrepeModelAccessible,
   type CrepeAnalysisProgress,
   type CrepeModelSize,
   getCrepeModelUrl,
   getCrepePitchDetectionSupportMessage,
+  releaseCrepeSessions,
 } from "./crepePitchDetection";
 import {
   createInitialGameEffectState,
@@ -29,6 +31,7 @@ import {
   resolveCanvasBackingSize,
 } from "./graphModel";
 import {
+  createMp3BlobFromDecodedAudio,
   createWavBlobFromDecodedAudio,
   type DecodedMediaAudio,
   decodeMediaAudio,
@@ -47,8 +50,10 @@ import {
 } from "./pitchMath";
 import {
   analyzeAudioDataWithRmvpe,
+  assertRmvpeModelAccessible,
   getRmvpePitchDetectionSupportMessage,
   type RmvpeAnalysisProgress,
+  releaseRmvpeSession,
 } from "./rmvpePitchDetection";
 import {
   addSampleToSession,
@@ -63,9 +68,12 @@ import {
   trimSamples,
 } from "./session";
 import {
+  assertVocalSeparationModelAccessible,
   assertVocalSeparationSupported,
-  extractVocalsWithDemucs,
+  extractVocals,
   getVocalSeparationSupportMessage,
+  VOCAL_SEPARATION_MODELS,
+  type VocalSeparationModelId,
   type VocalSeparationProgress,
 } from "./vocalSeparation";
 import "../styles.css";
@@ -97,20 +105,30 @@ type AppState = {
   selectedPlaybackAudioFile: File | null;
   useSeparatePlaybackAudio: boolean;
   useVocalExtraction: boolean;
+  vocalSeparationModel: VocalSeparationModelId;
   audioPitchEstimator: AudioPitchEstimator;
   isCapturingCrepeComparison: boolean;
+  isCapturingVocalSeparationComparison: boolean;
+  isEncodingExtractedVocalDownload: boolean;
   audioPlaybackSource: "original" | "vocals";
   selectedPlaybackAudioFileUrl: string | null;
   extractedVocalAudioUrl: string | null;
+  extractedVocalAudio: DecodedMediaAudio | null;
+  extractedVocalAudioFileName: string | null;
   audioFilePlayer: HTMLAudioElement | null;
   audioFilePlaybackSource: MediaElementAudioSourceNode | null;
   audioFilePlaybackGain: GainNode | null;
   audioFileAnalysis: AudioFileAnalysis | null;
   isAnalyzingAudioFile: boolean;
   audioAnalysisMemoryTimerId: number | null;
+  progressTimings: Map<string, number>;
   isAudioPlaybackDurationCompatible: boolean;
   audioPlaybackAnimationId: number | null;
   isDraggingAudioPlaybackCursor: boolean;
+  pitchCanvasResizeObserver: ResizeObserver | null;
+  pitchCanvasResizeHandler: (() => void) | null;
+  audioRangeResizeObserver: ResizeObserver | null;
+  audioRangeResizeHandler: (() => void) | null;
   gameEffects: GameEffectState;
 };
 
@@ -145,6 +163,10 @@ const CREPE_MODEL_SIZES: CrepeModelSize[] = [
   "large",
   "full",
 ];
+const VOCAL_SEPARATION_COMPARISON_MODELS: VocalSeparationModelId[] = [
+  "demucs",
+  "bs-roformer-fp16",
+];
 
 const state: AppState = {
   noteRangeStartMidi: DEFAULT_RANGE_START_MIDI,
@@ -173,20 +195,30 @@ const state: AppState = {
   selectedPlaybackAudioFile: null,
   useSeparatePlaybackAudio: false,
   useVocalExtraction: false,
+  vocalSeparationModel: "demucs",
   audioPitchEstimator: "rmvpe",
   isCapturingCrepeComparison: false,
+  isCapturingVocalSeparationComparison: false,
+  isEncodingExtractedVocalDownload: false,
   audioPlaybackSource: "original",
   selectedPlaybackAudioFileUrl: null,
   extractedVocalAudioUrl: null,
+  extractedVocalAudio: null,
+  extractedVocalAudioFileName: null,
   audioFilePlayer: null,
   audioFilePlaybackSource: null,
   audioFilePlaybackGain: null,
   audioFileAnalysis: null,
   isAnalyzingAudioFile: false,
   audioAnalysisMemoryTimerId: null,
+  progressTimings: new Map(),
   isAudioPlaybackDurationCompatible: true,
   audioPlaybackAnimationId: null,
   isDraggingAudioPlaybackCursor: false,
+  pitchCanvasResizeObserver: null,
+  pitchCanvasResizeHandler: null,
+  audioRangeResizeObserver: null,
+  audioRangeResizeHandler: null,
   gameEffects: createInitialGameEffectState(),
 };
 
@@ -241,11 +273,17 @@ const elements = {
   useVocalExtractionInput: queryElement<HTMLInputElement>(
     "#useVocalExtractionInput",
   ),
+  vocalSeparationModelSelect: queryElement<HTMLSelectElement>(
+    "#vocalSeparationModelSelect",
+  ),
   audioPitchEstimatorSelect: queryElement<HTMLSelectElement>(
     "#audioPitchEstimatorSelect",
   ),
   audioPlaybackSourceSelect: queryElement<HTMLSelectElement>(
     "#audioPlaybackSourceSelect",
+  ),
+  downloadExtractedVocalButton: queryElement<HTMLButtonElement>(
+    "#downloadExtractedVocalButton",
   ),
   playAudioFileButton: queryElement<HTMLButtonElement>("#playAudioFileButton"),
   pauseAudioFileButton: queryElement<HTMLButtonElement>(
@@ -260,6 +298,9 @@ const elements = {
   ),
   captureCrepeComparisonButton: queryElement<HTMLButtonElement>(
     "#captureCrepeComparisonButton",
+  ),
+  captureVocalSeparationComparisonButton: queryElement<HTMLButtonElement>(
+    "#captureVocalSeparationComparisonButton",
   ),
   audioFileStatus: queryElement<HTMLElement>("#audioFileStatus"),
   audioMemoryStatus: queryElement<HTMLElement>("#audioMemoryStatus"),
@@ -318,6 +359,8 @@ const AUDIO_RANGE_GRAPH_PADDING: GraphPadding = {
 
 function init() {
   updateBuildInfo();
+  elements.vocalSeparationModelSelect.value = state.vocalSeparationModel;
+  syncVocalSeparationModelOptions();
   renderNoteButtons();
   updateTargetDisplay();
   updateReferenceVolume();
@@ -341,6 +384,10 @@ function init() {
     "change",
     handleUseVocalExtractionChange,
   );
+  elements.vocalSeparationModelSelect.addEventListener(
+    "change",
+    handleVocalSeparationModelChange,
+  );
   elements.audioPitchEstimatorSelect.addEventListener(
     "change",
     handleAudioPitchEstimatorChange,
@@ -348,6 +395,10 @@ function init() {
   elements.audioPlaybackSourceSelect.addEventListener(
     "change",
     handleAudioPlaybackSourceChange,
+  );
+  elements.downloadExtractedVocalButton.addEventListener(
+    "click",
+    handleExtractedVocalDownload,
   );
   elements.playAudioFileButton.addEventListener(
     "click",
@@ -369,6 +420,11 @@ function init() {
     "click",
     handleCrepeComparisonCapture,
   );
+  elements.captureVocalSeparationComparisonButton.addEventListener(
+    "click",
+    handleVocalSeparationComparisonCapture,
+  );
+  window.addEventListener("pagehide", handlePageHide);
   elements.noteRangeSelect.addEventListener("change", handleNoteRangeChange);
   elements.referenceVolumeInput.addEventListener(
     "input",
@@ -424,10 +480,13 @@ function disableAudioControls() {
   elements.playbackAudioFileInput.disabled = true;
   elements.useSeparatePlaybackAudioInput.disabled = true;
   elements.useVocalExtractionInput.disabled = true;
+  elements.vocalSeparationModelSelect.disabled = true;
   elements.audioPitchEstimatorSelect.disabled = true;
   elements.audioPlaybackSourceSelect.disabled = true;
+  elements.downloadExtractedVocalButton.disabled = true;
   elements.analyzeAudioFileButton.disabled = true;
   elements.captureCrepeComparisonButton.disabled = true;
+  elements.captureVocalSeparationComparisonButton.disabled = true;
   elements.playAudioFileButton.disabled = true;
   elements.pauseAudioFileButton.disabled = true;
   elements.stopAudioFileButton.disabled = true;
@@ -438,7 +497,22 @@ function disableAudioControls() {
     "このブラウザでは声の稽古を始められません。別のブラウザで開いてください。";
   elements.micDeviceStatus.textContent =
     "音声機能が使えないため、マイクを取得できません。";
-  elements.audioFileStatus.textContent = AUDIO_FILE_UNSUPPORTED_MESSAGE;
+  setAudioFileStatus(AUDIO_FILE_UNSUPPORTED_MESSAGE, "error");
+}
+
+function syncVocalSeparationModelOptions() {
+  Array.from(elements.vocalSeparationModelSelect.options).forEach((option) => {
+    const modelId = option.value as VocalSeparationModelId;
+    const model = VOCAL_SEPARATION_MODELS[modelId];
+    const isAvailable = model?.isAvailableInBuild ?? false;
+    option.disabled = !isAvailable;
+    option.hidden = !isAvailable;
+  });
+
+  state.vocalSeparationModel = resolveVocalSeparationModel(
+    elements.vocalSeparationModelSelect.value,
+  );
+  elements.vocalSeparationModelSelect.value = state.vocalSeparationModel;
 }
 
 function showAudioError(error: unknown) {
@@ -447,7 +521,16 @@ function showAudioError(error: unknown) {
   console.error(error);
 }
 
+function setAudioFileStatus(
+  message: string,
+  tone: "neutral" | "error" = "neutral",
+) {
+  elements.audioFileStatus.textContent = message;
+  elements.audioFileStatus.classList.toggle("is-error", tone === "error");
+}
+
 function handleAudioFileSelection() {
+  releaseAudioPitchEstimatorSessions();
   const file = elements.audioFileInput.files?.[0] ?? null;
   state.selectedAudioFile = file;
   state.audioFileAnalysis = null;
@@ -462,14 +545,15 @@ function handleAudioFileSelection() {
   }
 
   if (!file) {
-    elements.audioFileStatus.textContent =
-      "音源や動画はブラウザ内だけで処理します。";
+    setAudioFileStatus("音源や動画はブラウザ内だけで処理します。");
     updateAudioFileControls();
     drawAudioRangeGraph();
     return;
   }
 
-  elements.audioFileStatus.textContent = `解析用に ${file.name} を選択しました。動画の場合は音声トラックを取り出してから声域を推定します。`;
+  setAudioFileStatus(
+    `解析用に ${file.name} を選択しました。動画の場合は音声トラックを取り出してから声域を推定します。`,
+  );
   updateAudioFileControls();
   drawAudioRangeGraph();
 }
@@ -492,7 +576,7 @@ function handlePlaybackAudioFileSelection() {
     return;
   }
 
-  elements.audioFileStatus.textContent = `再生用に ${file.name} を選択しました。`;
+  setAudioFileStatus(`再生用に ${file.name} を選択しました。`);
   updateAudioFileControls();
   updateAudioPlaybackReadout();
   drawAudioRangeGraph();
@@ -523,18 +607,46 @@ function handleUseVocalExtractionChange() {
 
   if (state.useVocalExtraction) {
     const supportMessage = getVocalSeparationSupportMessage();
-    elements.audioFileStatus.textContent =
+    const model = VOCAL_SEPARATION_MODELS[state.vocalSeparationModel];
+    setAudioFileStatus(
       supportMessage ??
-      "ボーカル抽出を有効にしました。初回は大きなモデルを読み込むため、PCでも時間がかかります。";
+        `${model.label}でボーカル抽出します。モデルサイズは${model.sizeLabel}です。初回は時間がかかります。`,
+    );
   } else if (state.selectedAudioFile) {
-    elements.audioFileStatus.textContent = `解析用に ${state.selectedAudioFile.name} を選択しました。解析ボタンで声域を推定します。`;
+    setAudioFileStatus(
+      `解析用に ${state.selectedAudioFile.name} を選択しました。解析ボタンで声域を推定します。`,
+    );
   } else {
-    elements.audioFileStatus.textContent =
-      "音源や動画はブラウザ内だけで処理します。";
+    setAudioFileStatus("音源や動画はブラウザ内だけで処理します。");
   }
 }
 
+function handleVocalSeparationModelChange() {
+  state.vocalSeparationModel = resolveVocalSeparationModel(
+    elements.vocalSeparationModelSelect.value,
+  );
+  state.audioFileAnalysis = null;
+  state.audioPlaybackSource = "original";
+  elements.audioPlaybackSourceSelect.value = state.audioPlaybackSource;
+  cleanupExtractedVocalAudioUrl();
+  resetAudioFilePlayerForSelectedSource();
+  resetAudioFileReadouts();
+  updateAudioFileControls();
+  drawAudioRangeGraph();
+
+  const model = VOCAL_SEPARATION_MODELS[state.vocalSeparationModel];
+  const supportMessage = state.useVocalExtraction
+    ? getVocalSeparationSupportMessage()
+    : null;
+
+  setAudioFileStatus(
+    supportMessage ??
+      `${model.label}を選択しました。モデルサイズは${model.sizeLabel}です。${model.licenseNote}`,
+  );
+}
+
 function handleAudioPitchEstimatorChange() {
+  releaseAudioPitchEstimatorSessions();
   state.audioPitchEstimator = resolveAudioPitchEstimator(
     elements.audioPitchEstimatorSelect.value,
   );
@@ -547,21 +659,24 @@ function handleAudioPitchEstimatorChange() {
 
   if (crepeModelSize) {
     const supportMessage = getCrepePitchDetectionSupportMessage();
-    elements.audioFileStatus.textContent =
+    setAudioFileStatus(
       supportMessage ??
-      `CREPE ${formatCrepeModelSize(
-        crepeModelSize,
-      )} 推定を使います。解析ボタンで声域を推定します。`;
+        `CREPE ${formatCrepeModelSize(
+          crepeModelSize,
+        )} 推定を使います。解析ボタンで声域を推定します。`,
+    );
   } else if (state.audioPitchEstimator === "rmvpe") {
     const supportMessage = getRmvpePitchDetectionSupportMessage();
-    elements.audioFileStatus.textContent =
+    setAudioFileStatus(
       supportMessage ??
-      "RMVPE推定を有効にしました。ONNXモデルをWebGPUで実行して声の高さを推定します。";
+        "RMVPE推定を有効にしました。ONNXモデルをWebGPUで実行して声の高さを推定します。",
+    );
   } else if (state.selectedAudioFile) {
-    elements.audioFileStatus.textContent = `解析用に ${state.selectedAudioFile.name} を選択しました。解析ボタンで声域を推定します。`;
+    setAudioFileStatus(
+      `解析用に ${state.selectedAudioFile.name} を選択しました。解析ボタンで声域を推定します。`,
+    );
   } else {
-    elements.audioFileStatus.textContent =
-      "音源や動画はブラウザ内だけで処理します。";
+    setAudioFileStatus("音源や動画はブラウザ内だけで処理します。");
   }
 }
 
@@ -590,7 +705,7 @@ function resetAudioFilePlayerForSelectedSource() {
 
 async function handleAudioFilePlayback() {
   if (!isAudioContextSupported()) {
-    elements.audioFileStatus.textContent = AUDIO_FILE_UNSUPPORTED_MESSAGE;
+    setAudioFileStatus(AUDIO_FILE_UNSUPPORTED_MESSAGE, "error");
     updateAudioFileControls();
     return;
   }
@@ -606,8 +721,10 @@ async function handleAudioFilePlayback() {
   }
 
   if (!hasPlayableAudioFileAnalysis()) {
-    elements.audioFileStatus.textContent =
-      "音源を再生する前に、解析で歌声らしい音程を検出してください。";
+    setAudioFileStatus(
+      "音源を再生する前に、解析で歌声らしい音程を検出してください。",
+      "error",
+    );
     updateAudioFileControls();
     return;
   }
@@ -637,8 +754,10 @@ async function handleAudioFilePlayback() {
     await setupBoostedAudioFilePlayback(player);
     await player.play();
   } catch (error) {
-    elements.audioFileStatus.textContent =
-      "音源を再生できませんでした。ブラウザの音声設定を確認してください。";
+    setAudioFileStatus(
+      "音源を再生できませんでした。ブラウザの音声設定を確認してください。",
+      "error",
+    );
     console.error(error);
   }
 }
@@ -705,7 +824,10 @@ function getSelectedOriginalAudioPlaybackFile(): File | null {
 function updateAudioFileControls() {
   const isAudioSupported = isAudioContextSupported();
   const isAudioBusy =
-    state.isAnalyzingAudioFile || state.isCapturingCrepeComparison;
+    state.isAnalyzingAudioFile ||
+    state.isCapturingCrepeComparison ||
+    state.isCapturingVocalSeparationComparison ||
+    state.isEncodingExtractedVocalDownload;
   const selectedPlaybackFile = getSelectedOriginalAudioPlaybackFile();
   const hasPlayableAnalysis = hasPlayableAudioFileAnalysis();
   const hasSelectedPlaybackSource =
@@ -723,6 +845,8 @@ function updateAudioFileControls() {
   elements.playbackAudioFileInput.disabled =
     !isAudioSupported || !state.useSeparatePlaybackAudio || isAudioBusy;
   elements.useVocalExtractionInput.disabled = !isAudioSupported || isAudioBusy;
+  elements.vocalSeparationModelSelect.disabled =
+    !isAudioSupported || !state.useVocalExtraction || isAudioBusy;
   elements.audioPitchEstimatorSelect.disabled =
     !isAudioSupported || isAudioBusy;
   updateAudioPlaybackSourceControl(isAudioSupported);
@@ -741,6 +865,10 @@ function updateAudioFileControls() {
     : "解析";
   elements.captureCrepeComparisonButton.disabled =
     !isAudioSupported || !state.selectedAudioFile || isAudioBusy;
+  elements.captureVocalSeparationComparisonButton.disabled =
+    !isAudioSupported || !state.selectedAudioFile || isAudioBusy;
+  elements.downloadExtractedVocalButton.disabled =
+    !isAudioSupported || !state.extractedVocalAudio || isAudioBusy;
   const isPlaying = Boolean(
     state.audioFilePlayer && !state.audioFilePlayer.paused,
   );
@@ -772,7 +900,8 @@ function updateAudioPlaybackSourceControl(isAudioSupported: boolean) {
     !isAudioSupported ||
     !state.extractedVocalAudioUrl ||
     state.isAnalyzingAudioFile ||
-    state.isCapturingCrepeComparison;
+    state.isCapturingCrepeComparison ||
+    state.isCapturingVocalSeparationComparison;
 }
 
 function hasPlayableAudioFileAnalysis(): boolean {
@@ -882,6 +1011,8 @@ function cleanupExtractedVocalAudioUrl() {
 
   URL.revokeObjectURL(extractedVocalAudioUrl);
   state.extractedVocalAudioUrl = null;
+  state.extractedVocalAudio = null;
+  state.extractedVocalAudioFileName = null;
 }
 
 function startAudioPlaybackTracking() {
@@ -949,11 +1080,14 @@ function validateAudioPlaybackDuration(): boolean {
       player.pause();
     }
 
-    elements.audioFileStatus.textContent = `解析用音源（${formatDuration(
-      analysisDuration,
-    )}）と再生用音源（${formatDuration(
-      playbackDuration,
-    )}）の長さが異なります。同じ長さの音源を選んでください。`;
+    setAudioFileStatus(
+      `解析用音源（${formatDuration(
+        analysisDuration,
+      )}）と再生用音源（${formatDuration(
+        playbackDuration,
+      )}）の長さが異なります。同じ長さの音源を選んでください。`,
+      "error",
+    );
   }
 
   return isCompatible;
@@ -979,13 +1113,14 @@ async function handleAudioFileAnalysis() {
   if (
     !state.selectedAudioFile ||
     state.isAnalyzingAudioFile ||
-    state.isCapturingCrepeComparison
+    state.isCapturingCrepeComparison ||
+    state.isCapturingVocalSeparationComparison
   ) {
     return;
   }
 
   if (!isAudioContextSupported()) {
-    elements.audioFileStatus.textContent = AUDIO_FILE_UNSUPPORTED_MESSAGE;
+    setAudioFileStatus(AUDIO_FILE_UNSUPPORTED_MESSAGE, "error");
     updateAudioFileControls();
     return;
   }
@@ -994,8 +1129,7 @@ async function handleAudioFileAnalysis() {
     try {
       await assertVocalSeparationSupported();
     } catch (error) {
-      elements.audioFileStatus.textContent =
-        formatAudioFileAnalysisError(error);
+      setAudioFileStatus(formatAudioFileAnalysisError(error), "error");
       updateAudioFileControls();
       return;
     }
@@ -1005,7 +1139,7 @@ async function handleAudioFileAnalysis() {
     const supportMessage = getCrepePitchDetectionSupportMessage();
 
     if (supportMessage) {
-      elements.audioFileStatus.textContent = supportMessage;
+      setAudioFileStatus(supportMessage, "error");
       updateAudioFileControls();
       return;
     }
@@ -1015,28 +1149,34 @@ async function handleAudioFileAnalysis() {
     const supportMessage = getRmvpePitchDetectionSupportMessage();
 
     if (supportMessage) {
-      elements.audioFileStatus.textContent = supportMessage;
+      setAudioFileStatus(supportMessage, "error");
       updateAudioFileControls();
       return;
     }
   }
 
   state.isAnalyzingAudioFile = true;
+  clearProgressTimings();
   startAudioAnalysisMemoryTracking();
   updateAudioFileControls();
   elements.audioFileInput.disabled = true;
-  elements.audioFileStatus.textContent =
-    "音源を読み込んでいます。長い曲では少し時間がかかります。";
+  setAudioFileStatus("モデルファイルにアクセスできるか確認しています。");
 
   try {
+    await waitForPaint();
+    await preflightSelectedAnalysisModels();
+    setAudioFileStatus(
+      "音源を読み込んでいます。長い曲では少し時間がかかります。",
+    );
     await waitForPaint();
     const decodedAudio = await prepareDecodedAudioForAnalysis(
       state.selectedAudioFile,
     );
     const monoData = mixChannelsToMono(decodedAudio.channels);
 
-    elements.audioFileStatus.textContent =
-      "声の高さを推定しています。画面はこのままにしてください。";
+    setAudioFileStatus(
+      "声の高さを推定しています。画面はこのままにしてください。",
+    );
     await waitForPaint();
 
     state.audioFileAnalysis = await analyzeAudioDataWithSelectedEstimator(
@@ -1051,13 +1191,35 @@ async function handleAudioFileAnalysis() {
     cleanupExtractedVocalAudioUrl();
     resetAudioFileReadouts();
     drawAudioRangeGraph();
-    elements.audioFileStatus.textContent = formatAudioFileAnalysisError(error);
+    setAudioFileStatus(formatAudioFileAnalysisError(error), "error");
     console.error(error);
   } finally {
     state.isAnalyzingAudioFile = false;
+    clearProgressTimings();
+    releaseAudioPitchEstimatorSessions();
     stopAudioAnalysisMemoryTracking();
     elements.audioFileInput.disabled = false;
     updateAudioFileControls();
+  }
+}
+
+async function preflightSelectedAnalysisModels() {
+  if (state.useVocalExtraction) {
+    state.vocalSeparationModel = resolveVocalSeparationModel(
+      elements.vocalSeparationModelSelect.value,
+    );
+    elements.vocalSeparationModelSelect.value = state.vocalSeparationModel;
+    await assertVocalSeparationModelAccessible(state.vocalSeparationModel);
+  }
+
+  const crepeModelSize = getSelectedCrepeModelSize();
+  if (crepeModelSize) {
+    await assertCrepeModelAccessible(crepeModelSize);
+    return;
+  }
+
+  if (state.audioPitchEstimator === "rmvpe") {
+    await assertRmvpeModelAccessible();
   }
 }
 
@@ -1069,9 +1231,17 @@ async function prepareDecodedAudioForAnalysis(
 
   if (state.useVocalExtraction) {
     cleanupExtractedVocalAudioUrl();
-    decodedAudio = await extractVocalsWithDemucs(decodedAudio, {
+    state.vocalSeparationModel = resolveVocalSeparationModel(
+      elements.vocalSeparationModelSelect.value,
+    );
+    decodedAudio = await extractVocals(decodedAudio, {
+      modelId: state.vocalSeparationModel,
       onProgress: updateVocalExtractionProgress,
     });
+    state.extractedVocalAudio = decodedAudio;
+    state.extractedVocalAudioFileName = createExtractedVocalFileName(
+      state.vocalSeparationModel,
+    );
     state.extractedVocalAudioUrl = URL.createObjectURL(
       createWavBlobFromDecodedAudio(decodedAudio),
     );
@@ -1109,17 +1279,23 @@ async function analyzeAudioDataWithSelectedEstimator(
   return analyzeAudioData(monoData, { sampleRate });
 }
 
+function releaseAudioPitchEstimatorSessions() {
+  void releaseCrepeSessions();
+  void releaseRmvpeSession();
+}
+
 async function handleCrepeComparisonCapture() {
   if (
     !state.selectedAudioFile ||
     state.isAnalyzingAudioFile ||
-    state.isCapturingCrepeComparison
+    state.isCapturingCrepeComparison ||
+    state.isCapturingVocalSeparationComparison
   ) {
     return;
   }
 
   if (!isAudioContextSupported()) {
-    elements.audioFileStatus.textContent = AUDIO_FILE_UNSUPPORTED_MESSAGE;
+    setAudioFileStatus(AUDIO_FILE_UNSUPPORTED_MESSAGE, "error");
     updateAudioFileControls();
     return;
   }
@@ -1127,7 +1303,7 @@ async function handleCrepeComparisonCapture() {
   const supportMessage = getCrepePitchDetectionSupportMessage();
 
   if (supportMessage) {
-    elements.audioFileStatus.textContent = supportMessage;
+    setAudioFileStatus(supportMessage, "error");
     updateAudioFileControls();
     return;
   }
@@ -1135,7 +1311,7 @@ async function handleCrepeComparisonCapture() {
   const rmvpeSupportMessage = getRmvpePitchDetectionSupportMessage();
 
   if (rmvpeSupportMessage) {
-    elements.audioFileStatus.textContent = rmvpeSupportMessage;
+    setAudioFileStatus(rmvpeSupportMessage, "error");
     updateAudioFileControls();
     return;
   }
@@ -1144,18 +1320,17 @@ async function handleCrepeComparisonCapture() {
     try {
       await assertVocalSeparationSupported();
     } catch (error) {
-      elements.audioFileStatus.textContent =
-        formatAudioFileAnalysisError(error);
+      setAudioFileStatus(formatAudioFileAnalysisError(error), "error");
       updateAudioFileControls();
       return;
     }
   }
 
   state.isCapturingCrepeComparison = true;
+  clearProgressTimings();
   startAudioAnalysisMemoryTracking();
   updateAudioFileControls();
-  elements.audioFileStatus.textContent =
-    "ピッチ推定モデル比較PNG用に音源を読み込んでいます。";
+  setAudioFileStatus("ピッチ推定モデル比較PNG用に音源を読み込んでいます。");
   const originalAudioPitchEstimator = state.audioPitchEstimator;
   const originalAudioFileAnalysis = state.audioFileAnalysis;
   const originalAudioPlaybackDurationCompatible =
@@ -1174,8 +1349,7 @@ async function handleCrepeComparisonCapture() {
       canvas: HTMLCanvasElement;
     }[] = [];
 
-    elements.audioFileStatus.textContent =
-      "既存のpitchy解析で比較用グラフを作成しています。";
+    setAudioFileStatus("既存のpitchy解析で比較用グラフを作成しています。");
     await waitForPaint();
     state.audioFileAnalysis = analyzeAudioData(monoData, {
       sampleRate: decodedAudio.sampleRate,
@@ -1192,9 +1366,11 @@ async function handleCrepeComparisonCapture() {
     for (const modelSize of CREPE_MODEL_SIZES) {
       state.audioPitchEstimator = `crepe-${modelSize}`;
       elements.audioPitchEstimatorSelect.value = state.audioPitchEstimator;
-      elements.audioFileStatus.textContent = `CREPE ${formatCrepeModelSize(
-        modelSize,
-      )} モデルで比較用グラフを作成しています。`;
+      setAudioFileStatus(
+        `CREPE ${formatCrepeModelSize(
+          modelSize,
+        )} モデルで比較用グラフを作成しています。`,
+      );
       await waitForPaint();
 
       state.audioFileAnalysis = await analyzeAudioDataWithCrepe(monoData, {
@@ -1212,8 +1388,7 @@ async function handleCrepeComparisonCapture() {
       });
     }
 
-    elements.audioFileStatus.textContent =
-      "RMVPEモデルで比較用グラフを作成しています。";
+    setAudioFileStatus("RMVPEモデルで比較用グラフを作成しています。");
     await waitForPaint();
     state.audioPitchEstimator = "rmvpe";
     elements.audioPitchEstimatorSelect.value = state.audioPitchEstimator;
@@ -1232,13 +1407,14 @@ async function handleCrepeComparisonCapture() {
 
     await downloadCombinedCrepeComparisonPng(captures);
     shouldRestoreOriginalAnalysis = true;
-    elements.audioFileStatus.textContent =
-      "ピッチ推定モデル比較PNGを作成しました。ダウンロード結果を確認してください。";
+    setAudioFileStatus(
+      "ピッチ推定モデル比較PNGを作成しました。ダウンロード結果を確認してください。",
+    );
   } catch (error) {
     state.audioFileAnalysis = null;
     resetAudioFileReadouts();
     drawAudioRangeGraph();
-    elements.audioFileStatus.textContent = formatAudioFileAnalysisError(error);
+    setAudioFileStatus(formatAudioFileAnalysisError(error), "error");
     console.error(error);
   } finally {
     state.audioPitchEstimator = originalAudioPitchEstimator;
@@ -1257,6 +1433,127 @@ async function handleCrepeComparisonCapture() {
       drawAudioRangeGraph();
     }
     state.isCapturingCrepeComparison = false;
+    clearProgressTimings();
+    void releaseCrepeSessions();
+    void releaseRmvpeSession();
+    stopAudioAnalysisMemoryTracking();
+    updateAudioFileControls();
+  }
+}
+
+async function handleExtractedVocalDownload() {
+  if (!state.extractedVocalAudio) {
+    setAudioFileStatus(
+      "保存できる抽出ボーカルがまだありません。ボーカル抽出を有効にして解析してください。",
+      "error",
+    );
+    updateAudioFileControls();
+    return;
+  }
+
+  const fileName =
+    state.extractedVocalAudioFileName ?? createExtractedVocalFileName();
+
+  try {
+    state.isEncodingExtractedVocalDownload = true;
+    setAudioFileStatus("抽出ボーカルMP3を作成しています。");
+    updateAudioFileControls();
+    await waitForPaint();
+    const blob = await createMp3BlobFromDecodedAudio(state.extractedVocalAudio);
+    downloadBlob(blob, fileName);
+    setAudioFileStatus(
+      "抽出ボーカルMP3を保存しました。ブラウザのダウンロード結果を確認してください。",
+    );
+  } catch (error) {
+    setAudioFileStatus(formatAudioFileAnalysisError(error), "error");
+    console.error(error);
+  } finally {
+    state.isEncodingExtractedVocalDownload = false;
+    updateAudioFileControls();
+  }
+}
+
+async function handleVocalSeparationComparisonCapture() {
+  if (
+    !state.selectedAudioFile ||
+    state.isAnalyzingAudioFile ||
+    state.isCapturingCrepeComparison ||
+    state.isCapturingVocalSeparationComparison
+  ) {
+    return;
+  }
+
+  if (!isAudioContextSupported()) {
+    setAudioFileStatus(AUDIO_FILE_UNSUPPORTED_MESSAGE, "error");
+    updateAudioFileControls();
+    return;
+  }
+
+  try {
+    await assertVocalSeparationSupported();
+  } catch (error) {
+    setAudioFileStatus(formatAudioFileAnalysisError(error), "error");
+    updateAudioFileControls();
+    return;
+  }
+
+  state.isCapturingVocalSeparationComparison = true;
+  clearProgressTimings();
+  startAudioAnalysisMemoryTracking();
+  updateAudioFileControls();
+  setAudioFileStatus("全ボーカル抽出モデル出力用に音源を読み込んでいます。");
+
+  try {
+    await waitForPaint();
+    const audioContext = getAudioContext();
+    const decodedAudio = await decodeMediaAudio(
+      state.selectedAudioFile,
+      audioContext,
+    );
+    const failures: string[] = [];
+
+    const comparisonModels = VOCAL_SEPARATION_COMPARISON_MODELS.filter(
+      (modelId) => VOCAL_SEPARATION_MODELS[modelId].isAvailableInBuild,
+    );
+
+    for (const modelId of comparisonModels) {
+      const model = VOCAL_SEPARATION_MODELS[modelId];
+      setAudioFileStatus(`${model.label}でボーカル抽出MP3を作成しています。`);
+      await waitForPaint();
+
+      try {
+        const extractedAudio = await extractVocals(decodedAudio, {
+          modelId,
+          onProgress: updateVocalExtractionProgress,
+        });
+        setAudioFileStatus(
+          `${model.label}の抽出ボーカルをMP3に変換しています。`,
+        );
+        await waitForPaint();
+        const blob = await createMp3BlobFromDecodedAudio(extractedAudio);
+        downloadBlob(
+          blob,
+          `${createAudioFileBaseName()}-${createVocalModelFileNameSegment(
+            modelId,
+          )}-vocals.mp3`,
+        );
+      } catch (error) {
+        failures.push(model.label);
+        console.error(`${model.label} vocal separation failed.`, error);
+      }
+    }
+
+    setAudioFileStatus(
+      failures.length > 0
+        ? `ボーカル抽出MP3出力が完了しました。一部失敗: ${failures.join("、")}`
+        : "全ボーカル抽出モデルのMP3を出力しました。ダウンロード結果を確認してください。",
+    );
+  } catch (error) {
+    setAudioFileStatus(formatAudioFileAnalysisError(error), "error");
+    console.error(error);
+  } finally {
+    state.isCapturingVocalSeparationComparison = false;
+    clearProgressTimings();
     stopAudioAnalysisMemoryTracking();
     updateAudioFileControls();
   }
@@ -1282,16 +1579,19 @@ function updateAudioFileReadouts(analysis: AudioFileAnalysis) {
   elements.voicedRatioReadout.textContent = `${Math.round(coverage * 100)}%`;
 
   if (summary.validFrames === 0) {
-    elements.audioFileStatus.textContent =
-      "歌声らしい音程を検出できませんでした。伴奏が強い音源や無音区間が多い音源では推定できないことがあります。";
+    setAudioFileStatus(
+      "歌声らしい音程を検出できませんでした。伴奏が強い音源や無音区間が多い音源では推定できないことがあります。",
+    );
     elements.audioRangeDescription.textContent =
       "音源から歌声らしい音程を検出できませんでした。";
     return;
   }
 
-  elements.audioFileStatus.textContent = `解析完了: ${formatDuration(
-    summary.durationSec,
-  )} の音源から ${formatDuration(summary.voicedSec)} 分の歌声らしい音程を検出しました。`;
+  setAudioFileStatus(
+    `解析完了: ${formatDuration(summary.durationSec)} の音源から ${formatDuration(
+      summary.voicedSec,
+    )} 分の歌声らしい音程を検出しました。`,
+  );
   elements.audioRangeDescription.textContent = `推定声域は ${robustRange}、よく出る範囲は ${commonRange}、中心付近は ${elements.medianVoiceReadout.textContent} です。`;
 }
 
@@ -1304,94 +1604,193 @@ function resetAudioFileReadouts() {
     "音源の声域推定はまだ実行されていません。";
 }
 
+function clearProgressTimings() {
+  state.progressTimings.clear();
+}
+
+function formatProgressTiming(
+  key: string,
+  completedUnits: number,
+  totalUnits: number,
+): string {
+  const total = Math.max(0, totalUnits);
+  if (total <= 0) {
+    return formatElapsedProgress(key);
+  }
+
+  const completed = clamp(completedUnits, 0, total);
+  const elapsedSec = getProgressElapsedSec(key);
+  const parts = [
+    formatPercent(completed / total),
+    `経過 ${formatProgressDuration(elapsedSec)}`,
+  ];
+
+  if (completed > 0 && completed < total) {
+    const remainingSec = (elapsedSec / completed) * (total - completed);
+    parts.push(`残り 約${formatProgressDuration(remainingSec)}`);
+  } else if (completed >= total) {
+    parts.push("残り 0秒");
+  }
+
+  return parts.join(" / ");
+}
+
+function formatElapsedProgress(key: string): string {
+  return `経過 ${formatProgressDuration(getProgressElapsedSec(key))}`;
+}
+
+function getProgressElapsedSec(key: string): number {
+  const startedAt = state.progressTimings.get(key) ?? performance.now();
+  if (!state.progressTimings.has(key)) {
+    state.progressTimings.set(key, startedAt);
+  }
+
+  return Math.max(0, (performance.now() - startedAt) / 1000);
+}
+
+function formatProgressDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "0秒";
+  }
+
+  const roundedSeconds = Math.round(seconds);
+  if (roundedSeconds < 60) {
+    return `${roundedSeconds}秒`;
+  }
+
+  const minutes = Math.floor(roundedSeconds / 60);
+  const secondsPart = roundedSeconds % 60;
+  if (minutes < 60) {
+    return `${minutes}分${secondsPart}秒`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const minutesPart = minutes % 60;
+  return `${hours}時間${String(minutesPart).padStart(2, "0")}分`;
+}
+
 function updateVocalExtractionProgress(progress: VocalSeparationProgress) {
   updateAudioMemoryStatus();
+  const modelLabel = progress.modelLabel ?? "ボーカル抽出モデル";
 
   if (progress.phase === "loading-runtime") {
-    elements.audioFileStatus.textContent =
-      "ボーカル抽出の実行環境を読み込んでいます。";
+    setAudioFileStatus("ボーカル抽出の実行環境を読み込んでいます。");
     return;
   }
 
   if (progress.phase === "loading-model") {
-    elements.audioFileStatus.textContent =
+    const progressKey = `vocal:${modelLabel}:loading-model`;
+    setAudioFileStatus(
       progress.loadedBytes !== undefined && progress.totalBytes !== undefined
-        ? `ボーカル抽出モデルを読み込んでいます。${formatPercent(
-            progress.loadedBytes / progress.totalBytes,
-          )}`
-        : "ボーカル抽出モデルを読み込んでいます。初回は時間がかかります。";
+        ? `${modelLabel}を読み込んでいます。${formatBytes(
+            progress.loadedBytes,
+          )} / ${formatBytes(progress.totalBytes)}（${formatProgressTiming(
+            progressKey,
+            progress.loadedBytes,
+            progress.totalBytes,
+          )}）`
+        : `${modelLabel}を読み込んでいます。初回は時間がかかります。（${formatElapsedProgress(progressKey)}）`,
+    );
     return;
   }
 
-  elements.audioFileStatus.textContent =
+  const progressKey = `vocal:${modelLabel}:separating`;
+  setAudioFileStatus(
     progress.currentSegment !== undefined &&
-    progress.totalSegments !== undefined
-      ? `ボーカルを抽出しています。${progress.currentSegment} / ${progress.totalSegments} Chunks`
-      : `ボーカルを抽出しています。${formatPercent(progress.progress ?? 0)}`;
+      progress.totalSegments !== undefined
+      ? `${modelLabel}でボーカルを抽出しています。${progress.currentSegment} / ${progress.totalSegments} Chunks（${formatProgressTiming(
+          progressKey,
+          progress.currentSegment,
+          progress.totalSegments,
+        )}）`
+      : `${modelLabel}でボーカルを抽出しています。${formatProgressTiming(
+          progressKey,
+          progress.progress ?? 0,
+          1,
+        )}`,
+  );
 }
 
 function updateCrepeAnalysisProgress(progress: CrepeAnalysisProgress) {
   updateAudioMemoryStatus();
 
   if (progress.phase === "loading-runtime") {
-    elements.audioFileStatus.textContent =
-      "CREPE推定の実行環境を読み込んでいます。";
+    setAudioFileStatus("CREPE推定の実行環境を読み込んでいます。");
     return;
   }
 
   if (progress.phase === "loading-model") {
     const crepeModelSize = getSelectedCrepeModelSize() ?? "small";
-    elements.audioFileStatus.textContent = `CREPE ${formatCrepeModelSize(
-      crepeModelSize,
-    )} モデルを読み込んでいます。初回は時間がかかります。`;
+    setAudioFileStatus(
+      `CREPE ${formatCrepeModelSize(
+        crepeModelSize,
+      )} モデルを読み込んでいます。初回は時間がかかります。（${formatElapsedProgress(
+        `crepe:${crepeModelSize}:loading-model`,
+      )}）`,
+    );
     return;
   }
 
-  elements.audioFileStatus.textContent =
+  const crepeModelSize = getSelectedCrepeModelSize() ?? "small";
+  const progressKey = `crepe:${crepeModelSize}:analyzing`;
+  setAudioFileStatus(
     progress.processedFrames !== undefined &&
-    progress.totalFrames !== undefined &&
-    progress.totalFrames > 0
-      ? `CREPEで声の高さを推定しています。${formatPercent(
-          progress.processedFrames / progress.totalFrames,
-        )}`
-      : "CREPEで声の高さを推定しています。";
+      progress.totalFrames !== undefined &&
+      progress.totalFrames > 0
+      ? `CREPEで声の高さを推定しています。${progress.processedFrames} / ${progress.totalFrames} フレーム（${formatProgressTiming(
+          progressKey,
+          progress.processedFrames,
+          progress.totalFrames,
+        )}）`
+      : "CREPEで声の高さを推定しています。",
+  );
 }
 
 function updateRmvpeAnalysisProgress(progress: RmvpeAnalysisProgress) {
   updateAudioMemoryStatus();
 
   if (progress.phase === "loading-runtime") {
-    elements.audioFileStatus.textContent =
-      "RMVPE推定の実行環境を読み込んでいます。";
+    setAudioFileStatus("RMVPE推定の実行環境を読み込んでいます。");
     return;
   }
 
   if (progress.phase === "loading-model") {
-    elements.audioFileStatus.textContent =
-      "RMVPEのONNXモデルを読み込んでいます。初回は時間がかかります。";
+    setAudioFileStatus(
+      `RMVPEのONNXモデルを読み込んでいます。初回は時間がかかります。（${formatElapsedProgress(
+        "rmvpe:loading-model",
+      )}）`,
+    );
     return;
   }
 
   if (progress.phase === "extracting-features") {
-    elements.audioFileStatus.textContent =
+    const progressKey = "rmvpe:extracting-features";
+    setAudioFileStatus(
       progress.processedFrames !== undefined &&
-      progress.totalFrames !== undefined &&
-      progress.totalFrames > 0
-        ? `RMVPE用の特徴量を作成しています。${formatPercent(
-            progress.processedFrames / progress.totalFrames,
-          )}`
-        : "RMVPE用の特徴量を作成しています。";
+        progress.totalFrames !== undefined &&
+        progress.totalFrames > 0
+        ? `RMVPE用の特徴量を作成しています。${progress.processedFrames} / ${progress.totalFrames} フレーム（${formatProgressTiming(
+            progressKey,
+            progress.processedFrames,
+            progress.totalFrames,
+          )}）`
+        : "RMVPE用の特徴量を作成しています。",
+    );
     return;
   }
 
-  elements.audioFileStatus.textContent =
+  const progressKey = "rmvpe:analyzing";
+  setAudioFileStatus(
     progress.processedFrames !== undefined &&
-    progress.totalFrames !== undefined &&
-    progress.totalFrames > 0
-      ? `RMVPEで声の高さを推定しています。${formatPercent(
-          progress.processedFrames / progress.totalFrames,
-        )}`
-      : "RMVPEで声の高さを推定しています。";
+      progress.totalFrames !== undefined &&
+      progress.totalFrames > 0
+      ? `RMVPEで声の高さを推定しています。${progress.processedFrames} / ${progress.totalFrames} フレーム（${formatProgressTiming(
+          progressKey,
+          progress.processedFrames,
+          progress.totalFrames,
+        )}）`
+      : "RMVPEで声の高さを推定しています。",
+  );
 }
 
 function formatCrepeModelSize(modelSize: CrepeModelSize): string {
@@ -1406,14 +1805,33 @@ async function downloadCombinedCrepeComparisonPng(
 ) {
   const combinedCanvas = createCombinedCrepeComparisonCanvas(captures);
   const blob = await createCanvasPngBlob(combinedCanvas);
+  downloadBlob(blob, `${createAudioFileBaseName()}-crepe-comparison.png`);
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${createAudioFileBaseName()}-crepe-comparison.png`;
+  link.download = fileName;
   document.body.append(link);
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function createVocalModelFileNameSegment(
+  modelId: VocalSeparationModelId,
+): string {
+  return modelId
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function createExtractedVocalFileName(modelId = state.vocalSeparationModel) {
+  return `${createAudioFileBaseName()}-${createVocalModelFileNameSegment(
+    modelId,
+  )}-vocals.mp3`;
 }
 
 function cloneAudioRangeGraphCanvas(): HTMLCanvasElement {
@@ -1515,6 +1933,17 @@ function resolveAudioPitchEstimator(value: string): AudioPitchEstimator {
   return "rmvpe";
 }
 
+function resolveVocalSeparationModel(value: string): VocalSeparationModelId {
+  if (
+    value in VOCAL_SEPARATION_MODELS &&
+    VOCAL_SEPARATION_MODELS[value as VocalSeparationModelId].isAvailableInBuild
+  ) {
+    return value as VocalSeparationModelId;
+  }
+
+  return "demucs";
+}
+
 function getSelectedCrepeModelSize(): CrepeModelSize | null {
   if (!state.audioPitchEstimator.startsWith("crepe-")) {
     return null;
@@ -1605,8 +2034,17 @@ function formatAudioFileAnalysisError(error: unknown): string {
     return message;
   }
 
+  if (state.isCapturingVocalSeparationComparison) {
+    return message
+      ? `ボーカル抽出モデルMP3の作成に失敗しました。${message}`
+      : "ボーカル抽出モデルMP3の作成に失敗しました。PC版Chrome/EdgeなどのWebGPU対応ブラウザで、短めの音源から試してください。";
+  }
+
   if (state.useVocalExtraction) {
-    return "ボーカル抽出または声域推定に失敗しました。PC版Chrome/EdgeなどのWebGPU対応ブラウザで、短めの音源から試してください。";
+    const model = VOCAL_SEPARATION_MODELS[state.vocalSeparationModel];
+    return message
+      ? `${model.label}のボーカル抽出または声域推定に失敗しました。${message}`
+      : `${model.label}のボーカル抽出または声域推定に失敗しました。PC版Chrome/EdgeなどのWebGPU対応ブラウザで、短めの音源から試してください。`;
   }
 
   if (state.isCapturingCrepeComparison) {
@@ -1877,6 +2315,16 @@ function playScale() {
   }, playbackMs);
 }
 
+function stopScalePlayback() {
+  if (state.scalePlaybackTimerId !== null) {
+    window.clearTimeout(state.scalePlaybackTimerId);
+    state.scalePlaybackTimerId = null;
+  }
+
+  state.isScalePlaying = false;
+  elements.playScaleButton.disabled = false;
+}
+
 async function toggleMicrophone() {
   if (state.isMicStarting || state.isScalePlaying) {
     return;
@@ -1967,7 +2415,7 @@ function focusGraphForPractice() {
 }
 
 function stopMicrophone() {
-  if (state.animationId) {
+  if (state.animationId !== null) {
     cancelAnimationFrame(state.animationId);
   }
 
@@ -1986,6 +2434,33 @@ function stopMicrophone() {
 
   updateMicButtonState("stopped");
   elements.analysisStatus.textContent = "稽古を停止しました";
+}
+
+function handlePageHide(event: PageTransitionEvent) {
+  if (event.persisted) {
+    return;
+  }
+
+  cleanupRuntimeResources();
+}
+
+function cleanupRuntimeResources() {
+  stopAudioPlaybackTracking();
+  stopAudioAnalysisMemoryTracking();
+  stopScalePlayback();
+  stopReferenceTone();
+  stopMicrophone();
+  cleanupAudioFilePlayer();
+  cleanupExtractedVocalAudioUrl();
+  cleanupCanvasRuntimeListeners();
+  void releaseCrepeSessions();
+  void releaseRmvpeSession();
+
+  const audioContext = state.audioContext;
+  state.audioContext = null;
+  if (audioContext && audioContext.state !== "closed") {
+    void audioContext.close();
+  }
 }
 
 function updateMicButtonState(status: "active" | "starting" | "stopped") {
@@ -2257,6 +2732,7 @@ function updateSensitivity() {
 }
 
 function setupPitchCanvas() {
+  cleanupPitchCanvasResizeWatcher();
   syncPitchCanvasSize();
 
   const ResizeObserverClass = globalThis.ResizeObserver;
@@ -2266,16 +2742,19 @@ function setupPitchCanvas() {
       drawGraph();
     });
     observer.observe(elements.pitchCanvas);
+    state.pitchCanvasResizeObserver = observer;
     return;
   }
 
-  window.addEventListener("resize", () => {
+  state.pitchCanvasResizeHandler = () => {
     syncPitchCanvasSize();
     drawGraph();
-  });
+  };
+  window.addEventListener("resize", state.pitchCanvasResizeHandler);
 }
 
 function setupAudioRangeCanvas() {
+  cleanupAudioRangeCanvasListeners();
   syncAudioRangeCanvasSize();
   elements.audioRangeCanvas.addEventListener(
     "pointerdown",
@@ -2305,13 +2784,61 @@ function setupAudioRangeCanvas() {
       drawAudioRangeGraph();
     });
     observer.observe(elements.audioRangeScroll);
+    state.audioRangeResizeObserver = observer;
     return;
   }
 
-  window.addEventListener("resize", () => {
+  state.audioRangeResizeHandler = () => {
     syncAudioRangeCanvasSize();
     drawAudioRangeGraph();
-  });
+  };
+  window.addEventListener("resize", state.audioRangeResizeHandler);
+}
+
+function cleanupCanvasRuntimeListeners() {
+  cleanupPitchCanvasResizeWatcher();
+  cleanupAudioRangeCanvasListeners();
+}
+
+function cleanupPitchCanvasResizeWatcher() {
+  state.pitchCanvasResizeObserver?.disconnect();
+  state.pitchCanvasResizeObserver = null;
+
+  if (state.pitchCanvasResizeHandler) {
+    window.removeEventListener("resize", state.pitchCanvasResizeHandler);
+    state.pitchCanvasResizeHandler = null;
+  }
+}
+
+function cleanupAudioRangeCanvasListeners() {
+  elements.audioRangeCanvas.removeEventListener(
+    "pointerdown",
+    handleAudioRangePointerDown,
+  );
+  elements.audioRangeCanvas.removeEventListener(
+    "pointermove",
+    handleAudioRangePointerMove,
+  );
+  elements.audioRangeCanvas.removeEventListener(
+    "pointerup",
+    handleAudioRangePointerUp,
+  );
+  elements.audioRangeCanvas.removeEventListener(
+    "pointercancel",
+    handleAudioRangePointerUp,
+  );
+  elements.audioRangeCanvas.removeEventListener(
+    "pointerleave",
+    handleAudioRangePointerLeave,
+  );
+
+  state.audioRangeResizeObserver?.disconnect();
+  state.audioRangeResizeObserver = null;
+
+  if (state.audioRangeResizeHandler) {
+    window.removeEventListener("resize", state.audioRangeResizeHandler);
+    state.audioRangeResizeHandler = null;
+  }
 }
 
 function handleAudioRangePointerDown(event: PointerEvent) {

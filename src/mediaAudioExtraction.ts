@@ -5,6 +5,8 @@ export type DecodedMediaAudio = {
   source: "web-audio" | "mediabunny";
 };
 
+let isMp3EncoderRegistered = false;
+
 export async function decodeMediaAudio(
   file: File,
   audioContext: AudioContext,
@@ -107,6 +109,73 @@ export function createWavBlobFromDecodedAudio(
   }
 
   return new Blob([buffer], { type: "audio/wav" });
+}
+
+export async function createMp3BlobFromDecodedAudio(
+  decodedAudio: DecodedMediaAudio,
+): Promise<Blob> {
+  const [
+    {
+      ALL_FORMATS,
+      BlobSource,
+      BufferTarget,
+      canEncodeAudio,
+      Conversion,
+      Input,
+      Mp3OutputFormat,
+      Output,
+    },
+    { registerMp3Encoder },
+  ] = await Promise.all([
+    import("mediabunny"),
+    import("@mediabunny/mp3-encoder"),
+  ]);
+  const channelCount = Math.max(1, decodedAudio.channels.length);
+  const bitrate = 192_000;
+
+  if (
+    !isMp3EncoderRegistered &&
+    !(await canEncodeAudio("mp3", {
+      numberOfChannels: channelCount,
+      sampleRate: decodedAudio.sampleRate,
+      bitrate,
+    }))
+  ) {
+    registerMp3Encoder();
+    isMp3EncoderRegistered = true;
+  }
+
+  const input = new Input({
+    source: new BlobSource(createWavBlobFromDecodedAudio(decodedAudio)),
+    formats: ALL_FORMATS,
+  });
+  const output = new Output({
+    format: new Mp3OutputFormat(),
+    target: new BufferTarget(),
+  });
+  const conversion = await Conversion.init({
+    input,
+    output,
+    audio: {
+      codec: "mp3",
+      bitrate,
+      forceTranscode: true,
+    },
+    video: {
+      discard: true,
+    },
+    tags: {},
+    showWarnings: false,
+  });
+
+  await conversion.execute();
+
+  const buffer = output.target.buffer;
+  if (!buffer) {
+    throw new Error("MP3ファイルを作成できませんでした。");
+  }
+
+  return new Blob([buffer], { type: "audio/mpeg" });
 }
 
 async function decodeWithWebAudio(

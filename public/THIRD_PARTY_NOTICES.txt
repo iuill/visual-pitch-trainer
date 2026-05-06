@@ -59,6 +59,25 @@ This Source Code Form is subject to the terms of the Mozilla Public License,
 v. 2.0. If a copy of the MPL was not distributed with this file, You can
 obtain one at https://mozilla.org/MPL/2.0/.
 
+@mediabunny/mp3-encoder
+https://github.com/Vanilagy/mediabunny/tree/main/packages/mp3-encoder
+
+Copyright (c) 2026-present, Vanilagy and contributors
+
+This Source Code Form is subject to the terms of the Mozilla Public License,
+v. 2.0. If a copy of the MPL was not distributed with this file, You can
+obtain one at https://mozilla.org/MPL/2.0/.
+
+The @mediabunny/mp3-encoder package uses a WebAssembly build of the LAME MP3
+Encoder under the hood.
+
+LAME MP3 Encoder
+https://lame.sourceforge.io/
+
+LAME is licensed under the GNU Lesser General Public License.
+License information:
+https://lame.sourceforge.io/license.txt
+
 demucs-web
 https://github.com/timcsy/demucs-web
 
@@ -139,3 +158,15 @@ https://github.com/Dream-High/RMVPE
 
 RMVPE browser integration was informed by rmvpe-onnx:
 https://github.com/NewComer00/rmvpe-onnx
+
+BS-RoFormer ONNX model
+https://huggingface.co/xycld/BS-RoFormer-ONNX
+
+MIT License
+
+The optional BS-RoFormer vocal separation model is not committed to this Git
+repository. For local development it can be generated under:
+public/models/bs-roformer-fp16-webgpu.onnx
+
+The upstream project recommends checking training-data conditions before
+commercial use.
