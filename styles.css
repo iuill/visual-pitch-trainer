@@ -620,6 +620,19 @@ input[type="range"] {
   margin-top: 10px;
 }
 
+.playback-source-row {
+  max-width: 480px;
+  grid-template-columns: auto minmax(150px, 220px) auto;
+  align-items: center;
+}
+
+.download-vocal-button {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  color: var(--muted);
+}
+
 .model-select-row {
   position: relative;
   max-width: 460px;
@@ -1190,6 +1203,10 @@ input[type="range"] {
     grid-template-columns: 1fr;
     gap: 8px;
     margin-top: 14px;
+  }
+
+  .playback-source-row {
+    grid-template-columns: 1fr;
   }
 
   .setting-row.select-row {

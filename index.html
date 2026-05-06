@@ -284,6 +284,21 @@
               <option value="original">元の音源</option>
               <option value="vocals" disabled>抽出ボーカル</option>
             </select>
+            <button
+              id="downloadExtractedVocalButton"
+              class="icon-button download-vocal-button"
+              type="button"
+              aria-label="抽出ボーカル保存"
+              title="抽出ボーカル保存"
+              disabled
+            >
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 3h12l2 2v16H5z" />
+                <path d="M8 3v6h8V3" />
+                <path d="M8 21v-7h8v7" />
+                <path d="M10 16h4" />
+              </svg>
+            </button>
           </div>
           <div class="audio-action-row">
             <button id="analyzeAudioFileButton" class="secondary-button" type="button" disabled>
@@ -318,7 +333,7 @@
                 ピッチ推定モデル比較PNG出力
               </button>
               <button id="captureVocalSeparationComparisonButton" class="secondary-button" type="button" disabled>
-                全ボーカル抽出モデルWAV出力
+                全ボーカル抽出モデルMP3出力
               </button>
             </div>
           </details>

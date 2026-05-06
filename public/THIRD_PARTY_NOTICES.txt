@@ -59,6 +59,25 @@ This Source Code Form is subject to the terms of the Mozilla Public License,
 v. 2.0. If a copy of the MPL was not distributed with this file, You can
 obtain one at https://mozilla.org/MPL/2.0/.
 
+@mediabunny/mp3-encoder
+https://github.com/Vanilagy/mediabunny/tree/main/packages/mp3-encoder
+
+Copyright (c) 2026-present, Vanilagy and contributors
+
+This Source Code Form is subject to the terms of the Mozilla Public License,
+v. 2.0. If a copy of the MPL was not distributed with this file, You can
+obtain one at https://mozilla.org/MPL/2.0/.
+
+The @mediabunny/mp3-encoder package uses a WebAssembly build of the LAME MP3
+Encoder under the hood.
+
+LAME MP3 Encoder
+https://lame.sourceforge.io/
+
+LAME is licensed under the GNU Lesser General Public License.
+License information:
+https://lame.sourceforge.io/license.txt
+
 demucs-web
 https://github.com/timcsy/demucs-web
 

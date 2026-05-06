@@ -31,6 +31,7 @@ import {
   resolveCanvasBackingSize,
 } from "./graphModel";
 import {
+  createMp3BlobFromDecodedAudio,
   createWavBlobFromDecodedAudio,
   type DecodedMediaAudio,
   decodeMediaAudio,
@@ -108,9 +109,12 @@ type AppState = {
   audioPitchEstimator: AudioPitchEstimator;
   isCapturingCrepeComparison: boolean;
   isCapturingVocalSeparationComparison: boolean;
+  isEncodingExtractedVocalDownload: boolean;
   audioPlaybackSource: "original" | "vocals";
   selectedPlaybackAudioFileUrl: string | null;
   extractedVocalAudioUrl: string | null;
+  extractedVocalAudio: DecodedMediaAudio | null;
+  extractedVocalAudioFileName: string | null;
   audioFilePlayer: HTMLAudioElement | null;
   audioFilePlaybackSource: MediaElementAudioSourceNode | null;
   audioFilePlaybackGain: GainNode | null;
@@ -194,9 +198,12 @@ const state: AppState = {
   audioPitchEstimator: "rmvpe",
   isCapturingCrepeComparison: false,
   isCapturingVocalSeparationComparison: false,
+  isEncodingExtractedVocalDownload: false,
   audioPlaybackSource: "original",
   selectedPlaybackAudioFileUrl: null,
   extractedVocalAudioUrl: null,
+  extractedVocalAudio: null,
+  extractedVocalAudioFileName: null,
   audioFilePlayer: null,
   audioFilePlaybackSource: null,
   audioFilePlaybackGain: null,
@@ -272,6 +279,9 @@ const elements = {
   ),
   audioPlaybackSourceSelect: queryElement<HTMLSelectElement>(
     "#audioPlaybackSourceSelect",
+  ),
+  downloadExtractedVocalButton: queryElement<HTMLButtonElement>(
+    "#downloadExtractedVocalButton",
   ),
   playAudioFileButton: queryElement<HTMLButtonElement>("#playAudioFileButton"),
   pauseAudioFileButton: queryElement<HTMLButtonElement>(
@@ -384,6 +394,10 @@ function init() {
     "change",
     handleAudioPlaybackSourceChange,
   );
+  elements.downloadExtractedVocalButton.addEventListener(
+    "click",
+    handleExtractedVocalDownload,
+  );
   elements.playAudioFileButton.addEventListener(
     "click",
     handleAudioFilePlayback,
@@ -467,6 +481,7 @@ function disableAudioControls() {
   elements.vocalSeparationModelSelect.disabled = true;
   elements.audioPitchEstimatorSelect.disabled = true;
   elements.audioPlaybackSourceSelect.disabled = true;
+  elements.downloadExtractedVocalButton.disabled = true;
   elements.analyzeAudioFileButton.disabled = true;
   elements.captureCrepeComparisonButton.disabled = true;
   elements.captureVocalSeparationComparisonButton.disabled = true;
@@ -809,7 +824,8 @@ function updateAudioFileControls() {
   const isAudioBusy =
     state.isAnalyzingAudioFile ||
     state.isCapturingCrepeComparison ||
-    state.isCapturingVocalSeparationComparison;
+    state.isCapturingVocalSeparationComparison ||
+    state.isEncodingExtractedVocalDownload;
   const selectedPlaybackFile = getSelectedOriginalAudioPlaybackFile();
   const hasPlayableAnalysis = hasPlayableAudioFileAnalysis();
   const hasSelectedPlaybackSource =
@@ -849,6 +865,8 @@ function updateAudioFileControls() {
     !isAudioSupported || !state.selectedAudioFile || isAudioBusy;
   elements.captureVocalSeparationComparisonButton.disabled =
     !isAudioSupported || !state.selectedAudioFile || isAudioBusy;
+  elements.downloadExtractedVocalButton.disabled =
+    !isAudioSupported || !state.extractedVocalAudio || isAudioBusy;
   const isPlaying = Boolean(
     state.audioFilePlayer && !state.audioFilePlayer.paused,
   );
@@ -991,6 +1009,8 @@ function cleanupExtractedVocalAudioUrl() {
 
   URL.revokeObjectURL(extractedVocalAudioUrl);
   state.extractedVocalAudioUrl = null;
+  state.extractedVocalAudio = null;
+  state.extractedVocalAudioFileName = null;
 }
 
 function startAudioPlaybackTracking() {
@@ -1214,6 +1234,10 @@ async function prepareDecodedAudioForAnalysis(
       modelId: state.vocalSeparationModel,
       onProgress: updateVocalExtractionProgress,
     });
+    state.extractedVocalAudio = decodedAudio;
+    state.extractedVocalAudioFileName = createExtractedVocalFileName(
+      state.vocalSeparationModel,
+    );
     state.extractedVocalAudioUrl = URL.createObjectURL(
       createWavBlobFromDecodedAudio(decodedAudio),
     );
@@ -1411,6 +1435,38 @@ async function handleCrepeComparisonCapture() {
   }
 }
 
+async function handleExtractedVocalDownload() {
+  if (!state.extractedVocalAudio) {
+    setAudioFileStatus(
+      "保存できる抽出ボーカルがまだありません。ボーカル抽出を有効にして解析してください。",
+      "error",
+    );
+    updateAudioFileControls();
+    return;
+  }
+
+  const fileName =
+    state.extractedVocalAudioFileName ?? createExtractedVocalFileName();
+
+  try {
+    state.isEncodingExtractedVocalDownload = true;
+    setAudioFileStatus("抽出ボーカルMP3を作成しています。");
+    updateAudioFileControls();
+    await waitForPaint();
+    const blob = await createMp3BlobFromDecodedAudio(state.extractedVocalAudio);
+    downloadBlob(blob, fileName);
+    setAudioFileStatus(
+      "抽出ボーカルMP3を保存しました。ブラウザのダウンロード結果を確認してください。",
+    );
+  } catch (error) {
+    setAudioFileStatus(formatAudioFileAnalysisError(error), "error");
+    console.error(error);
+  } finally {
+    state.isEncodingExtractedVocalDownload = false;
+    updateAudioFileControls();
+  }
+}
+
 async function handleVocalSeparationComparisonCapture() {
   if (
     !state.selectedAudioFile ||
@@ -1455,7 +1511,7 @@ async function handleVocalSeparationComparisonCapture() {
 
     for (const modelId of comparisonModels) {
       const model = VOCAL_SEPARATION_MODELS[modelId];
-      setAudioFileStatus(`${model.label}でボーカル抽出WAVを作成しています。`);
+      setAudioFileStatus(`${model.label}でボーカル抽出MP3を作成しています。`);
       await waitForPaint();
 
       try {
@@ -1463,12 +1519,16 @@ async function handleVocalSeparationComparisonCapture() {
           modelId,
           onProgress: updateVocalExtractionProgress,
         });
-        const blob = createWavBlobFromDecodedAudio(extractedAudio);
+        setAudioFileStatus(
+          `${model.label}の抽出ボーカルをMP3に変換しています。`,
+        );
+        await waitForPaint();
+        const blob = await createMp3BlobFromDecodedAudio(extractedAudio);
         downloadBlob(
           blob,
           `${createAudioFileBaseName()}-${createVocalModelFileNameSegment(
             modelId,
-          )}-vocals.wav`,
+          )}-vocals.mp3`,
         );
       } catch (error) {
         failures.push(model.label);
@@ -1478,8 +1538,8 @@ async function handleVocalSeparationComparisonCapture() {
 
     setAudioFileStatus(
       failures.length > 0
-        ? `ボーカル抽出WAV出力が完了しました。一部失敗: ${failures.join("、")}`
-        : "全ボーカル抽出モデルのWAVを出力しました。ダウンロード結果を確認してください。",
+        ? `ボーカル抽出MP3出力が完了しました。一部失敗: ${failures.join("、")}`
+        : "全ボーカル抽出モデルのMP3を出力しました。ダウンロード結果を確認してください。",
     );
   } catch (error) {
     setAudioFileStatus(formatAudioFileAnalysisError(error), "error");
@@ -1665,6 +1725,12 @@ function createVocalModelFileNameSegment(
     .trim()
     .replace(/[^a-zA-Z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function createExtractedVocalFileName(modelId = state.vocalSeparationModel) {
+  return `${createAudioFileBaseName()}-${createVocalModelFileNameSegment(
+    modelId,
+  )}-vocals.mp3`;
 }
 
 function cloneAudioRangeGraphCanvas(): HTMLCanvasElement {
@@ -1869,8 +1935,8 @@ function formatAudioFileAnalysisError(error: unknown): string {
 
   if (state.isCapturingVocalSeparationComparison) {
     return message
-      ? `ボーカル抽出モデルWAVの作成に失敗しました。${message}`
-      : "ボーカル抽出モデルWAVの作成に失敗しました。PC版Chrome/EdgeなどのWebGPU対応ブラウザで、短めの音源から試してください。";
+      ? `ボーカル抽出モデルMP3の作成に失敗しました。${message}`
+      : "ボーカル抽出モデルMP3の作成に失敗しました。PC版Chrome/EdgeなどのWebGPU対応ブラウザで、短めの音源から試してください。";
   }
 
   if (state.useVocalExtraction) {

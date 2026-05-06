@@ -6,24 +6,26 @@
 [![Vite](https://img.shields.io/badge/Vite-8.0.10-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
 [![Bun](https://img.shields.io/badge/Bun-1.3.13-000000?logo=bun&logoColor=white)](https://bun.sh/)
 
-A web app that visually supports pitch practice for people who are deaf or hard of hearing.
+A web app that visually supports vocal pitch practice and vocal-range checks for people who are deaf or hard of hearing.
 
-While playing a reference tone such as Do-Re-Mi, the app analyzes the user's voice through the microphone in real time and displays the pitch difference from the target note and the pitch movement over time.
+The app analyzes the user's voice through the microphone in real time while practicing against a reference tone such as Do-Re-Mi, then displays the pitch difference from the target note and the pitch movement over time. It can also estimate voice-like pitch ranges from local audio or video files, and in WebGPU-capable browsers it can run vocal extraction in the browser before estimating the range of a mixed song.
 
 ## Goals
 
 - Help users understand pitch through visual feedback
 - Support vocal practice with a reference tone
 - Show pitch movement in real time while the user is vocalizing
+- Help users check voice-like ranges from audio or video files for song selection and review
+- Support playback and saving of vocals extracted from mixed songs
 - Work in desktop, tablet, and smartphone browsers
 
 ## Basic Approach
 
 Visual Pitch Trainer is a static web app that runs without an application server.
 
-Audio analysis, reference tone playback, graph rendering, and practice feedback all run inside the browser. This keeps latency low and avoids sending microphone audio to a server.
+Audio analysis, reference tone playback, vocal extraction, pitch estimation, graph rendering, and practice feedback all run inside the browser. This keeps latency low and avoids sending microphone input or local audio files to a server.
 
-The UI uses Google Fonts. When vocal extraction or RMVPE / CREPE estimation is first used, the browser may also fetch ONNX Runtime Web WASM files and model files used inside the browser. Pitch-estimation models for audio-file analysis are included in published artifacts. Microphone input, local audio files, and analyzed pitch data are not sent to external services.
+The UI uses Google Fonts. When vocal extraction, MP3 saving, or RMVPE / CREPE estimation is first used, the browser may also fetch or load WASM files and model files used inside the browser. Pitch-estimation models for audio-file analysis are included in published artifacts. Microphone input, local audio files, extracted vocals, and analyzed pitch data are not sent to external services.
 
 ```text
 Browser
@@ -47,6 +49,7 @@ Browser
 - Show volume, detection confidence, continuous in-range time, and a practice summary
 - Estimate a rough vocal range from local audio or video files
 - Extract vocals before analysis in WebGPU-capable browsers
+- Save extracted vocals as an MP3 file
 - Estimate audio-file pitch with RMVPE / CREPE ONNX models in WebGPU-capable browsers
 - Export a development PNG comparing pitchy / CREPE / RMVPE pitch graphs
 - Play either the analyzed audio file or a separately selected playback audio file while following the current position on the vocal range graph
@@ -128,7 +131,7 @@ The app can load local audio files or video files and estimate a rough range fro
 
 If a normal mixed song is loaded directly, bass, guitar, synth, backing vocals, and other pitched sounds can be detected as well, which makes the estimated range and graph unreliable. In WebGPU-capable browsers, enable vocal extraction to try Demucs v4 or BS-RoFormer in the browser before pitch analysis. The first run may take time because ONNX Runtime Web and large model files are loaded.
 
-After vocal extraction, playback can use either the original audio or the extracted vocal WAV generated in the browser.
+After vocal extraction, playback can use either the original audio or the extracted vocal generated in the browser. The extracted vocal can also be saved as an MP3 file.
 
 Vocal extraction requires SharedArrayBuffer in practice, so deployed environments may need Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy response headers. Cloudflare Pages can ship these through `public/_headers`. GitHub Pages cannot set these headers, so vocal extraction may not work there.
 
@@ -149,6 +152,10 @@ docker run --rm -it --gpus all -v ${PWD}:/workdir beveradb/audio-separator:gpu "
 ```
 
 Pitch estimation can use the default RMVPE model, lightweight pitchy, or CREPE small / medium / large / full for comparison. The default RMVPE option is intended for gaming-PC-class machines; on typical PCs and smartphones, choose lightweight pitchy. Real-time microphone pitch detection still uses pitchy. Runtime model URLs can be customized with `VITE_RMVPE_MODEL_URL`, `VITE_DEMUCS_MODEL_URL`, and `VITE_BS_ROFORMER_FP16_MODEL_URL`; `VITE_CREPE_MODEL_URL` currently affects only CREPE small. For local development or non-GitHub Pages builds, fetch the bundled pitch models with `bun run download:pitch-models`. The model download script uses size-specific source env vars such as `CREPE_SMALL_MODEL_SOURCE_URL`.
+
+The development-only pitch-estimator comparison PNG export outputs one combined PNG with pitchy, CREPE small / medium / large / full, and RMVPE results stacked vertically. RMVPE uses the bundled `lj1995/VoiceConversionWebUI` `rmvpe.onnx` model.
+
+The development-only all vocal extraction models MP3 export runs Demucs v4 and BS-RoFormer fp16 2-stem in sequence on the same analysis audio and exports each available model's extracted vocal as a separate MP3. Some browsers may require permission for multiple file downloads.
 
 After analysis, the app shows the estimated vocal range, the commonly used range, the center area, and the percentage of audio where voice-like pitch was detected. The result is still an approximation because breaths, consonants, reverb, backing vocals, and separation artifacts may remain.
 
