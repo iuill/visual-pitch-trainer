@@ -121,6 +121,7 @@ type AppState = {
   audioFileAnalysis: AudioFileAnalysis | null;
   isAnalyzingAudioFile: boolean;
   audioAnalysisMemoryTimerId: number | null;
+  progressTimings: Map<string, number>;
   isAudioPlaybackDurationCompatible: boolean;
   audioPlaybackAnimationId: number | null;
   isDraggingAudioPlaybackCursor: boolean;
@@ -210,6 +211,7 @@ const state: AppState = {
   audioFileAnalysis: null,
   isAnalyzingAudioFile: false,
   audioAnalysisMemoryTimerId: null,
+  progressTimings: new Map(),
   isAudioPlaybackDurationCompatible: true,
   audioPlaybackAnimationId: null,
   isDraggingAudioPlaybackCursor: false,
@@ -1154,6 +1156,7 @@ async function handleAudioFileAnalysis() {
   }
 
   state.isAnalyzingAudioFile = true;
+  clearProgressTimings();
   startAudioAnalysisMemoryTracking();
   updateAudioFileControls();
   elements.audioFileInput.disabled = true;
@@ -1192,6 +1195,7 @@ async function handleAudioFileAnalysis() {
     console.error(error);
   } finally {
     state.isAnalyzingAudioFile = false;
+    clearProgressTimings();
     releaseAudioPitchEstimatorSessions();
     stopAudioAnalysisMemoryTracking();
     elements.audioFileInput.disabled = false;
@@ -1323,6 +1327,7 @@ async function handleCrepeComparisonCapture() {
   }
 
   state.isCapturingCrepeComparison = true;
+  clearProgressTimings();
   startAudioAnalysisMemoryTracking();
   updateAudioFileControls();
   setAudioFileStatus("ピッチ推定モデル比較PNG用に音源を読み込んでいます。");
@@ -1428,6 +1433,7 @@ async function handleCrepeComparisonCapture() {
       drawAudioRangeGraph();
     }
     state.isCapturingCrepeComparison = false;
+    clearProgressTimings();
     void releaseCrepeSessions();
     void releaseRmvpeSession();
     stopAudioAnalysisMemoryTracking();
@@ -1492,6 +1498,7 @@ async function handleVocalSeparationComparisonCapture() {
   }
 
   state.isCapturingVocalSeparationComparison = true;
+  clearProgressTimings();
   startAudioAnalysisMemoryTracking();
   updateAudioFileControls();
   setAudioFileStatus("全ボーカル抽出モデル出力用に音源を読み込んでいます。");
@@ -1546,6 +1553,7 @@ async function handleVocalSeparationComparisonCapture() {
     console.error(error);
   } finally {
     state.isCapturingVocalSeparationComparison = false;
+    clearProgressTimings();
     stopAudioAnalysisMemoryTracking();
     updateAudioFileControls();
   }
@@ -1596,6 +1604,71 @@ function resetAudioFileReadouts() {
     "音源の声域推定はまだ実行されていません。";
 }
 
+function clearProgressTimings() {
+  state.progressTimings.clear();
+}
+
+function formatProgressTiming(
+  key: string,
+  completedUnits: number,
+  totalUnits: number,
+): string {
+  const total = Math.max(0, totalUnits);
+  if (total <= 0) {
+    return formatElapsedProgress(key);
+  }
+
+  const completed = clamp(completedUnits, 0, total);
+  const elapsedSec = getProgressElapsedSec(key);
+  const parts = [
+    formatPercent(completed / total),
+    `経過 ${formatProgressDuration(elapsedSec)}`,
+  ];
+
+  if (completed > 0 && completed < total) {
+    const remainingSec = (elapsedSec / completed) * (total - completed);
+    parts.push(`残り 約${formatProgressDuration(remainingSec)}`);
+  } else if (completed >= total) {
+    parts.push("残り 0秒");
+  }
+
+  return parts.join(" / ");
+}
+
+function formatElapsedProgress(key: string): string {
+  return `経過 ${formatProgressDuration(getProgressElapsedSec(key))}`;
+}
+
+function getProgressElapsedSec(key: string): number {
+  const startedAt = state.progressTimings.get(key) ?? performance.now();
+  if (!state.progressTimings.has(key)) {
+    state.progressTimings.set(key, startedAt);
+  }
+
+  return Math.max(0, (performance.now() - startedAt) / 1000);
+}
+
+function formatProgressDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "0秒";
+  }
+
+  const roundedSeconds = Math.round(seconds);
+  if (roundedSeconds < 60) {
+    return `${roundedSeconds}秒`;
+  }
+
+  const minutes = Math.floor(roundedSeconds / 60);
+  const secondsPart = roundedSeconds % 60;
+  if (minutes < 60) {
+    return `${minutes}分${secondsPart}秒`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const minutesPart = minutes % 60;
+  return `${hours}時間${String(minutesPart).padStart(2, "0")}分`;
+}
+
 function updateVocalExtractionProgress(progress: VocalSeparationProgress) {
   updateAudioMemoryStatus();
   const modelLabel = progress.modelLabel ?? "ボーカル抽出モデル";
@@ -1606,21 +1679,35 @@ function updateVocalExtractionProgress(progress: VocalSeparationProgress) {
   }
 
   if (progress.phase === "loading-model") {
+    const progressKey = `vocal:${modelLabel}:loading-model`;
     setAudioFileStatus(
       progress.loadedBytes !== undefined && progress.totalBytes !== undefined
-        ? `${modelLabel}を読み込んでいます。${formatPercent(
-            progress.loadedBytes / progress.totalBytes,
-          )}`
-        : `${modelLabel}を読み込んでいます。初回は時間がかかります。`,
+        ? `${modelLabel}を読み込んでいます。${formatBytes(
+            progress.loadedBytes,
+          )} / ${formatBytes(progress.totalBytes)}（${formatProgressTiming(
+            progressKey,
+            progress.loadedBytes,
+            progress.totalBytes,
+          )}）`
+        : `${modelLabel}を読み込んでいます。初回は時間がかかります。（${formatElapsedProgress(progressKey)}）`,
     );
     return;
   }
 
+  const progressKey = `vocal:${modelLabel}:separating`;
   setAudioFileStatus(
     progress.currentSegment !== undefined &&
       progress.totalSegments !== undefined
-      ? `${modelLabel}でボーカルを抽出しています。${progress.currentSegment} / ${progress.totalSegments} Chunks`
-      : `${modelLabel}でボーカルを抽出しています。${formatPercent(progress.progress ?? 0)}`,
+      ? `${modelLabel}でボーカルを抽出しています。${progress.currentSegment} / ${progress.totalSegments} Chunks（${formatProgressTiming(
+          progressKey,
+          progress.currentSegment,
+          progress.totalSegments,
+        )}）`
+      : `${modelLabel}でボーカルを抽出しています。${formatProgressTiming(
+          progressKey,
+          progress.progress ?? 0,
+          1,
+        )}`,
   );
 }
 
@@ -1637,18 +1724,24 @@ function updateCrepeAnalysisProgress(progress: CrepeAnalysisProgress) {
     setAudioFileStatus(
       `CREPE ${formatCrepeModelSize(
         crepeModelSize,
-      )} モデルを読み込んでいます。初回は時間がかかります。`,
+      )} モデルを読み込んでいます。初回は時間がかかります。（${formatElapsedProgress(
+        `crepe:${crepeModelSize}:loading-model`,
+      )}）`,
     );
     return;
   }
 
+  const crepeModelSize = getSelectedCrepeModelSize() ?? "small";
+  const progressKey = `crepe:${crepeModelSize}:analyzing`;
   setAudioFileStatus(
     progress.processedFrames !== undefined &&
       progress.totalFrames !== undefined &&
       progress.totalFrames > 0
-      ? `CREPEで声の高さを推定しています。${formatPercent(
-          progress.processedFrames / progress.totalFrames,
-        )}`
+      ? `CREPEで声の高さを推定しています。${progress.processedFrames} / ${progress.totalFrames} フレーム（${formatProgressTiming(
+          progressKey,
+          progress.processedFrames,
+          progress.totalFrames,
+        )}）`
       : "CREPEで声の高さを推定しています。",
   );
 }
@@ -1663,31 +1756,39 @@ function updateRmvpeAnalysisProgress(progress: RmvpeAnalysisProgress) {
 
   if (progress.phase === "loading-model") {
     setAudioFileStatus(
-      "RMVPEのONNXモデルを読み込んでいます。初回は時間がかかります。",
+      `RMVPEのONNXモデルを読み込んでいます。初回は時間がかかります。（${formatElapsedProgress(
+        "rmvpe:loading-model",
+      )}）`,
     );
     return;
   }
 
   if (progress.phase === "extracting-features") {
+    const progressKey = "rmvpe:extracting-features";
     setAudioFileStatus(
       progress.processedFrames !== undefined &&
         progress.totalFrames !== undefined &&
         progress.totalFrames > 0
-        ? `RMVPE用の特徴量を作成しています。${formatPercent(
-            progress.processedFrames / progress.totalFrames,
-          )}`
+        ? `RMVPE用の特徴量を作成しています。${progress.processedFrames} / ${progress.totalFrames} フレーム（${formatProgressTiming(
+            progressKey,
+            progress.processedFrames,
+            progress.totalFrames,
+          )}）`
         : "RMVPE用の特徴量を作成しています。",
     );
     return;
   }
 
+  const progressKey = "rmvpe:analyzing";
   setAudioFileStatus(
     progress.processedFrames !== undefined &&
       progress.totalFrames !== undefined &&
       progress.totalFrames > 0
-      ? `RMVPEで声の高さを推定しています。${formatPercent(
-          progress.processedFrames / progress.totalFrames,
-        )}`
+      ? `RMVPEで声の高さを推定しています。${progress.processedFrames} / ${progress.totalFrames} フレーム（${formatProgressTiming(
+          progressKey,
+          progress.processedFrames,
+          progress.totalFrames,
+        )}）`
       : "RMVPEで声の高さを推定しています。",
   );
 }
