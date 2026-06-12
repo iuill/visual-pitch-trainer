@@ -2744,10 +2744,8 @@ function commitSessionBestRecords() {
 
 function updatePersonalBestNotes() {
   const sessionScore = Math.round(state.gameEffects.score);
-  const isScoreRecord =
-    state.personalBest.score > 0 && sessionScore > state.personalBest.score;
+  const isScoreRecord = sessionScore > state.personalBest.score;
   const isComboRecord =
-    state.personalBest.comboMs > 0 &&
     state.gameEffects.bestComboMs > state.personalBest.comboMs;
 
   elements.bestScoreNote.textContent = isScoreRecord

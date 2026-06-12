@@ -79,19 +79,17 @@ function readVersion(): string {
 }
 
 function readOnnxRuntimeWebVersion(): string {
-  const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
-    dependencies?: Record<string, string>;
+  const packageJson = JSON.parse(
+    readFileSync("node_modules/onnxruntime-web/package.json", "utf8"),
+  ) as {
+    version?: string;
   };
-  const versionRange = packageJson.dependencies?.["onnxruntime-web"] ?? "";
-  const version = versionRange.match(/\d+\.\d+\.\d+/)?.[0];
 
-  if (!version) {
-    throw new Error(
-      `onnxruntime-web dependency must include a concrete version, but got "${versionRange}".`,
-    );
+  if (!packageJson.version) {
+    throw new Error("onnxruntime-web package version could not be resolved.");
   }
 
-  return version;
+  return packageJson.version;
 }
 
 export default defineConfig({
