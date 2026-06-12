@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
 
 const VERSION_BASE_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
@@ -77,11 +78,30 @@ function readVersion(): string {
   return `${versionBase}.${readBuildNumber()}`;
 }
 
+function readOnnxRuntimeWebVersion(): string {
+  const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
+    dependencies?: Record<string, string>;
+  };
+  const versionRange = packageJson.dependencies?.["onnxruntime-web"] ?? "";
+  const version = versionRange.match(/\d+\.\d+\.\d+/)?.[0];
+
+  if (!version) {
+    throw new Error(
+      `onnxruntime-web dependency must include a concrete version, but got "${versionRange}".`,
+    );
+  }
+
+  return version;
+}
+
 export default defineConfig({
   base: "./",
   define: {
     "import.meta.env.VITE_APP_COMMIT_HASH": JSON.stringify(readGitCommitHash()),
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(readVersion()),
+    "import.meta.env.VITE_ONNX_RUNTIME_WEB_VERSION": JSON.stringify(
+      readOnnxRuntimeWebVersion(),
+    ),
   },
   plugins: [dropUnusedOnnxWasmAsset()],
   server: {
