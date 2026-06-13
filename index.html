@@ -124,6 +124,10 @@
             </span>
             <span class="combo-readout">
               連続キープ: <b id="comboReadout">--</b>
+              <span id="comboTierBadge" class="combo-tier-badge" hidden></span>
+            </span>
+            <span class="score-readout">
+              スコア: <b id="scoreReadout">--</b>
             </span>
             <span class="status-help">
               <button
@@ -135,7 +139,7 @@
                 i
               </button>
               <span id="statusReadoutHelp" class="tooltip" role="tooltip">
-                声量はマイク入力の大きさ、音程検出は検出した音程の信頼度です。どちらも目安です。
+                声量はマイク入力の大きさ、音程検出は検出した音程の信頼度です。スコアは音程が合っている間に増え、連続キープが長いほど倍率が上がります。
               </span>
             </span>
           </div>
@@ -207,6 +211,16 @@
             <div>
               <span class="label">直近の音程ズレ</span>
               <strong id="recentAverageReadout">--</strong>
+            </div>
+            <div>
+              <span class="label">最高連続キープ</span>
+              <strong id="bestComboReadout">0.0 秒</strong>
+              <span id="bestComboNote" class="record-note">自己ベスト: --</span>
+            </div>
+            <div>
+              <span class="label">スコア</span>
+              <strong id="scoreSummaryReadout">0</strong>
+              <span id="bestScoreNote" class="record-note">自己ベスト: --</span>
             </div>
           </div>
         </div>

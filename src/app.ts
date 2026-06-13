@@ -19,6 +19,8 @@ import {
 import {
   createInitialGameEffectState,
   type GameEffectState,
+  getComboTier,
+  getComboTierProgress,
   getTargetGlowStrength,
   updateGameEffectState,
 } from "./gameEffects";
@@ -130,9 +132,15 @@ type AppState = {
   audioRangeResizeObserver: ResizeObserver | null;
   audioRangeResizeHandler: (() => void) | null;
   gameEffects: GameEffectState;
+  personalBest: BestRecords;
 };
 
 type AudioPitchEstimator = "rmvpe" | "pitchy" | `crepe-${CrepeModelSize}`;
+
+type BestRecords = {
+  score: number;
+  comboMs: number;
+};
 
 declare global {
   interface Window {
@@ -157,6 +165,16 @@ const MAX_REFERENCE_GAIN = 0.5;
 const MOBILE_VIEWPORT_QUERY = "(max-width: 820px)";
 const LANDING_RIPPLE_DURATION_MS = 850;
 const MAX_LANDING_RIPPLES = 8;
+const COMBO_MILESTONE_DURATION_MS = 1600;
+const MAX_COMBO_MILESTONES = 4;
+const BEST_RECORDS_STORAGE_KEY = "visual-pitch-trainer:best-records";
+const COMBO_TIER_COLORS = [
+  "#2b6cb0",
+  "#15857d",
+  "#2f9e44",
+  "#e09f10",
+  "#e8590c",
+];
 const CREPE_MODEL_SIZES: CrepeModelSize[] = [
   "small",
   "medium",
@@ -220,6 +238,7 @@ const state: AppState = {
   audioRangeResizeObserver: null,
   audioRangeResizeHandler: null,
   gameEffects: createInitialGameEffectState(),
+  personalBest: loadBestRecords(),
 };
 
 function queryElement<T extends Element>(selector: string) {
@@ -255,6 +274,12 @@ const elements = {
   graphClarity: queryElement<HTMLElement>("#graphClarity"),
   graphDescription: queryElement<HTMLElement>("#graphDescription"),
   comboReadout: queryElement<HTMLElement>("#comboReadout"),
+  comboTierBadge: queryElement<HTMLElement>("#comboTierBadge"),
+  scoreReadout: queryElement<HTMLElement>("#scoreReadout"),
+  scoreSummaryReadout: queryElement<HTMLElement>("#scoreSummaryReadout"),
+  bestComboReadout: queryElement<HTMLElement>("#bestComboReadout"),
+  bestScoreNote: queryElement<HTMLElement>("#bestScoreNote"),
+  bestComboNote: queryElement<HTMLElement>("#bestComboNote"),
   durationReadout: queryElement<HTMLElement>("#durationReadout"),
   stableReadout: queryElement<HTMLElement>("#stableReadout"),
   averageReadout: queryElement<HTMLElement>("#averageReadout"),
@@ -2432,6 +2457,8 @@ function stopMicrophone() {
   state.isMicActive = false;
   state.animationId = null;
 
+  commitSessionBestRecords();
+  updatePersonalBestNotes();
   updateMicButtonState("stopped");
   elements.analysisStatus.textContent = "稽古を停止しました";
 }
@@ -2637,11 +2664,107 @@ function updateGameEffects(
     maxStableGapMs: MAX_STABLE_SAMPLE_GAP_MS,
     rippleDurationMs: LANDING_RIPPLE_DURATION_MS,
     maxRipples: MAX_LANDING_RIPPLES,
+    milestoneDurationMs: COMBO_MILESTONE_DURATION_MS,
+    maxMilestones: MAX_COMBO_MILESTONES,
   });
   elements.comboReadout.textContent =
     state.gameEffects.stableComboMs > 0
       ? `${(state.gameEffects.stableComboMs / 1000).toFixed(1)}秒`
       : "--";
+  elements.scoreReadout.textContent = formatScore(state.gameEffects.score);
+  updateComboTierBadge();
+}
+
+function updateComboTierBadge() {
+  const tier = getComboTier(state.gameEffects.stableComboMs);
+
+  if (tier.label === null || state.gameEffects.stableComboMs <= 0) {
+    elements.comboTierBadge.hidden = true;
+    return;
+  }
+
+  elements.comboTierBadge.hidden = false;
+  elements.comboTierBadge.textContent = `${tier.label} ×${tier.multiplier}`;
+  elements.comboTierBadge.dataset.tier = String(tier.level);
+}
+
+function formatScore(score: number): string {
+  return Math.round(score).toLocaleString("ja-JP");
+}
+
+function loadBestRecords(): BestRecords {
+  try {
+    const raw = localStorage.getItem(BEST_RECORDS_STORAGE_KEY);
+
+    if (!raw) {
+      return { score: 0, comboMs: 0 };
+    }
+
+    const parsed = JSON.parse(raw) as Partial<BestRecords>;
+
+    return {
+      score:
+        typeof parsed.score === "number" && Number.isFinite(parsed.score)
+          ? Math.max(0, parsed.score)
+          : 0,
+      comboMs:
+        typeof parsed.comboMs === "number" && Number.isFinite(parsed.comboMs)
+          ? Math.max(0, parsed.comboMs)
+          : 0,
+    };
+  } catch {
+    return { score: 0, comboMs: 0 };
+  }
+}
+
+function saveBestRecords(records: BestRecords) {
+  try {
+    localStorage.setItem(BEST_RECORDS_STORAGE_KEY, JSON.stringify(records));
+  } catch {
+    // localStorageが使えない環境では自己ベストを永続化しない
+  }
+}
+
+function commitSessionBestRecords() {
+  const sessionScore = Math.round(state.gameEffects.score);
+  const sessionComboMs = state.gameEffects.bestComboMs;
+  const next: BestRecords = {
+    score: Math.max(state.personalBest.score, sessionScore),
+    comboMs: Math.max(state.personalBest.comboMs, sessionComboMs),
+  };
+
+  if (
+    next.score !== state.personalBest.score ||
+    next.comboMs !== state.personalBest.comboMs
+  ) {
+    state.personalBest = next;
+    saveBestRecords(next);
+  }
+}
+
+function updatePersonalBestNotes() {
+  const sessionScore = Math.round(state.gameEffects.score);
+  const isScoreRecord = sessionScore > state.personalBest.score;
+  const isComboRecord =
+    state.gameEffects.bestComboMs > state.personalBest.comboMs;
+
+  elements.bestScoreNote.textContent = isScoreRecord
+    ? "✨ 自己ベスト更新中!"
+    : `自己ベスト: ${
+        state.personalBest.score > 0
+          ? formatScore(state.personalBest.score)
+          : "--"
+      }`;
+  elements.bestScoreNote.classList.toggle("is-new-record", isScoreRecord);
+
+  elements.bestComboNote.textContent = isComboRecord
+    ? "✨ 自己ベスト更新中!"
+    : `自己ベスト: ${
+        state.personalBest.comboMs > 0
+          ? `${(state.personalBest.comboMs / 1000).toFixed(1)}秒`
+          : "--"
+      }`;
+  elements.bestComboNote.classList.toggle("is-new-record", isComboRecord);
 }
 
 function updateSummary(now: number) {
@@ -2651,6 +2774,13 @@ function updateSummary(now: number) {
   elements.stableReadout.textContent = `${summary.stableSec.toFixed(1)} 秒`;
   elements.averageReadout.textContent = summary.formattedOverallAverage;
   elements.recentAverageReadout.textContent = summary.formattedRecentAverage;
+  elements.scoreSummaryReadout.textContent = formatScore(
+    state.gameEffects.score,
+  );
+  elements.bestComboReadout.textContent = `${(
+    state.gameEffects.bestComboMs / 1000
+  ).toFixed(1)} 秒`;
+  updatePersonalBestNotes();
 }
 
 function clearSession() {
@@ -2667,14 +2797,20 @@ function resetActiveSession() {
 }
 
 function resetSessionStats(startAt: number | null) {
+  commitSessionBestRecords();
   state.session = createInitialSessionStats(startAt);
   state.gameEffects = createInitialGameEffectState();
   elements.comboReadout.textContent = "--";
+  elements.comboTierBadge.hidden = true;
+  elements.scoreReadout.textContent = "--";
   elements.durationReadout.textContent = "0.0 秒";
   elements.stableReadout.textContent = "0.0 秒";
   elements.averageReadout.textContent = "--";
   elements.recentAverageReadout.textContent = "--";
+  elements.scoreSummaryReadout.textContent = "0";
+  elements.bestComboReadout.textContent = "0.0 秒";
   elements.graphDescription.textContent = "声の軌跡はまだ記録されていません。";
+  updatePersonalBestNotes();
 }
 
 function formatGraphDescription(
@@ -3162,7 +3298,17 @@ function drawGraph() {
     viewport.zeroY - 10,
   );
 
-  context.strokeStyle = "#2b6cb0";
+  const comboTier = getComboTier(state.gameEffects.stableComboMs);
+  const trailColor = COMBO_TIER_COLORS[comboTier.level] ?? "#2b6cb0";
+
+  context.save();
+
+  if (comboTier.level > 0) {
+    context.shadowColor = trailColor;
+    context.shadowBlur = 4 + comboTier.level * 3;
+  }
+
+  context.strokeStyle = trailColor;
   context.lineWidth = 4;
   context.beginPath();
 
@@ -3175,9 +3321,122 @@ function drawGraph() {
   });
 
   context.stroke();
+  context.restore();
   drawLandingRipples(context, viewport);
+  drawComboMilestones(context, width, viewport);
+  drawComboMeter(context, width, viewport);
   drawGraphLabels(context, width, height, viewport.padding);
   drawCurrentPitchLabel(context, width, viewport);
+}
+
+function drawComboMilestones(
+  context: CanvasRenderingContext2D,
+  width: number,
+  viewport: ReturnType<typeof createGraphViewport>,
+) {
+  const now = performance.now();
+
+  state.gameEffects.comboMilestones.forEach((milestone) => {
+    if (milestone.timeMs < viewport.startTime) {
+      return;
+    }
+
+    const age = now - milestone.createdAt;
+    const progress = clamp(age / COMBO_MILESTONE_DURATION_MS, 0, 1);
+    const alpha = 1 - progress;
+    const color = COMBO_TIER_COLORS[milestone.level] ?? "#2b6cb0";
+    const x = clamp(
+      viewport.padding.left +
+        ((milestone.timeMs - viewport.startTime) / (GRAPH_SECONDS * 1000)) *
+          viewport.plotWidth,
+      viewport.padding.left + 70,
+      width - viewport.padding.right - 70,
+    );
+    const baseY = midiToY(
+      milestone.midi,
+      viewport.minMidi,
+      viewport.maxMidi,
+      viewport.padding,
+      viewport.plotHeight,
+    );
+    const label = `${milestone.label} ×${milestone.multiplier}`;
+
+    context.save();
+    context.globalAlpha = alpha;
+
+    const rayCount = 8;
+    const rayInner = 8 + progress * 30;
+    const rayOuter = rayInner + 10 + milestone.level * 3;
+
+    context.strokeStyle = color;
+    context.lineWidth = 2;
+    context.beginPath();
+
+    for (let i = 0; i < rayCount; i += 1) {
+      const angle = (Math.PI * 2 * i) / rayCount + Math.PI / rayCount;
+      context.moveTo(
+        x + Math.cos(angle) * rayInner,
+        baseY + Math.sin(angle) * rayInner,
+      );
+      context.lineTo(
+        x + Math.cos(angle) * rayOuter,
+        baseY + Math.sin(angle) * rayOuter,
+      );
+    }
+
+    context.stroke();
+
+    const textY = Math.max(
+      viewport.padding.top + 16,
+      baseY - 22 - progress * 26,
+    );
+
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.font = "800 26px system-ui, sans-serif";
+    context.lineWidth = 8;
+    context.strokeStyle = "rgba(255, 255, 255, 0.96)";
+    context.strokeText(label, x, textY);
+    context.fillStyle = color;
+    context.fillText(label, x, textY);
+    context.restore();
+  });
+}
+
+function drawComboMeter(
+  context: CanvasRenderingContext2D,
+  width: number,
+  viewport: ReturnType<typeof createGraphViewport>,
+) {
+  if (state.gameEffects.stableComboMs <= 0) {
+    return;
+  }
+
+  const tierProgress = getComboTierProgress(state.gameEffects.stableComboMs);
+  const color = COMBO_TIER_COLORS[tierProgress.current.level] ?? "#2b6cb0";
+  const meterWidth = 180;
+  const meterHeight = 10;
+  const x = width - viewport.padding.right - meterWidth;
+  const y = viewport.padding.top + 18;
+  const text = tierProgress.nextLabel
+    ? `次の称号 ${tierProgress.nextLabel} まで`
+    : "最高称号キープ中!";
+
+  context.save();
+  context.font = "700 14px system-ui, sans-serif";
+  context.textAlign = "right";
+  context.textBaseline = "alphabetic";
+  context.lineWidth = 5;
+  context.strokeStyle = "rgba(255, 255, 255, 0.9)";
+  context.strokeText(text, x + meterWidth, y - 6);
+  context.fillStyle = "#41505a";
+  context.fillText(text, x + meterWidth, y - 6);
+
+  context.fillStyle = "rgba(23, 32, 38, 0.1)";
+  context.fillRect(x, y, meterWidth, meterHeight);
+  context.fillStyle = color;
+  context.fillRect(x, y, meterWidth * tierProgress.progress, meterHeight);
+  context.restore();
 }
 
 function drawTargetGlow(

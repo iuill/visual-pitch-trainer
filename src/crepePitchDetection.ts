@@ -5,6 +5,7 @@ import {
   summarizeVoiceRange,
 } from "./audioFileAnalysis";
 import { assertModelUrlAccessible } from "./modelAccess";
+import { configureOnnxRuntimeWebGpu } from "./onnxRuntimeConfig";
 import { getRms, hzToMidi } from "./pitchMath";
 
 type OnnxRuntimeWebGpu = typeof import("onnxruntime-web/webgpu");
@@ -39,8 +40,6 @@ const DEFAULT_MAX_FREQUENCY = 1047;
 const DEFAULT_BATCH_SIZE = 256;
 const WEIGHTED_ARGMAX_RADIUS = 4;
 const LOW_PASS_TAP_COUNT = 31;
-const ONNX_RUNTIME_WASM_URL =
-  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.3/dist/ort-wasm-simd-threaded.asyncify.wasm";
 const CREPE_MODEL_PATHS = {
   small: "models/crepe-small.onnx",
   medium: "models/crepe-medium.onnx",
@@ -518,11 +517,10 @@ function createOnnxModelLoadError(
 }
 
 function configureOnnxRuntime(ort: OnnxRuntimeWebGpu) {
-  ort.env.wasm.numThreads = 1;
-  ort.env.wasm.wasmPaths = {
-    wasm: ONNX_RUNTIME_WASM_URL,
-  };
-  ort.env.webgpu.powerPreference = "high-performance";
+  configureOnnxRuntimeWebGpu(ort, {
+    numThreads: 1,
+    powerPreference: "high-performance",
+  });
 }
 
 function getNavigatorGpu():
