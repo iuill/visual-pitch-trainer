@@ -30,11 +30,25 @@ get_bun_version() {
   bun --version 2>/dev/null || true
 }
 
+get_uv_version() {
+  uv --version 2>/dev/null | awk '{print $2}' || true
+}
+
 install_bun_version() {
   local version="$1"
 
   curl -fsSL https://bun.sh/install | bash -s "bun-v${version}"
   export PATH="${BUN_INSTALL}/bin:${PATH}"
+}
+
+install_uv_version() {
+  local version="$1"
+
+  mkdir -p "${UV_INSTALL_DIR}"
+  export UV_NO_MODIFY_PATH=1
+  curl -fsSL "https://astral.sh/uv/${version}/install.sh" | sh
+  unset UV_NO_MODIFY_PATH
+  export PATH="${UV_INSTALL_DIR}:${PATH}"
 }
 
 install_missing_apt_packages() {
@@ -52,9 +66,11 @@ install_missing_apt_packages() {
 }
 
 export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
-export PATH="${BUN_INSTALL}/bin:/workspace/.devcontainer/bin:${PATH}"
+export UV_INSTALL_DIR="${UV_INSTALL_DIR:-$HOME/.local/bin}"
+export PATH="${BUN_INSTALL}/bin:${UV_INSTALL_DIR}:/workspace/.devcontainer/bin:${PATH}"
 
-OPENAI_CODEX_VERSION="${OPENAI_CODEX_VERSION:-0.125.0}"
+OPENAI_CODEX_VERSION="${OPENAI_CODEX_VERSION:-0.142.3}"
+UV_VERSION="${UV_VERSION:-0.11.21}"
 EXPECTED_BUN_VERSION="${BUN_VERSION:-$(get_expected_bun_version)}"
 
 install_missing_apt_packages
@@ -68,11 +84,19 @@ if [ "$(get_bun_version)" != "${EXPECTED_BUN_VERSION}" ]; then
   install_bun_version "${EXPECTED_BUN_VERSION}"
 fi
 
+if [ "$(get_uv_version)" != "${UV_VERSION}" ]; then
+  install_uv_version "${UV_VERSION}"
+fi
+
 ensure_line_in_file "${HOME}/.bashrc" 'export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"'
+ensure_line_in_file "${HOME}/.bashrc" 'export UV_INSTALL_DIR="${UV_INSTALL_DIR:-$HOME/.local/bin}"'
 ensure_line_in_file "${HOME}/.bashrc" 'export PATH="$BUN_INSTALL/bin:$PATH"'
+ensure_line_in_file "${HOME}/.bashrc" 'export PATH="$UV_INSTALL_DIR:$PATH"'
 ensure_line_in_file "${HOME}/.bashrc" 'export PATH="/workspace/.devcontainer/bin:$PATH"'
 ensure_line_in_file "${HOME}/.profile" 'export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"'
+ensure_line_in_file "${HOME}/.profile" 'export UV_INSTALL_DIR="${UV_INSTALL_DIR:-$HOME/.local/bin}"'
 ensure_line_in_file "${HOME}/.profile" 'export PATH="$BUN_INSTALL/bin:$PATH"'
+ensure_line_in_file "${HOME}/.profile" 'export PATH="$UV_INSTALL_DIR:$PATH"'
 ensure_line_in_file "${HOME}/.profile" 'export PATH="/workspace/.devcontainer/bin:$PATH"'
 
 if [ -f bun.lock ] || [ -f bun.lockb ]; then
@@ -92,5 +116,6 @@ fi
 
 printf 'node: %s\n' "$(node --version)"
 printf 'bun: %s\n' "$(bun --version)"
+printf 'uv: %s\n' "$(uv --version)"
 printf 'gh: %s\n' "$(gh --version | head -n1)"
 printf 'codex: %s\n' "$(codex --version)"

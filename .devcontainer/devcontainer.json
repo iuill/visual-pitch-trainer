@@ -2,10 +2,12 @@
   "name": "Visual Pitch Trainer",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": ".."
+    "context": "..",
+    "options": ["--platform=linux/amd64"]
   },
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "runArgs": ["--platform=linux/amd64"],
   "remoteUser": "node",
   "containerEnv": {
     "LANG": "ja_JP.UTF-8",
@@ -17,7 +19,8 @@
     "LC_ALL": "${containerEnv:LC_ALL}",
     "TZ": "${containerEnv:TZ}",
     "BUN_INSTALL": "/home/node/.bun",
-    "PATH": "/workspace/.devcontainer/bin:/home/node/.bun/bin:${containerEnv:PATH}"
+    "UV_INSTALL_DIR": "/home/node/.local/bin",
+    "PATH": "/workspace/.devcontainer/bin:/home/node/.bun/bin:/home/node/.local/bin:${containerEnv:PATH}"
   },
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {}
