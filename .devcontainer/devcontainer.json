@@ -2,7 +2,8 @@
   "name": "Visual Pitch Trainer",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": ".."
+    "context": "..",
+    "options": ["--platform=linux/amd64"]
   },
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
