@@ -1,0 +1,17 @@
+# Locked for the BS-RoFormer WebGPU conversion helper in the Dev Container
+# Python 3.11 Linux x86_64 environment. Direct pins were selected from stable
+# releases published at least two weeks before 2026-06-27.
+ml-dtypes==0.5.4 \
+    --hash=sha256:19b9a53598f21e453ea2fbda8aa783c20faff8e1eeb0d7ab899309a0053f1483
+numpy==2.4.6 \
+    --hash=sha256:89cd468399cfd2504718f0ba50e410dca55a170b61a02ad92bb18c8a65186e93
+onnx==1.21.0 \
+    --hash=sha256:10c3185a232089335581fabb98fba4e86d3e8246b8140f2e406082438100ebda
+onnxconverter-common==1.16.0 \
+    --hash=sha256:df39ee96f17fff119dff10dd245467651b60b9e8a96020eb93402239794852f7
+packaging==26.2 \
+    --hash=sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e
+protobuf==7.35.1 \
+    --hash=sha256:74758715c53d7158fb76caf4f0cfdacc5329a4b1bb994f865d6cf302d413a1c4
+typing-extensions==4.15.0 \
+    --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548

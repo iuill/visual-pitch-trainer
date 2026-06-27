@@ -188,7 +188,7 @@ iOS では Safari / Chrome などブラウザアプリを問わず、マイク�
 
 RoFormer 系モデルの URL は必要に応じて `VITE_BS_ROFORMER_FP16_MODEL_URL` で差し替える。未指定の公開ビルドでは、存在しないローカルモデルへのリクエストを避けるため BS-RoFormer を選択不可にする。
 
-BS-RoFormer のローカル検証では、Dev Container 内で `bun run prepare:bs-roformer-webgpu` を実行して `public/models/` にローカルONNXを生成する。このスクリプトは `.tmp/onnx-tools` に Python venv を作り、`onnx` / `onnxconverter-common` / `numpy` をインストールして変換する。`python3-venv` がないコンテナでは `sudo apt-get update && sudo apt-get install -y python3-venv` を先に実行する。
+BS-RoFormer のローカル検証では、Dev Container 内で `bun run prepare:bs-roformer-webgpu` を実行して `public/models/` にローカルONNXを生成する。このスクリプトは `uv` で `.tmp/onnx-tools` に Python venv を作り、`scripts/requirements-bs-roformer-webgpu.txt` のハッシュ付き lock に従って `onnx` / `onnxconverter-common` / `numpy` などをインストールして変換する。lock は Dev Container の Python 3.11 / Linux x86_64 環境を前提にしている。
 
 Demucs / ONNX Runtime Web の実行では SharedArrayBuffer が必要になる場合があるため、公開環境では Cross-Origin-Opener-Policy と Cross-Origin-Embedder-Policy のレスポンスヘッダが必要になる。Cloudflare Pages 向けには `public/_headers` を配置している。GitHub Pages ではこのヘッダを設定できないため、ボーカル抽出は動かない可能性がある。
 
