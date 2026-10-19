@@ -1,7 +1,26 @@
 Third-party notices
 
-This application includes bundled code from the following third-party
-packages.
+This application includes bundled code and audio from the following third-party
+projects.
+
+VCSL — Versilian Community Sample Library (piano recordings)
+https://github.com/sgossner/VCSL
+Created by Versilian Studios LLC and contributors.
+Source commit: c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e
+Instrument: Grand Piano, Kawai / Sustains / v2 / rr1 / Player
+
+License: CC0 1.0 Universal (CC0-1.0).
+The upstream project explicitly permits commercial use, modification and
+redistribution without royalties or mandatory attribution.
+Full license: audio/piano/LICENSE.txt
+Source recordings, checksums and processing: audio/piano/sources.json
+License reference: https://creativecommons.org/publicdomain/zero/1.0/
+
+Ten recordings were converted to mono 44.1 kHz PCM16, trimmed, peak-normalized
+and faded at the end. File names use scientific pitch notation; the original
+VCSL names place middle C one octave lower. Playback compensates for the
+measured tuning of each recording. These recordings are licensed separately
+from the application's MIT-licensed code.
 
 pitchy
 https://github.com/ianprime0509/pitchy

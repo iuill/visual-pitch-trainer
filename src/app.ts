@@ -51,6 +51,12 @@ import {
   type Note,
 } from "./pitchMath";
 import {
+  isReferenceInstrumentId,
+  REFERENCE_INSTRUMENTS,
+  type ReferenceInstrumentId,
+} from "./referenceInstruments";
+import { ReferencePlayer } from "./referencePlayer";
+import {
   analyzeAudioDataWithRmvpe,
   assertRmvpeModelAccessible,
   getRmvpePitchDetectionSupportMessage,
@@ -87,8 +93,9 @@ type AppState = {
   analyser: AnalyserNode | null;
   mediaStream: MediaStream | null;
   sourceNode: MediaStreamAudioSourceNode | null;
-  referenceOscillator: OscillatorNode | null;
-  referenceGain: GainNode | null;
+  referencePlayer: ReferencePlayer | null;
+  referenceInstrument: ReferenceInstrumentId;
+  isReferencePlaying: boolean;
   referenceVolume: number;
   pitchDetectors: LibraryDetectors | null;
   isMicActive: boolean;
@@ -161,7 +168,6 @@ const GRAPH_SECONDS = 12;
 const GRAPH_RANGE_SEMITONES = 6;
 const MIN_CLARITY = 0.52;
 const PITCHY_CLARITY_THRESHOLD = 0.93;
-const MAX_REFERENCE_GAIN = 0.5;
 const MOBILE_VIEWPORT_QUERY = "(max-width: 820px)";
 const LANDING_RIPPLE_DURATION_MS = 850;
 const MAX_LANDING_RIPPLES = 8;
@@ -193,8 +199,9 @@ const state: AppState = {
   analyser: null,
   mediaStream: null,
   sourceNode: null,
-  referenceOscillator: null,
-  referenceGain: null,
+  referencePlayer: null,
+  referenceInstrument: "sine",
+  isReferencePlaying: false,
   referenceVolume: 0.35,
   pitchDetectors: null,
   isMicActive: false,
@@ -261,6 +268,12 @@ const elements = {
   micSelect: queryElement<HTMLSelectElement>("#micSelect"),
   micDeviceStatus: queryElement<HTMLParagraphElement>("#micDeviceStatus"),
   noteRangeSelect: queryElement<HTMLSelectElement>("#noteRangeSelect"),
+  referenceInstrumentSelect: queryElement<HTMLSelectElement>(
+    "#referenceInstrumentSelect",
+  ),
+  referenceInstrumentStatus: queryElement<HTMLParagraphElement>(
+    "#referenceInstrumentStatus",
+  ),
   referenceVolumeInput: queryElement<HTMLInputElement>("#referenceVolumeInput"),
   referenceVolumeValue: queryElement<HTMLOutputElement>(
     "#referenceVolumeValue",
@@ -451,6 +464,20 @@ function init() {
   );
   window.addEventListener("pagehide", handlePageHide);
   elements.noteRangeSelect.addEventListener("change", handleNoteRangeChange);
+  elements.referenceInstrumentSelect.replaceChildren(
+    ...Object.values(REFERENCE_INSTRUMENTS).map((instrument) => {
+      const option = document.createElement("option");
+      option.value = instrument.id;
+      option.textContent = instrument.label;
+      return option;
+    }),
+  );
+  elements.referenceInstrumentSelect.value = state.referenceInstrument;
+  updateReferenceInstrumentDescription();
+  elements.referenceInstrumentSelect.addEventListener(
+    "change",
+    handleReferenceInstrumentChange,
+  );
   elements.referenceVolumeInput.addEventListener(
     "input",
     updateReferenceVolume,
@@ -460,21 +487,11 @@ function init() {
   elements.micSelect.addEventListener("change", handleMicSelection);
 
   if (isAudioContextSupported()) {
-    elements.playToneButton.addEventListener("click", () => {
-      try {
-        toggleReferenceTone();
-      } catch (error) {
-        showAudioError(error);
-      }
-    });
-
-    elements.playScaleButton.addEventListener("click", () => {
-      try {
-        playScale();
-      } catch (error) {
-        showAudioError(error);
-      }
-    });
+    elements.playToneButton.addEventListener(
+      "click",
+      () => void toggleReferenceTone(),
+    );
+    elements.playScaleButton.addEventListener("click", () => void playScale());
     elements.micButton.addEventListener("click", toggleMicrophone);
     refreshAudioDevices();
   } else {
@@ -498,6 +515,7 @@ function isAudioContextSupported(): boolean {
 }
 
 function disableAudioControls() {
+  elements.referenceInstrumentSelect.disabled = true;
   elements.playToneButton.disabled = true;
   elements.playScaleButton.disabled = true;
   elements.micButton.disabled = true;
@@ -538,12 +556,6 @@ function syncVocalSeparationModelOptions() {
     elements.vocalSeparationModelSelect.value,
   );
   elements.vocalSeparationModelSelect.value = state.vocalSeparationModel;
-}
-
-function showAudioError(error: unknown) {
-  elements.analysisStatus.textContent =
-    "声の稽古を開始できませんでした。ブラウザの音声設定を確認してください。";
-  console.error(error);
 }
 
 function setAudioFileStatus(
@@ -2130,6 +2142,7 @@ function createNoteButton(note: Note, className: string) {
 }
 
 function selectTargetNote(note: Note) {
+  if (state.isScalePlaying) stopScalePlayback();
   state.target = note;
   resetActiveSession();
   updateTargetDisplay();
@@ -2155,6 +2168,7 @@ function updateNoteButtonStates() {
 }
 
 function handleNoteRangeChange() {
+  if (state.isScalePlaying) stopScalePlayback();
   const previousIndex = getCurrentNotes().findIndex(
     (note) => note.name === state.target.name,
   );
@@ -2192,117 +2206,94 @@ function getAudioContext(): AudioContext {
   return state.audioContext;
 }
 
-function playTone(frequency: number, durationSec = 0.8, delaySec = 0) {
-  const audioContext = getAudioContext();
-  const oscillator = audioContext.createOscillator();
-  const gain = audioContext.createGain();
-  const startAt = audioContext.currentTime + delaySec;
-  const stopAt = startAt + durationSec;
+let referencePlaybackRequestId = 0;
+let scalePlaybackRequestId = 0;
 
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(frequency, startAt);
-  gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(
-    getReferenceGainValue(),
-    startAt + 0.03,
-  );
-  gain.gain.setValueAtTime(
-    getReferenceGainValue(),
-    Math.max(startAt + 0.04, stopAt - 0.08),
-  );
-  gain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
-
-  oscillator.connect(gain);
-  gain.connect(audioContext.destination);
-  oscillator.start(startAt);
-  oscillator.stop(stopAt + 0.02);
+function getReferencePlayer(): ReferencePlayer {
+  if (!state.referencePlayer) {
+    state.referencePlayer = new ReferencePlayer(getAudioContext());
+    state.referencePlayer.setVolume(state.referenceVolume);
+  }
+  return state.referencePlayer;
 }
 
-function toggleReferenceTone() {
-  if (state.referenceOscillator) {
+function updateReferenceInstrumentDescription() {
+  elements.referenceInstrumentStatus.textContent =
+    REFERENCE_INSTRUMENTS[state.referenceInstrument].description;
+}
+
+function handleReferenceInstrumentChange() {
+  const instrument = elements.referenceInstrumentSelect.value;
+  if (!isReferenceInstrumentId(instrument)) return;
+  const wasPlaying = state.isReferencePlaying;
+  stopReferenceTone();
+  stopScalePlayback();
+  state.referenceInstrument = instrument;
+  updateReferenceInstrumentDescription();
+  if (wasPlaying) void startReferenceTone();
+}
+
+function showReferenceAudioError(error: unknown) {
+  console.error(error);
+  elements.referenceInstrumentStatus.textContent =
+    "お手本音を再生できませんでした。もう一度再生するか、正弦波を選んでください。";
+}
+
+async function toggleReferenceTone() {
+  if (state.isReferencePlaying) {
     stopReferenceTone();
     return;
   }
-
-  startReferenceTone();
+  await startReferenceTone();
 }
 
-function startReferenceTone() {
-  const audioContext = getAudioContext();
-  const oscillator = audioContext.createOscillator();
-  const gain = audioContext.createGain();
-  const now = audioContext.currentTime;
-
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(state.target.frequency, now);
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(getReferenceGainValue(), now + 0.04);
-
-  oscillator.connect(gain);
-  gain.connect(audioContext.destination);
-  oscillator.start(now);
-
-  state.referenceOscillator = oscillator;
-  state.referenceGain = gain;
+async function startReferenceTone() {
+  stopScalePlayback();
+  const requestId = ++referencePlaybackRequestId;
+  const instrument = state.referenceInstrument;
+  state.isReferencePlaying = true;
   elements.playToneButton.classList.add("is-active");
   elements.playToneButton.innerHTML = `<span aria-hidden="true">■</span>停止`;
+  elements.playToneButton.setAttribute("aria-pressed", "true");
+  elements.referenceInstrumentStatus.textContent = "お手本音を準備しています…";
+  try {
+    const context = getAudioContext();
+    const player = getReferencePlayer();
+    await player.prepare(instrument);
+    if (requestId !== referencePlaybackRequestId) return;
+    await context.resume();
+    if (requestId !== referencePlaybackRequestId) return;
+    player.startReference(instrument, state.target.frequency);
+    updateReferenceInstrumentDescription();
+  } catch (error) {
+    if (requestId !== referencePlaybackRequestId) return;
+    stopReferenceTone();
+    showReferenceAudioError(error);
+  }
 }
 
 function stopReferenceTone() {
-  if (
-    !state.referenceOscillator ||
-    !state.referenceGain ||
-    !state.audioContext
-  ) {
-    state.referenceOscillator = null;
-    state.referenceGain = null;
-    elements.playToneButton.classList.remove("is-active");
-    elements.playToneButton.innerHTML = `<span aria-hidden="true">▶</span>お手本音`;
-    return;
-  }
-
-  const now = state.audioContext.currentTime;
-  state.referenceGain.gain.cancelScheduledValues(now);
-  state.referenceGain.gain.setValueAtTime(state.referenceGain.gain.value, now);
-  state.referenceGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
-  state.referenceOscillator.stop(now + 0.06);
-  state.referenceOscillator = null;
-  state.referenceGain = null;
-
+  referencePlaybackRequestId++;
+  state.referencePlayer?.stopReference();
+  state.isReferencePlaying = false;
   elements.playToneButton.classList.remove("is-active");
   elements.playToneButton.innerHTML = `<span aria-hidden="true">▶</span>お手本音`;
+  elements.playToneButton.setAttribute("aria-pressed", "false");
+  updateReferenceInstrumentDescription();
 }
 
 function updateReferenceToneFrequency() {
-  if (!state.referenceOscillator || !state.audioContext) {
-    return;
-  }
-
-  state.referenceOscillator.frequency.setTargetAtTime(
-    state.target.frequency,
-    state.audioContext.currentTime,
-    0.015,
-  );
+  state.referencePlayer?.setFrequency(state.target.frequency);
 }
 
 function updateReferenceVolume() {
   state.referenceVolume = Number(elements.referenceVolumeInput.value) / 100;
   elements.referenceVolumeValue.textContent = `${Math.round(state.referenceVolume * 100)}%`;
 
-  if (state.referenceGain && state.audioContext) {
-    state.referenceGain.gain.setTargetAtTime(
-      getReferenceGainValue(),
-      state.audioContext.currentTime,
-      0.015,
-    );
-  }
+  state.referencePlayer?.setVolume(state.referenceVolume);
 }
 
-function getReferenceGainValue(): number {
-  return Math.max(0.0001, state.referenceVolume * MAX_REFERENCE_GAIN);
-}
-
-function playScale() {
+async function playScale() {
   if (state.isScalePlaying) {
     return;
   }
@@ -2324,30 +2315,51 @@ function playScale() {
   elements.analysisStatus.textContent =
     "ドレミ稽古中です。終わるまでマイクは停止しています。";
 
-  const notes = getCurrentNotes();
-  notes.forEach((note, index) => {
-    playTone(note.frequency, 0.42, index * 0.5);
-  });
-
-  const playbackMs = Math.ceil(((notes.length - 1) * 0.5 + 0.5) * 1000);
-  state.scalePlaybackTimerId = window.setTimeout(() => {
-    state.isScalePlaying = false;
-    state.scalePlaybackTimerId = null;
-    elements.playScaleButton.disabled = false;
-    updateMicButtonState("stopped");
-    elements.analysisStatus.textContent =
-      "ドレミ稽古が終わりました。稽古開始でマイクを使えます。";
-  }, playbackMs);
+  const requestId = ++scalePlaybackRequestId;
+  const instrument = state.referenceInstrument;
+  elements.referenceInstrumentStatus.textContent = "お手本音を準備しています…";
+  try {
+    const context = getAudioContext();
+    const player = getReferencePlayer();
+    await player.prepare(instrument);
+    if (requestId !== scalePlaybackRequestId) return;
+    await context.resume();
+    if (requestId !== scalePlaybackRequestId) return;
+    const notes = getCurrentNotes();
+    player.playScale(
+      instrument,
+      notes.map((note) => note.frequency),
+    );
+    updateReferenceInstrumentDescription();
+    const playbackMs = Math.ceil(((notes.length - 1) * 0.5 + 0.5) * 1000);
+    state.scalePlaybackTimerId = window.setTimeout(() => {
+      stopScalePlayback();
+      elements.analysisStatus.textContent =
+        "ドレミ稽古が終わりました。稽古開始でマイクを使えます。";
+    }, playbackMs);
+  } catch (error) {
+    if (requestId !== scalePlaybackRequestId) return;
+    stopScalePlayback();
+    showReferenceAudioError(error);
+  }
 }
 
 function stopScalePlayback() {
+  scalePlaybackRequestId++;
+  state.referencePlayer?.stopScale();
   if (state.scalePlaybackTimerId !== null) {
     window.clearTimeout(state.scalePlaybackTimerId);
     state.scalePlaybackTimerId = null;
   }
 
+  const wasPlaying = state.isScalePlaying;
   state.isScalePlaying = false;
-  elements.playScaleButton.disabled = false;
+  elements.playScaleButton.disabled = !isAudioContextSupported();
+  if (wasPlaying) {
+    updateMicButtonState("stopped");
+    elements.analysisStatus.textContent = "ドレミ稽古を停止しました。";
+    updateReferenceInstrumentDescription();
+  }
 }
 
 async function toggleMicrophone() {
@@ -2477,6 +2489,8 @@ function cleanupRuntimeResources() {
   stopScalePlayback();
   stopReferenceTone();
   stopMicrophone();
+  state.referencePlayer?.dispose();
+  state.referencePlayer = null;
   cleanupAudioFilePlayer();
   cleanupExtractedVocalAudioUrl();
   cleanupCanvasRuntimeListeners();

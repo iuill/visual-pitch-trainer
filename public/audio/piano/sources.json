@@ -1,0 +1,100 @@
+{
+  "library": "Versilian Community Sample Library (VCSL)",
+  "repository": "https://github.com/sgossner/VCSL",
+  "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+  "license": "CC0-1.0",
+  "instrument": "Grand Piano, Kawai / Sustains / v2 / rr1 / Player",
+  "processing": "Mono 44.1 kHz PCM16; trim leading silence (1 ms pre-roll), cap at 4 s, peak-normalize to 0.7, fade final 150 ms. Original VCSL octave names are one lower than scientific pitch notation. Recorded pitch calibrated with pitchy.",
+  "samples": [
+    {
+      "file": "c3.wav",
+      "midi": 48,
+      "rootFrequency": 130.622537,
+      "source": "Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_C2_v2_rr1_Player.wav",
+      "sourceSha256": "00838dbdbcb0dffd02529c38fa84bc514931634b485fc2ad6ecc62fe98d27a62",
+      "sha256": "5e35cc3985af7e0fc8b6031432a21d759af7ad378ad9300e96b8153480e9c9f0",
+      "bytes": 352844
+    },
+    {
+      "file": "e3.wav",
+      "midi": 52,
+      "rootFrequency": 164.25826,
+      "source": "Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_E2_v2_rr1_Player.wav",
+      "sourceSha256": "d6db864de30223e61c90c4d6c77c47590ae8683e3e821cf4cd781ebdc0c084a9",
+      "sha256": "06bb1024b790ef9b7b8b2d0d59709103eb888225d487df4aa1a4f0ffab907ce7",
+      "bytes": 352844
+    },
+    {
+      "file": "gs3.wav",
+      "midi": 56,
+      "rootFrequency": 207.136728,
+      "source": "Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_G#2_v2_rr1_Player.wav",
+      "sourceSha256": "f3447b7e8a841de457cc77f68919c9d8005f7859201253f7a76982819c96d4f9",
+      "sha256": "cc2d212c62aac20c0786e8da5a408014e9d584cbf0712cb33a64100ce5076868",
+      "bytes": 352844
+    },
+    {
+      "file": "c4.wav",
+      "midi": 60,
+      "rootFrequency": 261.357876,
+      "source": "Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_C3_v2_rr1_Player.wav",
+      "sourceSha256": "fce33012fe900309abafd1a4d6d254d142b0cbf33834c7a72c2fd1ada4e746e1",
+      "sha256": "9eb48110a0bc151bddbb158e1aedc07c32eaf4d14e93770d00dc1564ac461ba3",
+      "bytes": 352844
+    },
+    {
+      "file": "e4.wav",
+      "midi": 64,
+      "rootFrequency": 328.541162,
+      "source": "Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_E3_v2_rr1_Player.wav",
+      "sourceSha256": "51727d51e9174cd141ea202e25871a56fbd32f799d7f440d7bbeba0f1d29dc7c",
+      "sha256": "c8ee5b5791b76eafff85c9df9f1acda884b63163dea76a65a33ecd24fe6ed15a",
+      "bytes": 352844
+    },
+    {
+      "file": "gs4.wav",
+      "midi": 68,
+      "rootFrequency": 414.519652,
+      "source": "Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_G#3_v2_rr1_Player.wav",
+      "sourceSha256": "5d2c5634dbed1cbd2f760d756f045247089b2e2962184fa3fcf47cf9c8fd4277",
+      "sha256": "39b920dfba56e1b16f4d595fe3834303bc7c8f1513e0513435c154c1f7da0e8e",
+      "bytes": 352844
+    },
+    {
+      "file": "c5.wav",
+      "midi": 72,
+      "rootFrequency": 521.830892,
+      "source": "Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_C4_v2_rr1_Player.wav",
+      "sourceSha256": "69845de40a38ed6501746520f9f385ae56200a4372faed48178e64a32a75e58c",
+      "sha256": "40a42e075f3c2a9ad73a3491d676fbc6c38abb5394ec281a0195ffb6e69e8a50",
+      "bytes": 352844
+    },
+    {
+      "file": "e5.wav",
+      "midi": 76,
+      "rootFrequency": 658.50811,
+      "source": "Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_E4_v2_rr1_Player.wav",
+      "sourceSha256": "0b3357ea1c4313d196defebd8d1f02291889c6d1484f94652fa68b82768315c8",
+      "sha256": "eb9cdf4cd2f5150c038bac9f160566109aa0e1b6af79ee49bcd1321b8add6d8f",
+      "bytes": 352844
+    },
+    {
+      "file": "gs5.wav",
+      "midi": 80,
+      "rootFrequency": 830.496458,
+      "source": "Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_G#4_v2_rr1_Player.wav",
+      "sourceSha256": "5a90fad68dbcd5610412bd23838c8c70b2fc1acd268980ae66773d595e9b1aa0",
+      "sha256": "1d9f85d5c518a5c29150e0cc7dfcacdf4c70adcf0dc1587e097c234f3cc448cc",
+      "bytes": 352844
+    },
+    {
+      "file": "c6.wav",
+      "midi": 84,
+      "rootFrequency": 1046.164375,
+      "source": "Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_C5_v2_rr1_Player.wav",
+      "sourceSha256": "f56e64651eed9bdc88abb53eff3beb9a6e89d787f29fef7758f04b6da09397c9",
+      "sha256": "3d94bab93f63f91ce2f3fc1ad51f28502d453c5beac14d4f40cdaa84e01c1293",
+      "bytes": 352844
+    }
+  ]
+}

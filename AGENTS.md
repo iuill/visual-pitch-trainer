@@ -60,7 +60,7 @@
 
 ### 音声処理
 
-- 参考音再生は Web Audio API の `OscillatorNode` を前提とする。
+- 参考音再生は `referenceInstruments.ts` / `referencePlayer.ts` にまとめ、正弦波に `OscillatorNode`、ピアノ等の録音に `AudioBufferSourceNode` を使う。音源素材の出典・ライセンス・チェックサムを保持する。
 - マイク入力は `getUserMedia` と `AnalyserNode.getFloatTimeDomainData()` を前提とする。
 - 音程検出は現在 `pitchy` の McLeod Pitch Method を使っている。強い理由なしに手書きアルゴリズムへ戻さない。
 - 音量が小さい、検出不能、参考音の回り込み、オクターブ誤認などの状態を UI とロジックの両方で丁寧に扱う。
