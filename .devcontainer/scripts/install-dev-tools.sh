@@ -13,10 +13,6 @@ ensure_line_in_file() {
   fi
 }
 
-get_codex_version() {
-  "${BUN_INSTALL}/bin/codex" --version 2>/dev/null | awk '{print $NF}' || true
-}
-
 get_expected_bun_version() {
   if [ -f /workspace/.bun-version ]; then
     tr -d '[:space:]' </workspace/.bun-version
@@ -69,7 +65,6 @@ export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
 export UV_INSTALL_DIR="${UV_INSTALL_DIR:-$HOME/.local/bin}"
 export PATH="${BUN_INSTALL}/bin:${UV_INSTALL_DIR}:/workspace/.devcontainer/bin:${PATH}"
 
-OPENAI_CODEX_VERSION="${OPENAI_CODEX_VERSION:-0.142.3}"
 UV_VERSION="${UV_VERSION:-0.11.21}"
 EXPECTED_BUN_VERSION="${BUN_VERSION:-$(get_expected_bun_version)}"
 
@@ -105,12 +100,8 @@ else
   bun install
 fi
 
-if [ "$(get_codex_version)" != "${OPENAI_CODEX_VERSION}" ]; then
-  bun add -g "@openai/codex@${OPENAI_CODEX_VERSION}"
-fi
-
-if [ ! -x "${BUN_INSTALL}/bin/codex" ]; then
-  printf '%s\n' "codex was not installed at ${BUN_INSTALL}/bin/codex" >&2
+if [ ! -x "${HOST_CODEX_BIN:?HOST_CODEX_BIN is not set}" ]; then
+  printf 'Host Codex binary is not executable: %s\n' "${HOST_CODEX_BIN}" >&2
   exit 1
 fi
 

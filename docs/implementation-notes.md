@@ -30,6 +30,10 @@ docs/
 
 ローカル確認は Dev Container 内の Bun + Vite を使い、可能であれば外部ブラウザで開く。
 
+GitHub CLI はホストの `~/.config/gh` を `/home/node/.config/gh` に読み書き可能な状態で共有し、`GH_CONFIG_DIR` に指定する。コンテナ作成前に共有元ディレクトリを用意してパーミッションを700に設定する。ホストで `gh auth login` を済ませておく。
+
+Codex CLI はホストの `~/.codex/packages/standalone` を読み取り専用で共有し、`HOST_CODEX_BIN` を通して起動する。認証情報はホストの `~/.codex/auth.json` を `/home/node/.codex/auth.json` に読み書き可能な状態で共有する。コンテナ作成前にホストの実行ファイルを検証し、認証ファイルがなければ空の JSON を作成する。ホストで `codex login` を済ませてから、チェックアウトのルートで `dc codex` を実行する。コンテナ内への Codex の個別インストールは行わない。
+
 Dev Container では以下で起動できる。
 
 ```sh
