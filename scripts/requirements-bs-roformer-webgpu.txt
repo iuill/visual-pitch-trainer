@@ -1,6 +1,6 @@
 # Locked for the BS-RoFormer WebGPU conversion helper in the Dev Container
 # Python 3.11 Linux x86_64 environment. Direct pins were selected from stable
-# releases published at least two weeks before 2026-06-27.
+# releases published at least two weeks before 2026-10-19.
 ml-dtypes==0.5.4 \
     --hash=sha256:19b9a53598f21e453ea2fbda8aa783c20faff8e1eeb0d7ab899309a0053f1483
 numpy==2.4.6 \
