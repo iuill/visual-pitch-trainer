@@ -137,7 +137,7 @@ The dedicated melody graph shows the whole reference as stepped bars before prac
 
 Melody Practice offers ascending/descending major scales, a five-note up-and-down pattern, do–mi–sol–mi–do, chromatic scales, and custom sequences. Enter 2–32 Japanese solfege tokens separated by spaces, including sharps such as ド# and upper do (高ド). Notes stay within the selected voice range and have equal durations; rests and per-note rhythms are not supported.
 
-After microphone permission and instrument loading, watch/listen to one demonstration, prepare during a three-second visual countdown, then sing with reference audio and live pitch feedback. Each note lasts 2–5 seconds (default 2). The first 0.4 seconds per note are excluded from scoring. Per-note results show in-tune time, percentage of remaining scheduled time (including silence/undetected input), and detected-pitch time.
+After microphone permission and instrument loading, watch/listen to one demonstration, prepare during a three-second visual countdown, then sing with reference audio and live pitch feedback. Each note lasts 1–5 seconds (default 2). The first 0.4 seconds per note are excluded from scoring. Per-note results show in-tune time, percentage of remaining scheduled time (including silence/undetected input), and detected-pitch time.
 
 Use headphones: reference audio leaking into the microphone can be scored as singing. Training effectiveness for people with hearing loss has not been evaluated. Cancellation, target/range/instrument changes, or leaving the tab stop playback and the microphone.
 
