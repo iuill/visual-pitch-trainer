@@ -56,7 +56,7 @@
               </span>
             </span>
           </summary>
-          <p class="common-settings-help">ここで選んだ音域・音色・音量・マイク・判定の設定を、単音練習とメロディ練習の両方に使います。音源の声域確認には適用しません。</p>
+          <p class="common-settings-help">ここで選んだ音域・音色・音量・マイク・判定の設定を、単音練習とメロディ練習の両方に使います。音源の声域確認とライブ音合わせ α版には適用しません。</p>
           <div class="common-settings-grid">
             <div>
           <div class="setting-row select-row">
@@ -139,6 +139,7 @@
       <nav class="practice-nav" aria-label="練習メニュー">
         <button type="button" data-practice-view="single" aria-pressed="true" aria-controls="practiceWorkspace">単音練習</button>
         <button type="button" data-practice-view="melody" aria-pressed="false" aria-controls="practiceWorkspace">メロディ練習</button>
+        <button type="button" data-practice-view="live" aria-pressed="false" aria-controls="livePracticeView">ライブ音合わせ α版</button>
         <button type="button" data-practice-view="audio" aria-pressed="false" aria-controls="audioFileView">音源の声域確認</button>
       </nav>
       <p id="practiceViewDescription" class="view-description">音をひとつ選び、お手本に合わせて声を伸ばします。</p>
@@ -488,6 +489,41 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section id="livePracticeView" class="live-practice" aria-labelledby="liveTitle" hidden>
+        <div class="panel-header">
+          <div><h2 id="liveTitle">ライブ音合わせ <small>α版</small></h2>
+          <p>生ピアノと自分の発声を同時に拾い、お手本と声の高さを重ねます。</p></div>
+        </div>
+        <p class="live-notice">実際の環境での認識精度・動作速度は未検証です。数秒以上遅れて更新され、ピアノだけでも声と誤認する場合があります。和音は代表音1つの推定で、お手本の特定には未対応です。入力する弾き方や発声順は制限しません。</p>
+        <div class="action-row">
+          <button id="liveStart" type="button" class="primary-button">マイクで開始</button>
+          <button id="liveStop" type="button" disabled>停止・モデル解放</button>
+        </div>
+        <p id="liveStatus" role="status">音声は端末内で処理し、保存・送信しません。初回は選択したモデル約67MBと実行用ファイルを取得します。</p>
+        <div class="live-readouts">
+          <div><span>ピアノ側の推定</span><strong id="livePiano">—</strong></div>
+          <div><span>声側の推定</span><strong id="liveVoice">—</strong></div>
+          <div><span>声 − ピアノ</span><strong id="liveGap">—</strong></div>
+        </div>
+        <p id="liveMatch" class="live-match">開始待ち</p>
+        <p class="graph-legend"><span class="reference-key">━ ピアノ側のバー</span><span class="voice-key">─ 声側の軌跡</span></p>
+        <canvas id="liveCanvas" width="960" height="320" aria-label="直近24秒のピアノ側と声側の推定音程" aria-describedby="liveGraphHelp"></canvas>
+        <p id="liveGraphHelp" class="graph-hint">横軸は収音時刻、縦軸は音程です。検出できない区間は途切れ、未処理の区間は線でつなぎません。判定は表示中の過去の解析位置に対応します。</p>
+        <div class="live-diagnostics"><span>表示位置：<strong id="liveDelay">—</strong></span><span>1回の処理：<strong id="liveProcessing">—</strong></span></div>
+        <details class="live-options">
+          <summary>検証設定（停止中に変更）</summary>
+          <fieldset id="liveSettings" class="live-settings">
+            <legend class="visually-hidden">ライブ音合わせの認識設定</legend>
+            <label>認識方式<select id="liveModel"><option value="voc-ft">MDX Voc FT（約67MB）</option><option value="kim-vocal-2">MDX Kim Vocal 2（約67MB）</option></select></label>
+            <label>処理する場所<select id="liveBackend"><option value="webgpu">端末内 GPU（WebGPU）</option><option value="wasm">端末内 CPU（WASM・低速の場合あり）</option></select></label>
+            <label>入力区間<select id="liveWindow"><option value="2">2秒（短い区間の実験）</option><option value="5.9" selected>5.9秒（長い区間の比較）</option></select></label>
+            <label>許容幅<select id="liveTolerance"><option value="25">±25 cents</option><option value="50" selected>±50 cents（半音の50%）</option></select></label>
+            <label>最小音量<select id="liveMinRms"><option value="0.003">小さい声も拾う</option><option value="0.006" selected>標準</option><option value="0.012">大きな音だけ拾う</option></select></label>
+          </fieldset>
+          <p class="graph-hint">2秒設定は入力の前後を無音で埋めます。推論サイズは同じで、メモリ節約や精度を保証する設定ではありません。方式変更時は停止してモデルを解放します。共通設定はこのα版には適用しません。</p>
+        </details>
       </section>
 
       <footer class="app-footer">

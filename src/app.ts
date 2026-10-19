@@ -32,6 +32,7 @@ import {
   midiToY,
   resolveCanvasBackingSize,
 } from "./graphModel";
+import { LivePractice } from "./livePractice";
 import {
   createMp3BlobFromDecodedAudio,
   createWavBlobFromDecodedAudio,
@@ -436,9 +437,20 @@ const AUDIO_RANGE_GRAPH_PADDING: GraphPadding = {
   left: 54,
 };
 
-type PracticeView = "single" | "melody" | "audio";
+type PracticeView = "single" | "melody" | "audio" | "live";
 let practiceView: PracticeView = "single";
 let melodyGraphData: MelodyGraphData | null = null;
+const livePractice = new LivePractice(async () => {
+  if (
+    state.isAnalyzingAudioFile ||
+    state.isCapturingCrepeComparison ||
+    state.isCapturingVocalSeparationComparison
+  ) {
+    throw new Error("音源の解析・モデル比較が終わってから開始してください。");
+  }
+  await releaseCrepeSessions();
+  await releaseRmvpeSession();
+});
 
 function setupPracticeNavigation() {
   elements.practiceSettings.open = false;
@@ -449,6 +461,7 @@ function setupPracticeNavigation() {
     button.addEventListener("click", () => {
       const view = button.dataset.practiceView as PracticeView;
       if (view === practiceView) return;
+      livePractice.stop();
       stopScalePlayback();
       stopReferenceTone();
       stopMicrophone();
@@ -467,6 +480,7 @@ function setupPracticeNavigation() {
 function applyPracticeView() {
   const melody = practiceView === "melody";
   const audio = practiceView === "audio";
+  const live = practiceView === "live";
   document.body.dataset.practiceView = practiceView;
   document
     .querySelectorAll<HTMLButtonElement>("button[data-practice-view]")
@@ -481,7 +495,8 @@ function applyPracticeView() {
     .forEach((element) => {
       element.hidden = practiceView !== "single";
     });
-  elements.graphPanel.hidden = audio;
+  elements.graphPanel.hidden = audio || live;
+  queryElement<HTMLElement>("#livePracticeView").hidden = !live;
   elements.audioFileView.hidden = !audio;
   elements.melodySection.hidden = !melody;
   elements.melodyGraphView.hidden = !melody;
@@ -494,11 +509,13 @@ function applyPracticeView() {
   elements.practiceGraphHelp.textContent = melody
     ? "お手本は全体を表示し、終わった音も残します。自分の声を重ねて振り返れます。"
     : "直近12秒の声の高さを、音名のレーンに沿って表示します。";
-  elements.practiceViewDescription.textContent = audio
-    ? "音源や動画を読み込み、歌声の高さの目安を確認します。"
-    : melody
-      ? "お手本を確認してから、一緒に歌います。終わったら音ごとに振り返りましょう。"
-      : "音をひとつ選び、お手本に合わせて声を伸ばします。";
+  elements.practiceViewDescription.textContent = live
+    ? "ピアノと自分の声を、内蔵マイクから別々に推定するα版です。演奏と発声の順番は自由です。"
+    : audio
+      ? "音源や動画を読み込み、歌声の高さの目安を確認します。"
+      : melody
+        ? "お手本を確認してから、一緒に歌います。終わったら音ごとに振り返りましょう。"
+        : "音をひとつ選び、お手本に合わせて声を伸ばします。";
   if (melody)
     elements.analysisStatus.textContent =
       melodyGraphData?.phase === "finished"
@@ -2889,6 +2906,7 @@ function handlePageHide(event: PageTransitionEvent) {
 }
 
 function cleanupRuntimeResources() {
+  livePractice.stop();
   stopAudioPlaybackTracking();
   stopAudioAnalysisMemoryTracking();
   stopScalePlayback();
@@ -3749,7 +3767,7 @@ function drawGraph() {
     }
     return;
   }
-  if (practiceView === "audio") return;
+  if (practiceView === "audio" || practiceView === "live") return;
   syncPitchCanvasSize();
 
   const canvas = elements.pitchCanvas;

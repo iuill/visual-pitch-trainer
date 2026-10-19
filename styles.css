@@ -1517,7 +1517,7 @@ input[type="range"] {
 
 .practice-nav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -1535,6 +1535,118 @@ input[type="range"] {
   background: #e7f2f2;
   color: var(--accent-strong);
   box-shadow: inset 0 -3px var(--accent);
+}
+
+.live-practice {
+  padding: clamp(16px, 3vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  min-width: 0;
+}
+.live-practice small {
+  font-size: 0.65em;
+  color: var(--muted);
+}
+.live-practice .action-row {
+  position: static;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.live-notice {
+  padding: 12px;
+  background: #fff3d9;
+  border-left: 4px solid #9a6b14;
+  line-height: 1.7;
+}
+.live-readouts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+.live-readouts > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.live-readouts span,
+.live-readouts strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.live-readouts span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.live-readouts strong {
+  margin-top: 6px;
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+}
+.live-match {
+  padding: 16px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  min-height: 64px;
+}
+.live-matched .live-match {
+  border-color: #15806d;
+  background: #e1f5e9;
+  box-shadow: 0 0 18px #15806d55;
+}
+#liveCanvas {
+  display: block;
+  width: 100%;
+  height: 320px;
+}
+.live-diagnostics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+}
+.live-options {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.live-options summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-weight: 700;
+}
+.live-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.live-settings label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.live-settings select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+}
+.live-settings:disabled {
+  opacity: 0.65;
+}
+@media (max-width: 600px) {
+  .practice-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .live-readouts,
+  .live-settings {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .view-description,
 .graph-hint {
