@@ -60,7 +60,7 @@
             </select>
           </div>
 
-          <div id="noteButtons" class="note-grid" aria-label="お手本の音を選択"></div>
+          <fieldset id="noteButtons" class="note-grid" aria-label="お手本の音を選択"></fieldset>
 
           <div class="action-row">
             <button id="playToneButton" class="primary-button" type="button">
@@ -150,10 +150,10 @@
             </select>
             <p id="micDeviceStatus">稽古開始後に使える入力を表示します。</p>
           </div>
-          <div class="graph-target-control" aria-label="声の軌跡の目標ラインを変更">
+          <fieldset class="graph-target-control" aria-label="声の軌跡の目標ラインを変更">
             <span>目標ライン</span>
             <div id="graphTargetButtons" class="target-note-strip"></div>
-          </div>
+          </fieldset>
           <p id="graphDescription" class="visually-hidden">
             声の軌跡はまだ記録されていません。
           </p>
@@ -269,8 +269,8 @@
               <option value="bs-roformer-fp16">高品質: BS-RoFormer fp16 2-stem（約310MB）</option>
             </select>
             <span id="vocalSeparationModelHelp" class="setting-help info-note compact-info-note">
-              <span class="info-note-icon" tabindex="0" role="img" aria-label="抽出モデルの補足">i</span>
-              <span class="info-note-popup" role="tooltip">
+              <button class="info-note-icon" type="button" aria-label="抽出モデルの補足" aria-describedby="vocalSeparationModelTooltip">i</button>
+              <span id="vocalSeparationModelTooltip" class="info-note-popup" role="tooltip">
                 ボーカル抽出はDemucs / BS-RoFormerのどちらもWebGPUと大きなモデルを使うため、ゲーミングPC相当の環境での利用を推奨します。通常のPCやスマホでは、抽出済みボーカル音源を読み込むか、ボーカル抽出を使わずに解析してください。
               </span>
             </span>
@@ -286,8 +286,8 @@
               <option value="crepe-full">CREPE full（約89MB）</option>
             </select>
             <span id="audioPitchEstimatorHelp" class="setting-help info-note compact-info-note">
-              <span class="info-note-icon" tabindex="0" role="img" aria-label="ピッチ推定の補足">i</span>
-              <span class="info-note-popup" role="tooltip">
+              <button class="info-note-icon" type="button" aria-label="ピッチ推定の補足" aria-describedby="audioPitchEstimatorTooltip">i</button>
+              <span id="audioPitchEstimatorTooltip" class="info-note-popup" role="tooltip">
                 既定のRMVPEはゲーミングPCでの利用想定です。通常のPCやスマホでは軽量なpitchyを選んでください。RMVPEは初回ロードに時間がかかりますが推定は高速です。CREPEは初回ロードは軽めですが推定は重めです。
               </span>
             </span>
@@ -320,7 +320,7 @@
               <span id="analyzeAudioFileButtonLabel">解析</span>
             </button>
             <div class="audio-playback-status" aria-live="polite">
-              <div class="audio-transport-controls" aria-label="音源の再生操作">
+              <fieldset class="audio-transport-controls" aria-label="音源の再生操作">
                 <button id="playAudioFileButton" class="secondary-button" type="button" disabled>
                   再生
                 </button>
@@ -330,13 +330,13 @@
                 <button id="stopAudioFileButton" class="secondary-button" type="button" disabled>
                   停止
                 </button>
-              </div>
-              <div class="audio-seek-controls" aria-label="音源の再生位置調整">
+              </fieldset>
+              <fieldset class="audio-seek-controls" aria-label="音源の再生位置調整">
                 <button class="mini-button" type="button" data-audio-seek="-10" disabled>-10秒</button>
                 <button class="mini-button" type="button" data-audio-seek="-5" disabled>-5秒</button>
                 <button class="mini-button" type="button" data-audio-seek="5" disabled>+5秒</button>
                 <button class="mini-button" type="button" data-audio-seek="10" disabled>+10秒</button>
-              </div>
+              </fieldset>
               <span id="audioPlaybackTime">0:00 / 0:00</span>
             </div>
           </div>
@@ -359,7 +359,7 @@
             メモリ使用量: --
           </p>
 
-          <div class="voice-range-grid" aria-label="音源の声域推定結果">
+          <fieldset class="voice-range-grid" aria-label="音源の声域推定結果">
             <div>
               <span class="label">推定声域</span>
               <strong id="voiceRangeReadout">--</strong>
@@ -376,7 +376,7 @@
               <span class="label">検出できた歌声</span>
               <strong id="voicedRatioReadout">--</strong>
             </div>
-          </div>
+          </fieldset>
 
           <p id="audioRangeDescription" class="visually-hidden">
             音源の声域推定はまだ実行されていません。
