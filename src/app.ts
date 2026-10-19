@@ -252,7 +252,7 @@ function queryElement<T extends Element>(selector: string) {
 }
 
 const elements = {
-  noteButtons: queryElement<HTMLDivElement>("#noteButtons"),
+  noteButtons: queryElement<HTMLFieldSetElement>("#noteButtons"),
   graphTargetButtons: queryElement<HTMLDivElement>("#graphTargetButtons"),
   targetFrequency: queryElement<HTMLParagraphElement>("#targetFrequency"),
   playScaleButton: queryElement<HTMLButtonElement>("#playScaleButton"),

@@ -19,19 +19,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@mediabunny/mp3-encoder": "1.40.1",
+    "@mediabunny/mp3-encoder": "1.61.1",
     "demucs-web": "^1.0.2",
-    "mediabunny": "^1.40.1",
-    "onnxruntime-web": "^1.26.0",
+    "mediabunny": "^1.61.1",
+    "onnxruntime-web": "^1.30.0",
     "pitchy": "4.1.0"
   },
-  "overrides": {
-    "protobufjs": "7.6.4"
-  },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.12",
-    "@types/bun": "^1.3.12",
-    "typescript": "^6.0.2",
-    "vite": "8.0.16"
+    "@biomejs/biome": "^2.5.15",
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2",
+    "vite": "8.3.2"
   }
 }
