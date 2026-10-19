@@ -86,7 +86,8 @@ export class ReferencePlayer {
     this.stopReference();
     this.reference = { instrument, frequency };
     this.scheduleReference(this.context.currentTime + 0.01);
-    if (REFERENCE_INSTRUMENTS[instrument].kind === "samples") {
+    const definition = REFERENCE_INSTRUMENTS[instrument];
+    if (definition.kind === "samples" && definition.playback === "repeat") {
       this.repeatTimer = (this.options.setInterval ?? globalThis.setInterval)(
         () => {
           // Avoid a burst of missed notes when returning from a background tab.
@@ -110,10 +111,12 @@ export class ReferencePlayer {
       instrument,
       frequency,
       at,
-      definition.kind === "samples" ? definition.noteSeconds : null,
+      definition.kind === "samples" && definition.playback === "repeat"
+        ? definition.noteSeconds
+        : null,
       this.referenceVoices,
     );
-    if (definition.kind === "samples")
+    if (definition.kind === "samples" && definition.playback === "repeat")
       this.nextRepeatAt = at + definition.repeatSeconds;
   }
 
@@ -135,18 +138,30 @@ export class ReferencePlayer {
     }
   }
 
-  playScale(instrument: ReferenceInstrumentId, frequencies: readonly number[]) {
+  playScale(
+    instrument: ReferenceInstrumentId,
+    frequencies: readonly number[],
+    options: {
+      noteSeconds?: number;
+      startAt?: number;
+      practiceAt?: number;
+    } = {},
+  ) {
     this.stopScale();
-    const at = this.context.currentTime + 0.01;
-    frequencies.forEach((frequency, index) => {
-      this.createVoice(
-        instrument,
-        frequency,
-        at + index * 0.5,
-        0.42,
-        this.scaleVoices,
-      );
-    });
+    const at = options.startAt ?? this.context.currentTime + 0.01;
+    const seconds = options.noteSeconds ?? 0.5;
+    const starts =
+      options.practiceAt === undefined ? [at] : [at, options.practiceAt];
+    for (const start of starts)
+      frequencies.forEach((frequency, index) => {
+        this.createVoice(
+          instrument,
+          frequency,
+          start + index * seconds,
+          seconds - 0.08,
+          this.scaleVoices,
+        );
+      });
   }
 
   private createVoice(
@@ -170,12 +185,23 @@ export class ReferencePlayer {
       if (!buffer) throw new Error("Reference instrument is not loaded.");
       const sampler = this.context.createBufferSource();
       sampler.buffer = buffer;
+      if (definition.playback === "loop") {
+        sampler.loop = true;
+        sampler.loopStart = 0;
+        sampler.loopEnd = buffer.duration;
+      }
       sampler.playbackRate.setValueAtTime(frequency / sample.rootFrequency, at);
       source = sampler;
     }
     const gain = this.context.createGain();
     gain.gain.setValueAtTime(0, at);
-    gain.gain.linearRampToValueAtTime(1, at + 0.01);
+    gain.gain.linearRampToValueAtTime(
+      1,
+      at +
+        (definition.kind === "samples" && definition.playback === "loop"
+          ? 0.05
+          : 0.01),
+    );
     if (duration !== null) {
       gain.gain.setValueAtTime(1, at + duration - 0.06);
       gain.gain.linearRampToValueAtTime(0, at + duration);

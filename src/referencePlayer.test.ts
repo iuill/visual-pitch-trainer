@@ -4,6 +4,7 @@ import {
   findNearestSample,
   isReferenceInstrumentId,
   PIANO_SAMPLES,
+  REFERENCE_INSTRUMENTS,
 } from "./referenceInstruments";
 import { ReferencePlayer } from "./referencePlayer";
 
@@ -35,6 +36,9 @@ class FakeNode {
 }
 
 class FakeSource extends FakeNode {
+  loop = false;
+  loopStart = 0;
+  loopEnd = 0;
   frequency = new FakeParam();
   playbackRate = new FakeParam();
   buffer: AudioBuffer | null = null;
@@ -52,7 +56,7 @@ class FakeSource extends FakeNode {
 
 function createHarness(
   loadSample: (url: string) => Promise<AudioBuffer> = async () =>
-    ({}) as AudioBuffer,
+    ({ duration: 1.2 }) as AudioBuffer,
 ) {
   const oscillators: FakeSource[] = [];
   const samplers: FakeSource[] = [];
@@ -137,6 +141,85 @@ describe("reference instruments", () => {
 });
 
 describe("reference player", () => {
+  test("holds sustained recordings without retriggering and stops both current and future notes", async () => {
+    for (const instrument of [
+      "harmonium",
+      "organ",
+      "violin",
+      "flute",
+    ] as const) {
+      const h = createHarness();
+      await h.player.prepare(instrument);
+      h.player.startReference(instrument, 440);
+      expect(h.samplers[0].loop).toBe(true);
+      expect(h.samplers[0].loopStart).toBe(0);
+      expect(h.samplers[0].loopEnd).toBe(1.2);
+      expect(h.samplers[0].stops).toEqual([]);
+      h.context.currentTime = 30;
+      h.tick();
+      expect(h.samplers).toHaveLength(1);
+      h.player.setFrequency(880);
+      expect(h.samplers).toHaveLength(2);
+      expect(h.samplers[0].stops.at(-1)).toBeCloseTo(30.06);
+      h.player.stopReference();
+      expect(h.samplers[1].stops.at(-1)).toBeCloseTo(30.06);
+      h.player.playScale(instrument, [440, 880], {
+        noteSeconds: 5,
+        startAt: 31,
+        practiceAt: 44,
+      });
+      expect(
+        h.samplers
+          .slice(2)
+          .every((voice) => voice.loop && voice.stops.length === 1),
+      ).toBe(true);
+      h.player.stopScale();
+      expect(
+        h.samplers.slice(2).every((voice) => voice.stops.at(-1) === 30.06),
+      ).toBe(true);
+    }
+  });
+
+  test("sustained assets retain verifiable provenance and a continuous loop boundary", async () => {
+    for (const instrument of [
+      "harmonium",
+      "organ",
+      "violin",
+      "flute",
+    ] as const) {
+      const root = new URL(`../public/audio/${instrument}/`, import.meta.url);
+      const manifest = await Bun.file(new URL("sources.json", root)).json();
+      expect(manifest.license).toBe("CC0-1.0");
+      expect(manifest.samples.length).toBe(
+        REFERENCE_INSTRUMENTS[instrument].samples.length,
+      );
+      for (const sample of manifest.samples) {
+        const bytes = Buffer.from(
+          await Bun.file(new URL(sample.file, root)).arrayBuffer(),
+        );
+        expect(createHash("sha256").update(bytes).digest("hex")).toBe(
+          sample.sha256,
+        );
+        expect(sample.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
+        expect(sample.sourcePage.startsWith("https://")).toBe(true);
+        expect(bytes.readUInt32LE(24)).toBe(44100);
+        expect(bytes.length).toBe(sample.bytes);
+        expect(sample.loopEnd).toBeCloseTo((bytes.length - 44) / 2 / 44100);
+        // A wrap should be no larger than an ordinary per-sample waveform step.
+        let largestStep = 0;
+        for (let i = 46; i < bytes.length; i += 2)
+          largestStep = Math.max(
+            largestStep,
+            Math.abs(bytes.readInt16LE(i) - bytes.readInt16LE(i - 2)),
+          );
+        const wrap = Math.abs(
+          bytes.readInt16LE(44) - bytes.readInt16LE(bytes.length - 2),
+        );
+        expect(wrap).toBeLessThanOrEqual(largestStep * 1.1);
+      }
+    }
+  });
+
   test("keeps sine playback available without loading recordings and retunes it smoothly", async () => {
     const h = createHarness(async () => {
       throw new Error("Unexpected sample download");
@@ -199,6 +282,23 @@ describe("reference player", () => {
     h.context.currentTime = 200;
     h.tick();
     expect(h.samplers.length).toBe(4);
+  });
+
+  test("schedules both melody passes on the audio clock and cancels the future singing pass", () => {
+    const h = createHarness();
+    h.player.playScale("sine", [261.63, 293.66], {
+      noteSeconds: 3,
+      startAt: 1,
+      practiceAt: 10,
+    });
+    expect(h.oscillators.map((voice) => voice.startedAt)).toEqual([
+      1, 4, 10, 13,
+    ]);
+    expect(h.oscillators[0].stops[0]).toBeCloseTo(3.94);
+    h.player.stopScale();
+    expect(h.oscillators.every((voice) => voice.stops.at(-1) === 0.06)).toBe(
+      true,
+    );
   });
 
   test("cancels future scale notes as well as sounding voices on stop and dispose", async () => {

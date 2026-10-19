@@ -9,6 +9,7 @@
     "dev": "bun run scripts/dev.ts",
     "download:pitch-models": "bun run scripts/download-pitch-models.ts",
     "prepare:reference-piano": "bun run scripts/prepare-reference-piano.ts",
+    "prepare:reference-sustains": "bun run scripts/prepare-reference-sustains.ts",
     "prepare:bs-roformer-webgpu": "bash scripts/prepare-bs-roformer-webgpu.sh --variant fp16",
     "build": "bunx --bun vite build",
     "preview": "bunx --bun vite preview --host 0.0.0.0",

@@ -14,6 +14,11 @@
   --shadow: 0 14px 40px rgba(23, 32, 38, 0.08);
 }
 
+[hidden] {
+  /* biome-ignore lint/complexity/noImportantStyles: Keep native hidden semantics above component display rules. */
+  display: none !important;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -448,6 +453,73 @@ fieldset {
 
 .setting-row.select-row {
   grid-template-columns: auto 1fr;
+}
+
+.melody-practice {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.melody-practice p {
+  overflow-wrap: anywhere;
+}
+.melody-practice.is-running .melody-settings {
+  display: none;
+}
+.melody-practice select,
+.melody-practice input {
+  min-width: 0;
+  width: 100%;
+}
+.melody-practice input {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.melody-practice [hidden] {
+  display: none;
+}
+.melody-notes {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+}
+.melody-notes li {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.melody-notes li[aria-current="step"] {
+  outline: 3px solid var(--text);
+  font-weight: 800;
+}
+.melody-status {
+  font-weight: 700;
+  min-height: 2em;
+}
+.melody-practice progress {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+}
+.melody-results {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+.melody-results table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.melody-results th,
+.melody-results td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
 }
 
 input[type="range"] {
@@ -1441,5 +1513,254 @@ input[type="range"] {
 
   .icon-button.wide {
     min-width: 0;
+  }
+}
+
+.melody-practice.is-running .melody-notes {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 4px;
+}
+.melody-practice.is-running .melody-notes li {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 820px) {
+  .is-melody-running .action-row {
+    display: none;
+  }
+
+  .melody-practice.is-running {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+  }
+}
+
+.practice-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.practice-nav button {
+  min-height: 54px;
+  padding: 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font-weight: 700;
+}
+.practice-nav button[aria-pressed="true"] {
+  border: 2px solid var(--accent);
+  background: #e7f2f2;
+  color: var(--accent-strong);
+  box-shadow: inset 0 -3px var(--accent);
+}
+.view-description,
+.graph-hint {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.control-panel {
+  align-self: start;
+}
+.control-panel > summary,
+.melody-settings > summary,
+.melody-sequence > summary {
+  min-height: 44px;
+  padding: 8px 0;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+.control-panel > summary > span {
+  display: block;
+  margin-left: 18px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+.control-panel[open] > summary {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.practice-advanced {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.graph-panel {
+  grid-row: 1;
+}
+body[data-practice-view="melody"] .practice-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+body[data-practice-view="melody"] .graph-panel {
+  grid-column: 1;
+  grid-row: auto;
+}
+body[data-practice-view="melody"] .control-panel {
+  grid-column: 1;
+}
+.melody-settings > p {
+  margin-top: 12px;
+}
+.melody-sequence {
+  font-size: 0.85rem;
+}
+.melody-graph-scroll {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overscroll-behavior-x: contain;
+}
+#melodyCanvas {
+  display: block;
+  max-width: none;
+}
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 14px 0 8px;
+  font-size: 0.85rem;
+}
+.reference-key {
+  color: #146c75;
+  font-weight: 700;
+}
+.voice-key {
+  color: #2b6cb0;
+  font-weight: 700;
+}
+.graph-hint {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+}
+body.is-melody-running .melody-sequence {
+  display: none;
+}
+body.is-melody-running .practice-advanced {
+  display: none;
+}
+body[data-practice-view="melody"] .combo-readout,
+body[data-practice-view="melody"] .score-readout,
+body[data-practice-view="melody"] .status-help {
+  display: none;
+}
+@media (max-width: 820px) {
+  .graph-panel {
+    grid-row: auto;
+  }
+  body[data-practice-view="melody"],
+  body[data-practice-view="audio"] {
+    padding-bottom: 12px;
+  }
+  .practice-nav button {
+    font-size: 0.85rem;
+  }
+  .graph-legend {
+    gap: 10px;
+  }
+}
+
+.graph-panel.is-melody-running .graph-device-row,
+.graph-panel.is-melody-running .graph-target-control,
+.graph-panel.is-melody-running > .panel-header p {
+  display: none;
+}
+
+.common-settings {
+  margin-bottom: 16px;
+}
+.common-settings small {
+  margin-left: 8px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+.common-settings-help {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 0.9rem;
+}
+.common-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+.common-settings-grid > div {
+  min-width: 0;
+}
+.single-note-panel .note-grid {
+  margin-bottom: 0;
+}
+@media (max-width: 820px) {
+  .common-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+.common-settings > summary > .settings-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.settings-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #dce8e9;
+  border-radius: 8px;
+  background: #f4f9f9;
+}
+.settings-summary-item svg {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.settings-summary-text {
+  min-width: 0;
+}
+.settings-summary-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.settings-summary-text strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 820px) {
+  .common-settings > summary > .settings-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .settings-summary-item {
+    gap: 8px;
+    padding: 8px;
+  }
+  .settings-summary-item svg {
+    flex-basis: 18px;
+    width: 18px;
+    height: 18px;
+  }
+  .settings-summary-text strong {
+    font-size: 0.86rem;
   }
 }

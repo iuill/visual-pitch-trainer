@@ -39,6 +39,17 @@ import {
   decodeMediaAudio,
   mixChannelsToMono,
 } from "./mediaAudioExtraction";
+import { drawMelodyGraph, type MelodyGraphData } from "./melodyGraph";
+import {
+  buildMelody,
+  getMelodyPosition,
+  MELODY_COUNTDOWN_SECONDS,
+  MELODY_GRACE_SECONDS,
+  MELODY_PATTERNS,
+  type MelodyNoteResult,
+  type MelodyObservation,
+  recordMelodyObservation,
+} from "./melodyPractice";
 import {
   detectPitchWithLibraries,
   type LibraryDetectors,
@@ -259,10 +270,40 @@ function queryElement<T extends Element>(selector: string) {
 }
 
 const elements = {
+  practiceSettings: queryElement<HTMLDetailsElement>("#practiceSettings"),
+  settingsSummaryRange: queryElement<HTMLElement>("#settingsSummaryRange"),
+  settingsSummaryInstrument: queryElement<HTMLElement>(
+    "#settingsSummaryInstrument",
+  ),
+  settingsSummaryVolume: queryElement<HTMLElement>("#settingsSummaryVolume"),
+  settingsSummaryTolerance: queryElement<HTMLElement>(
+    "#settingsSummaryTolerance",
+  ),
+  practiceViewDescription: queryElement<HTMLElement>(
+    "#practiceViewDescription",
+  ),
+  practiceGraphTitle: queryElement<HTMLElement>("#practiceGraphTitle"),
+  practiceGraphHelp: queryElement<HTMLElement>("#practiceGraphHelp"),
+  audioFileView: queryElement<HTMLElement>("#audioFileView"),
+  melodySection: queryElement<HTMLElement>(".melody-practice"),
+  melodySetup: queryElement<HTMLDetailsElement>("#melodySetup"),
+  melodyGraphView: queryElement<HTMLElement>("#melodyGraphView"),
+  melodyCanvas: queryElement<HTMLCanvasElement>("#melodyCanvas"),
+  melodyGraphScroll: queryElement<HTMLElement>("#melodyGraphScroll"),
+  melodyGraphDescription: queryElement<HTMLElement>("#melodyGraphDescription"),
   noteButtons: queryElement<HTMLFieldSetElement>("#noteButtons"),
   graphTargetButtons: queryElement<HTMLDivElement>("#graphTargetButtons"),
   targetFrequency: queryElement<HTMLParagraphElement>("#targetFrequency"),
   playScaleButton: queryElement<HTMLButtonElement>("#playScaleButton"),
+  melodyPatternSelect: queryElement<HTMLSelectElement>("#melodyPatternSelect"),
+  melodySecondsSelect: queryElement<HTMLSelectElement>("#melodySecondsSelect"),
+  customMelodyInput: queryElement<HTMLInputElement>("#customMelodyInput"),
+  customMelodyRow: queryElement<HTMLDivElement>("#customMelodyRow"),
+  customMelodyHelp: queryElement<HTMLParagraphElement>("#customMelodyHelp"),
+  melodyNotes: queryElement<HTMLOListElement>("#melodyNotes"),
+  melodyStatus: queryElement<HTMLParagraphElement>("#melodyStatus"),
+  melodyProgress: queryElement<HTMLProgressElement>("#melodyProgress"),
+  melodyResults: queryElement<HTMLDivElement>("#melodyResults"),
   playToneButton: queryElement<HTMLButtonElement>("#playToneButton"),
   micButton: queryElement<HTMLButtonElement>("#micButton"),
   micSelect: queryElement<HTMLSelectElement>("#micSelect"),
@@ -395,8 +436,94 @@ const AUDIO_RANGE_GRAPH_PADDING: GraphPadding = {
   left: 54,
 };
 
+type PracticeView = "single" | "melody" | "audio";
+let practiceView: PracticeView = "single";
+let melodyGraphData: MelodyGraphData | null = null;
+
+function setupPracticeNavigation() {
+  elements.practiceSettings.open = false;
+  const buttons = document.querySelectorAll<HTMLButtonElement>(
+    "button[data-practice-view]",
+  );
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const view = button.dataset.practiceView as PracticeView;
+      if (view === practiceView) return;
+      stopScalePlayback();
+      stopReferenceTone();
+      stopMicrophone();
+      state.isMicStarting = false;
+      pauseAudioFilePlayback();
+      practiceView = view;
+      applyPracticeView();
+    });
+  });
+  elements.practiceSettings.addEventListener("toggle", () =>
+    requestAnimationFrame(drawGraph),
+  );
+  applyPracticeView();
+}
+
+function applyPracticeView() {
+  const melody = practiceView === "melody";
+  const audio = practiceView === "audio";
+  document.body.dataset.practiceView = practiceView;
+  document
+    .querySelectorAll<HTMLButtonElement>("button[data-practice-view]")
+    .forEach((button) => {
+      button.setAttribute(
+        "aria-pressed",
+        String(button.dataset.practiceView === practiceView),
+      );
+    });
+  document
+    .querySelectorAll<HTMLElement>("[data-single-only]")
+    .forEach((element) => {
+      element.hidden = practiceView !== "single";
+    });
+  elements.graphPanel.hidden = audio;
+  elements.audioFileView.hidden = !audio;
+  elements.melodySection.hidden = !melody;
+  elements.melodyGraphView.hidden = !melody;
+  elements.melodyResults.hidden =
+    !melody || melodyGraphData?.phase !== "finished";
+  elements.pitchCanvas.hidden = melody;
+  elements.practiceGraphTitle.textContent = melody
+    ? "お手本と自分の声"
+    : "声の軌跡";
+  elements.practiceGraphHelp.textContent = melody
+    ? "お手本は全体を表示し、終わった音も残します。自分の声を重ねて振り返れます。"
+    : "直近12秒の声の高さを、音名のレーンに沿って表示します。";
+  elements.practiceViewDescription.textContent = audio
+    ? "音源や動画を読み込み、歌声の高さの目安を確認します。"
+    : melody
+      ? "お手本を確認してから、一緒に歌います。終わったら音ごとに振り返りましょう。"
+      : "音をひとつ選び、お手本に合わせて声を伸ばします。";
+  if (melody)
+    elements.analysisStatus.textContent =
+      melodyGraphData?.phase === "finished"
+        ? "終了した練習のお手本と声を表示しています。"
+        : melodyGraphData?.phase === "stopped"
+          ? "中止した位置までの声を表示しています。"
+          : "お手本を確認してから、一緒に発声して判定します。";
+  requestAnimationFrame(() => {
+    drawGraph();
+    if (audio) drawAudioRangeGraph();
+  });
+}
+
+function updatePracticeSettingsSummary() {
+  const notes = getCurrentNotes();
+  elements.settingsSummaryRange.textContent = `${notes[0].name}〜${notes[12].name}`;
+  elements.settingsSummaryInstrument.textContent =
+    REFERENCE_INSTRUMENTS[state.referenceInstrument].label;
+  elements.settingsSummaryVolume.textContent = `${Math.round(state.referenceVolume * 100)}%`;
+  elements.settingsSummaryTolerance.textContent = `±半音の${state.tolerance}%`;
+}
+
 function init() {
   updateBuildInfo();
+  setupPracticeNavigation();
   elements.vocalSeparationModelSelect.value = state.vocalSeparationModel;
   syncVocalSeparationModelOptions();
   renderNoteButtons();
@@ -463,6 +590,19 @@ function init() {
     handleVocalSeparationComparisonCapture,
   );
   window.addEventListener("pagehide", handlePageHide);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && state.isScalePlaying) stopScalePlayback();
+  });
+  elements.melodyPatternSelect.replaceChildren(
+    ...MELODY_PATTERNS.map((pattern) =>
+      createOption(pattern.id, pattern.label),
+    ),
+    createOption("custom", "自由メロディ（音名を入力）"),
+  );
+  elements.melodyPatternSelect.addEventListener("change", renderMelodyPreview);
+  elements.customMelodyInput.addEventListener("input", renderMelodyPreview);
+  elements.melodySecondsSelect.addEventListener("change", renderMelodyPreview);
+  renderMelodyPreview();
   elements.noteRangeSelect.addEventListener("change", handleNoteRangeChange);
   elements.referenceInstrumentSelect.replaceChildren(
     ...Object.values(REFERENCE_INSTRUMENTS).map((instrument) => {
@@ -2183,6 +2323,7 @@ function handleNoteRangeChange() {
   renderNoteButtons();
   updateReferenceToneFrequency();
   drawGraph();
+  renderMelodyPreview();
 }
 
 function getCurrentNotes(): Note[] {
@@ -2208,6 +2349,195 @@ function getAudioContext(): AudioContext {
 
 let referencePlaybackRequestId = 0;
 let scalePlaybackRequestId = 0;
+let microphoneRequestId = 0;
+let melodyRun: {
+  notes: Note[];
+  seconds: number;
+  startedAt: number;
+  positionKey: string;
+  results: MelodyNoteResult[];
+  previous: MelodyObservation | null;
+} | null = null;
+
+function selectedMelody(): Note[] {
+  return buildMelody(
+    elements.melodyPatternSelect.value,
+    elements.customMelodyInput.value,
+    state.noteRangeStartMidi,
+  );
+}
+
+function renderMelodyPreview() {
+  if (state.isScalePlaying) stopScalePlayback();
+  const custom = elements.melodyPatternSelect.value === "custom";
+  elements.customMelodyRow.hidden = !custom;
+  elements.customMelodyHelp.hidden = !custom;
+  elements.melodyResults.hidden = true;
+  elements.melodyProgress.value = 0;
+  try {
+    const notes = selectedMelody();
+    melodyGraphData = {
+      notes,
+      seconds: Number(elements.melodySecondsSelect.value),
+      tolerance: state.tolerance,
+      phase: "ready",
+      cursor: 0,
+      samples: [],
+    };
+    elements.melodyGraphDescription.textContent =
+      "横軸は音の順番、縦軸は声の高さです。お手本と声は終了後も残ります。長いメロディは左右にスクロールできます。範囲外の声は上下端に表示します。";
+    elements.melodyNotes.replaceChildren(
+      ...notes.map((note, index) => {
+        const item = document.createElement("li");
+        item.textContent = `${index + 1}. ${note.solfege} (${note.name})`;
+        return item;
+      }),
+    );
+    const duration =
+      notes.length * Number(elements.melodySecondsSelect.value) * 2 +
+      MELODY_COUNTDOWN_SECONDS;
+    elements.melodyStatus.textContent = `${notes.length}音・全${duration}秒。お手本の後、同じメロディを一緒に歌います。`;
+    elements.playScaleButton.disabled = !isAudioContextSupported();
+  } catch (error) {
+    elements.melodyNotes.replaceChildren();
+    elements.melodyStatus.textContent = (error as Error).message;
+    elements.playScaleButton.disabled = true;
+    melodyGraphData = null;
+  }
+  elements.melodyGraphScroll.scrollLeft = 0;
+  drawGraph();
+}
+
+function setMelodyControlsLocked(locked: boolean) {
+  document.body.classList.toggle("is-melody-running", locked);
+  elements.graphPanel.classList.toggle("is-melody-running", locked);
+  elements.playScaleButton
+    .closest(".melody-practice")
+    ?.classList.toggle("is-running", locked);
+  for (const control of [
+    elements.melodyPatternSelect,
+    elements.melodySecondsSelect,
+    elements.customMelodyInput,
+    elements.micSelect,
+    elements.toleranceInput,
+    elements.sensitivityInput,
+    elements.playAudioFileButton,
+  ])
+    control.disabled = locked;
+  elements.clearGraphButton.disabled = locked;
+  if (locked) {
+    elements.practiceSettings.open = false;
+    elements.melodySetup.open = false;
+  }
+  elements.playScaleButton.textContent = locked
+    ? "メロディ稽古を中止"
+    : "メロディ稽古を始める";
+  elements.playScaleButton.setAttribute("aria-pressed", String(locked));
+  if (!locked) updateAudioFileControls();
+}
+
+function tickMelody(schedule = true) {
+  const run = melodyRun;
+  if (!run || !state.audioContext) return;
+  const position = getMelodyPosition(
+    state.audioContext.currentTime - run.startedAt,
+    run.notes.length,
+    run.seconds,
+  );
+  const total = run.notes.length * run.seconds * 2 + MELODY_COUNTDOWN_SECONDS;
+  if (melodyGraphData) {
+    melodyGraphData.phase = position.phase;
+    melodyGraphData.cursor =
+      position.phase === "countdown" || position.phase === "finished"
+        ? run.notes.length * run.seconds
+        : position.index * run.seconds + position.noteElapsed;
+  }
+  elements.melodyProgress.max = total;
+  elements.melodyProgress.value = Math.max(
+    0,
+    Math.min(total, state.audioContext.currentTime - run.startedAt),
+  );
+  if (position.phase === "finished") {
+    stopScalePlayback(true);
+    showMelodyResults(run);
+    elements.melodyStatus.textContent =
+      "メロディ稽古が終わりました。音ごとの結果を確認できます。";
+    elements.analysisStatus.textContent =
+      "終了しました。お手本と自分の声を見比べてください。";
+    return;
+  }
+  const key = `${position.phase}:${position.index}`;
+  if (run.positionKey !== key) {
+    run.positionKey = key;
+    run.previous = null;
+    if (position.phase === "sing" && position.index === 0)
+      resetSessionStats(performance.now());
+    for (const [index, item] of Array.from(
+      elements.melodyNotes.children,
+    ).entries()) {
+      if (index === position.index) {
+        item.setAttribute("aria-current", "step");
+        elements.melodyNotes.scrollTo({
+          left:
+            (item as HTMLElement).offsetLeft -
+            elements.melodyNotes.clientWidth / 2 +
+            item.clientWidth / 2,
+        });
+      } else item.removeAttribute("aria-current");
+    }
+    if (position.index >= 0) {
+      state.target = run.notes[position.index];
+      // Break continuity when targets change, while preserving the overall session.
+      state.session.lastSampleAt = null;
+      state.gameEffects.stableComboMs = 0;
+      updateTargetDisplay();
+      updateNoteButtonStates();
+      drawGraph();
+    }
+  }
+  const message =
+    position.phase === "countdown"
+      ? `次は一緒に発声します：あと${Math.ceil(position.remaining)}秒`
+      : `${position.phase === "listen" ? "① お手本（発声はまだです）" : "③ 一緒に発声"}：${position.index + 1}/${run.notes.length}音 ${run.notes[position.index].solfege} (${run.notes[position.index].name})・あと${Math.ceil(position.remaining)}秒`;
+  if (elements.melodyStatus.textContent !== message)
+    elements.melodyStatus.textContent = message;
+  if (schedule && position.phase !== "sing") drawGraph();
+  if (schedule) state.scalePlaybackTimerId = window.setTimeout(tickMelody, 50);
+}
+
+function showMelodyResults(run: NonNullable<typeof melodyRun>) {
+  const heading = document.createElement("p");
+  heading.textContent = `判定幅は半音の${melodyGraphData?.tolerance ?? state.tolerance}%です。各音の最初の${MELODY_GRACE_SECONDS}秒は移動の猶予です。「合った割合」は残り時間に対する割合で、無音・検出不能も含みます。`;
+  const table = document.createElement("table");
+  const caption = table.createCaption();
+  caption.textContent = "音ごとの判定（マイクに入った音の目安）";
+  const header = table.createTHead().insertRow();
+  for (const label of [
+    "音",
+    "合った時間",
+    "合った割合",
+    "音程を検出した時間",
+  ]) {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.textContent = label;
+    header.append(th);
+  }
+  const body = table.createTBody();
+  run.results.forEach((result, index) => {
+    const row = body.insertRow();
+    const note = run.notes[index];
+    const values = [
+      `${index + 1}. ${note.solfege} (${note.name})`,
+      `${(result.inTuneMs / 1000).toFixed(1)}秒`,
+      `${Math.min(100, Math.round((result.inTuneMs / ((run.seconds - MELODY_GRACE_SECONDS) * 1000)) * 100))}%`,
+      `${(result.detectedMs / 1000).toFixed(1)}秒`,
+    ];
+    for (const value of values) row.insertCell().textContent = value;
+  });
+  elements.melodyResults.replaceChildren(heading, table);
+  elements.melodyResults.hidden = false;
+}
 
 function getReferencePlayer(): ReferencePlayer {
   if (!state.referencePlayer) {
@@ -2220,6 +2550,7 @@ function getReferencePlayer(): ReferencePlayer {
 function updateReferenceInstrumentDescription() {
   elements.referenceInstrumentStatus.textContent =
     REFERENCE_INSTRUMENTS[state.referenceInstrument].description;
+  updatePracticeSettingsSummary();
 }
 
 function handleReferenceInstrumentChange() {
@@ -2291,29 +2622,37 @@ function updateReferenceVolume() {
   elements.referenceVolumeValue.textContent = `${Math.round(state.referenceVolume * 100)}%`;
 
   state.referencePlayer?.setVolume(state.referenceVolume);
+  updatePracticeSettingsSummary();
 }
 
 async function playScale() {
   if (state.isScalePlaying) {
+    stopScalePlayback();
     return;
   }
 
   if (state.isMicStarting) {
     elements.analysisStatus.textContent =
-      "マイクの準備中です。少し待ってからドレミ稽古を始めてください。";
+      "マイクの準備中です。少し待ってからメロディ稽古を始めてください。";
     return;
   }
 
-  if (state.isMicActive) {
-    stopMicrophone();
+  let notes: Note[];
+  try {
+    notes = selectedMelody();
+  } catch {
+    renderMelodyPreview();
+    return;
   }
-
+  stopMicrophone();
   stopReferenceTone();
+  stopAudioFilePlayback();
   state.isScalePlaying = true;
-  elements.playScaleButton.disabled = true;
+  setMelodyControlsLocked(true);
+  elements.melodyResults.hidden = true;
   elements.micButton.disabled = true;
-  elements.analysisStatus.textContent =
-    "ドレミ稽古中です。終わるまでマイクは停止しています。";
+  elements.melodyStatus.textContent =
+    "マイクとお手本音を準備しています。マイクの利用を許可してください。";
 
   const requestId = ++scalePlaybackRequestId;
   const instrument = state.referenceInstrument;
@@ -2323,28 +2662,57 @@ async function playScale() {
     const player = getReferencePlayer();
     await player.prepare(instrument);
     if (requestId !== scalePlaybackRequestId) return;
+    await startMicrophone();
+    if (requestId !== scalePlaybackRequestId) return;
+    if (!state.isMicActive) {
+      const message = elements.analysisStatus.textContent;
+      stopScalePlayback();
+      elements.melodyStatus.textContent = message;
+      return;
+    }
     await context.resume();
     if (requestId !== scalePlaybackRequestId) return;
-    const notes = getCurrentNotes();
+    const seconds = Number(elements.melodySecondsSelect.value);
+    const startedAt = context.currentTime + 0.1;
+    melodyRun = {
+      notes,
+      seconds,
+      startedAt,
+      positionKey: "",
+      results: notes.map(() => ({ detectedMs: 0, inTuneMs: 0 })),
+      previous: null,
+    };
+    melodyGraphData = {
+      notes,
+      seconds,
+      tolerance: state.tolerance,
+      phase: "ready",
+      cursor: 0,
+      samples: [],
+    };
+    elements.melodyGraphScroll.scrollLeft = 0;
     player.playScale(
       instrument,
       notes.map((note) => note.frequency),
+      {
+        noteSeconds: seconds,
+        startAt: startedAt,
+        practiceAt:
+          startedAt + notes.length * seconds + MELODY_COUNTDOWN_SECONDS,
+      },
     );
     updateReferenceInstrumentDescription();
-    const playbackMs = Math.ceil(((notes.length - 1) * 0.5 + 0.5) * 1000);
-    state.scalePlaybackTimerId = window.setTimeout(() => {
-      stopScalePlayback();
-      elements.analysisStatus.textContent =
-        "ドレミ稽古が終わりました。稽古開始でマイクを使えます。";
-    }, playbackMs);
+    tickMelody();
   } catch (error) {
     if (requestId !== scalePlaybackRequestId) return;
     stopScalePlayback();
     showReferenceAudioError(error);
+    elements.melodyStatus.textContent =
+      "開始できませんでした。マイクの許可とお手本音の読み込みを確認して、もう一度お試しください。";
   }
 }
 
-function stopScalePlayback() {
+function stopScalePlayback(completed = false) {
   scalePlaybackRequestId++;
   state.referencePlayer?.stopScale();
   if (state.scalePlaybackTimerId !== null) {
@@ -2354,11 +2722,20 @@ function stopScalePlayback() {
 
   const wasPlaying = state.isScalePlaying;
   state.isScalePlaying = false;
+  melodyRun = null;
   elements.playScaleButton.disabled = !isAudioContextSupported();
   if (wasPlaying) {
+    if (melodyGraphData)
+      melodyGraphData.phase = completed ? "finished" : "stopped";
+    stopMicrophone();
+    setMelodyControlsLocked(false);
+    for (const item of elements.melodyNotes.children)
+      item.removeAttribute("aria-current");
     updateMicButtonState("stopped");
-    elements.analysisStatus.textContent = "ドレミ稽古を停止しました。";
+    elements.melodyStatus.textContent =
+      "メロディ稽古を中止しました。最初からやり直せます。";
     updateReferenceInstrumentDescription();
+    drawGraph();
   }
 }
 
@@ -2391,6 +2768,7 @@ async function toggleMicrophone() {
 }
 
 async function startMicrophone() {
+  const requestId = ++microphoneRequestId;
   if (!navigator.mediaDevices?.getUserMedia) {
     elements.analysisStatus.textContent =
       "この表示方法ではマイクを使えません。HTTPSのURL、またはlocalhostで開いてください。";
@@ -2409,6 +2787,12 @@ async function startMicrophone() {
       autoGainControl: false,
     },
   });
+  if (requestId !== microphoneRequestId) {
+    stream.getTracks().forEach((track) => {
+      track.stop();
+    });
+    return;
+  }
 
   const analyser = audioContext.createAnalyser();
   analyser.fftSize = 4096;
@@ -2426,12 +2810,22 @@ async function startMicrophone() {
   );
   state.buffer = new Float32Array(analyser.fftSize);
   state.isMicActive = true;
+  for (const track of stream.getAudioTracks()) {
+    track.addEventListener("ended", () => {
+      if (state.mediaStream !== stream) return;
+      if (state.isScalePlaying) stopScalePlayback();
+      else stopMicrophone();
+      elements.analysisStatus.textContent =
+        "マイクが切断されました。接続を確認して、もう一度開始してください。";
+    });
+  }
   resetSessionStats(performance.now());
 
   updateMicButtonState("active");
   elements.analysisStatus.textContent = "声の軌跡を見ています";
 
   await refreshAudioDevices();
+  if (requestId !== microphoneRequestId || !state.isMicActive) return;
   updateActiveDeviceFromStream(stream);
   focusGraphForPractice();
 
@@ -2442,6 +2836,7 @@ function focusGraphForPractice() {
   if (!window.matchMedia(MOBILE_VIEWPORT_QUERY).matches) {
     return;
   }
+  elements.practiceSettings.open = false;
 
   requestAnimationFrame(() => {
     elements.graphPanel.scrollIntoView({
@@ -2452,6 +2847,7 @@ function focusGraphForPractice() {
 }
 
 function stopMicrophone() {
+  microphoneRequestId++;
   if (state.animationId !== null) {
     cancelAnimationFrame(state.animationId);
   }
@@ -2619,8 +3015,25 @@ function createOption(value: string, text: string) {
 }
 
 function analyzeFrame(now: number) {
+  if (melodyRun) tickMelody(false);
   if (!state.analyser || !state.buffer || !state.audioContext) {
     return;
+  }
+
+  if (state.isScalePlaying) {
+    const position = melodyRun
+      ? getMelodyPosition(
+          state.audioContext.currentTime - melodyRun.startedAt,
+          melodyRun.notes.length,
+          melodyRun.seconds,
+        )
+      : null;
+    if (position?.phase !== "sing") {
+      elements.analysisStatus.textContent =
+        "お手本・準備中は判定しません。発声パートをお待ちください。";
+      state.animationId = requestAnimationFrame(analyzeFrame);
+      return;
+    }
   }
 
   state.analyser.getFloatTimeDomainData(state.buffer);
@@ -2633,12 +3046,54 @@ function analyzeFrame(now: number) {
     state.target.frequency,
     state.session.sessionStart,
   );
+  let isMelodyTransition = false;
+  if (melodyRun) {
+    const elapsed =
+      state.audioContext.currentTime -
+      melodyRun.startedAt -
+      melodyRun.notes.length * melodyRun.seconds -
+      MELODY_COUNTDOWN_SECONDS;
+    const position = getMelodyPosition(
+      state.audioContext.currentTime - melodyRun.startedAt,
+      melodyRun.notes.length,
+      melodyRun.seconds,
+    );
+    const observation = {
+      index: position.index,
+      elapsed,
+      cents: volume >= state.minRms ? sample.centsFromTarget : null,
+    };
+    recordMelodyObservation(
+      melodyRun.results,
+      melodyRun.previous,
+      observation,
+      melodyRun.seconds,
+      state.tolerance,
+    );
+    melodyRun.previous = observation;
+    if (
+      melodyGraphData &&
+      elapsed - (melodyGraphData.samples.at(-1)?.time ?? -1) >= 0.04
+    ) {
+      melodyGraphData.samples.push({
+        time: elapsed,
+        midi: volume >= state.minRms ? sample.midi : null,
+      });
+    }
+    if (position.noteElapsed < MELODY_GRACE_SECONDS) {
+      sample.centsFromTarget = null;
+      isMelodyTransition = true;
+    }
+  }
   state.session = addSampleToSession(state.session, sample, state.tolerance);
   state.session = {
     ...state.session,
     samples: trimSamples(state.session.samples, now, GRAPH_SECONDS),
   };
   updateReadouts(sample, now);
+  if (isMelodyTransition)
+    elements.analysisStatus.textContent =
+      "次の音へ移動中です（最初の0.4秒は判定しません）";
   drawGraph();
 
   state.animationId = requestAnimationFrame(analyzeFrame);
@@ -2798,6 +3253,8 @@ function updateSummary(now: number) {
 }
 
 function clearSession() {
+  if (practiceView === "melody" && melodyGraphData)
+    melodyGraphData.samples = [];
   resetSessionStats(state.isMicActive ? performance.now() : null);
   drawGraph();
 }
@@ -2857,11 +3314,15 @@ function formatGraphDescription(
 
 function updateTargetDisplay() {
   elements.targetFrequency.textContent = `${state.target.name} / ${state.target.frequency.toFixed(2)} Hz`;
+  updatePracticeSettingsSummary();
 }
 
 function updateTolerance() {
   state.tolerance = Number(elements.toleranceInput.value);
   elements.toleranceValue.textContent = `半音の${state.tolerance}%`;
+  if (melodyGraphData?.phase === "ready")
+    melodyGraphData.tolerance = state.tolerance;
+  updatePracticeSettingsSummary();
   drawGraph();
 }
 
@@ -2892,6 +3353,7 @@ function setupPitchCanvas() {
       drawGraph();
     });
     observer.observe(elements.pitchCanvas);
+    observer.observe(elements.melodyGraphScroll);
     state.pitchCanvasResizeObserver = observer;
     return;
   }
@@ -3257,6 +3719,26 @@ function detectPitch(buffer: Float32Array<ArrayBuffer>, sampleRate: number) {
 }
 
 function drawGraph() {
+  if (practiceView === "melody") {
+    if (melodyGraphData)
+      drawMelodyGraph(
+        elements.melodyCanvas,
+        elements.melodyGraphScroll,
+        melodyGraphData,
+        state.isScalePlaying,
+      );
+    else {
+      const context = elements.melodyCanvas.getContext("2d");
+      context?.clearRect(
+        0,
+        0,
+        elements.melodyCanvas.width,
+        elements.melodyCanvas.height,
+      );
+    }
+    return;
+  }
+  if (practiceView === "audio") return;
   syncPitchCanvasSize();
 
   const canvas = elements.pitchCanvas;
