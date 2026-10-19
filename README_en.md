@@ -125,6 +125,10 @@ On pushes to `main` or SemVer tags, the app is deployed to GitHub Pages after ve
 
 The deployed app shows a build version and short commit hash in the footer. Regular GitHub Pages deployments use `GITHUB_RUN_NUMBER` to generate labels such as `v0.1.N`, so you do not need to manually increment `package.json`. `N` is the CI workflow run number and may include gaps from pull requests or manual runs. Tag deployments display the SemVer tag name, such as `v1.2.3`.
 
+To update Pages manually, select Actions → `Deploy Pages` → `Run workflow` on `main`. It audits dependencies, runs lint, tests and typechecking, downloads models, builds and deploys. Other branches are skipped. Manual `CI` runs only verify the app.
+
+Version run numbers are scoped to each workflow and may overlap or go backwards between automatic and manual deployments. Use the commit hash to identify the code.
+
 ### Reference Instruments
 
 Choose sine or piano with the reference instrument selector. Sine sustains continuously; piano repeats a naturally decaying strike approximately every 2.5 seconds. The selected instrument also applies to scale practice. Changing instruments cancels scale practice and switches an active reference tone.
