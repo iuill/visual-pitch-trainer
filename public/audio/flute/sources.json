@@ -1,0 +1,63 @@
+{
+  "license": "CC0-1.0",
+  "processing": "Mono PCM16 44.1 kHz; sustain excerpt; whole-period crop and ~40 ms wrap crossfade; remove DC; peak-normalize to 0.7; calibrate repeated loop with pitchy. No recorded attack/release. Original pitch and vibrato may vary slightly within the loop.",
+  "samples": [
+    {
+      "instrument": "flute",
+      "file": "c4.wav",
+      "midi": 60,
+      "library": "VSCO 2 CE",
+      "author": "Versilian Studios / Sam Gossner",
+      "sourcePage": "https://github.com/sgossner/VSCO-2-CE",
+      "commit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sourcePath": "Woodwinds/Flute/susNV/LDFlute_susNV_C3_v1_1.wav",
+      "url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Woodwinds/Flute/susNV/LDFlute_susNV_C3_v1_1.wav",
+      "sha256": "36538802c362493970e600df7474f77a0a2920078bf92a708bafa7bc7847fcf5",
+      "startSeconds": 1,
+      "durationSeconds": 1.2,
+      "sourceSha256": "4f221909317e257e4d0bc49f10479643c80cb213a0486455c1bdc1d6ed13a450",
+      "bytes": 102400,
+      "rootFrequency": 261.8980023002195,
+      "loopStart": 0,
+      "loopEnd": 1.160498866213152
+    },
+    {
+      "instrument": "flute",
+      "file": "c5.wav",
+      "midi": 72,
+      "library": "VSCO 2 CE",
+      "author": "Versilian Studios / Sam Gossner",
+      "sourcePage": "https://github.com/sgossner/VSCO-2-CE",
+      "commit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sourcePath": "Woodwinds/Flute/susNV/LDFlute_susNV_C4_v1_1.wav",
+      "url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Woodwinds/Flute/susNV/LDFlute_susNV_C4_v1_1.wav",
+      "sha256": "b2ad3661d7af979c9fa8bb6e3181b7f996110353acb4f9bdd9d79d2d94e129aa",
+      "startSeconds": 1,
+      "durationSeconds": 1.2,
+      "sourceSha256": "105a6dbced98de7ae04a317bdd3ba1a5c6b90dc94034439b68cce6635e2781df",
+      "bytes": 102192,
+      "rootFrequency": 523.2542057380407,
+      "loopStart": 0,
+      "loopEnd": 1.158140589569161
+    },
+    {
+      "instrument": "flute",
+      "file": "c6.wav",
+      "midi": 84,
+      "library": "VSCO 2 CE",
+      "author": "Versilian Studios / Sam Gossner",
+      "sourcePage": "https://github.com/sgossner/VSCO-2-CE",
+      "commit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sourcePath": "Woodwinds/Flute/susNV/LDFlute_susNV_C5_v1_1.wav",
+      "url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Woodwinds/Flute/susNV/LDFlute_susNV_C5_v1_1.wav",
+      "sha256": "9f3b73aca68bcad1eb9b6f6ff0a11df16c8167c34359ad7806c393c3c58216df",
+      "startSeconds": 1,
+      "durationSeconds": 1.2,
+      "sourceSha256": "46a335b804c9b2f081efa8e6c695f155d05b3700c69bf73950cc9cb40ed53d41",
+      "bytes": 102276,
+      "rootFrequency": 1046.5215471065019,
+      "loopStart": 0,
+      "loopEnd": 1.159092970521542
+    }
+  ]
+}

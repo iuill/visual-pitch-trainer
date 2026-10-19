@@ -1,3 +1,8 @@
+import flute from "../public/audio/flute/sources.json";
+import harmonium from "../public/audio/harmonium/sources.json";
+import organ from "../public/audio/organ/sources.json";
+import violin from "../public/audio/violin/sources.json";
+
 export type ReferenceSample = {
   file: string;
   midi: number;
@@ -10,12 +15,13 @@ type ReferenceInstrument = {
   description: string;
 } & (
   | { kind: "oscillator" }
-  | {
+  | ({
       kind: "samples";
       samples: readonly ReferenceSample[];
-      repeatSeconds: number;
-      noteSeconds: number;
-    }
+    } & (
+      | { playback: "repeat"; repeatSeconds: number; noteSeconds: number }
+      | { playback: "loop" }
+    ))
 );
 
 // VCSL uses C3 for middle C (MIDI 60). These file names use scientific pitch.
@@ -45,9 +51,44 @@ export const REFERENCE_INSTRUMENTS = {
     label: "ピアノ",
     description: "生ピアノの録音です。お手本音は約2.5秒ごとに鳴ります。",
     kind: "samples",
+    playback: "repeat",
     samples: PIANO_SAMPLES,
     repeatSeconds: 2.5,
     noteSeconds: 2.4,
+  },
+  harmonium: {
+    id: "harmonium",
+    label: "ハルモニウム",
+    description: "録音の持続部分を繰り返して音を伸ばします。",
+    kind: "samples",
+    playback: "loop",
+    samples: harmonium.samples,
+  },
+  organ: {
+    id: "organ",
+    label: "オルガン",
+    description: "パイプオルガンの録音から、持続音を鳴らします。",
+    kind: "samples",
+    playback: "loop",
+    samples: organ.samples,
+  },
+  violin: {
+    id: "violin",
+    label: "バイオリン",
+    description:
+      "弓で伸ばす録音をループ再生します。低い音は音域を下げた加工音です。",
+    kind: "samples",
+    playback: "loop",
+    samples: violin.samples,
+  },
+  flute: {
+    id: "flute",
+    label: "フルート",
+    description:
+      "ビブラートなしの録音をループ再生します。C4未満は音域を下げた加工音です。",
+    kind: "samples",
+    playback: "loop",
+    samples: flute.samples,
   },
 } as const satisfies Record<string, ReferenceInstrument>;
 

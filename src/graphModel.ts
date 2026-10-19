@@ -156,3 +156,36 @@ export function resolveCanvasBackingSize(
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
+
+export function createMelodyGraphLayout(
+  frequencies: readonly number[],
+  seconds: number,
+  availableWidth: number,
+  height: number,
+) {
+  const midis = frequencies.map((frequency) => Math.round(hzToMidi(frequency)));
+  const minMidi = Math.floor(Math.min(...midis)) - 2;
+  const maxMidi = Math.ceil(Math.max(...midis)) + 2;
+  const padding = { top: 28, right: 18, bottom: 36, left: 52 };
+  const width = Math.max(
+    availableWidth,
+    frequencies.length * 42 + padding.left + padding.right,
+  );
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const duration = frequencies.length * seconds;
+  return {
+    width,
+    height,
+    padding,
+    minMidi,
+    maxMidi,
+    duration,
+    midis,
+    plotWidth,
+    plotHeight,
+    x: (time: number) =>
+      padding.left + clamp(time / duration, 0, 1) * plotWidth,
+    y: (midi: number) => midiToY(midi, minMidi, maxMidi, padding, plotHeight),
+  };
+}

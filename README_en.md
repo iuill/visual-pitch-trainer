@@ -39,6 +39,8 @@ Browser
 
 ## Main Features
 
+Switch between single-note practice, melody practice and audio range analysis using the top menu. Shared settings sit above the menu and apply to both single-note and melody practice. Their collapsed summary shows range, instrument, volume and tolerance. Choose the target note or melody within its own practice view. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
+
 - Select and play reference tones across one chromatic octave
 - Choose vocal ranges with voice range guides: C3-C4 / C4-C5 / C5-C6
 - Adjust reference tone volume
@@ -129,9 +131,23 @@ To update Pages manually, select Actions → `Deploy Pages` → `Run workflow` o
 
 Version run numbers are scoped to each workflow and may overlap or go backwards between automatic and manual deployments. Use the commit hash to identify the code.
 
+### Melody Practice
+
+The dedicated melody graph shows the whole reference as stepped bars before practice starts. Green bars/bands show the reference, a blue line shows microphone pitch, and a black dashed line marks the current position. Pitch bounds and timeline stay fixed; the reference and full voice trace remain after completion, including traces older than 12 seconds. Long melodies scroll horizontally and follow playback; after finishing, scroll freely to review. A collapsible text list provides the note sequence.
+
+Melody Practice offers ascending/descending major scales, a five-note up-and-down pattern, do–mi–sol–mi–do, chromatic scales, and custom sequences. Enter 2–32 Japanese solfege tokens separated by spaces, including sharps such as ド# and upper do (高ド). Notes stay within the selected voice range and have equal durations; rests and per-note rhythms are not supported.
+
+After microphone permission and instrument loading, watch/listen to one demonstration, prepare during a three-second visual countdown, then sing with reference audio and live pitch feedback. Each note lasts 1–5 seconds (default 2). The first 0.4 seconds per note are excluded from scoring. Per-note results show in-tune time, percentage of remaining scheduled time (including silence/undetected input), and detected-pitch time.
+
+Use headphones: reference audio leaking into the microphone can be scored as singing. Training effectiveness for people with hearing loss has not been evaluated. Cancellation, target/range/instrument changes, or leaving the tab stop playback and the microphone.
+
 ### Reference Instruments
 
-Choose sine or piano with the reference instrument selector. Sine sustains continuously; piano repeats a naturally decaying strike approximately every 2.5 seconds. The selected instrument also applies to scale practice. Changing instruments cancels scale practice and switches an active reference tone.
+Harmonium, organ, violin and flute are available alongside sine and piano. The four added timbres use crossfaded sustain loops from CC0 recordings, held until stop or the end of each melody note, without piano-style retriggering. Small variations in the original performance remain.
+
+Organ recordings are from VCSL; violin and flute from VSCO 2 CE; harmonium from Donya Quick on Freesound (HQ MP3 preview). The additions total about 2 MB and load from the app's origin on first use of each timbre. Playback rate compensates for measured tuning. Violin below G3, flute below C4 and harmonium above D5 use transposition beyond their recorded ranges. Each instrument directory under public/audio/ includes provenance, checksums, processing notes and the full CC0 license. Optional regeneration uses Bun and ffmpeg via bun run prepare:reference-sustains; regular builds do not download recordings.
+
+Sine sustains continuously; piano repeats a naturally decaying strike approximately every 2.5 seconds. The selected instrument also applies to melody practice. Changing instruments cancels melody practice and switches an active reference tone.
 
 Piano uses acoustic grand piano recordings from Versilian Studios' [VCSL](https://github.com/sgossner/VCSL), released under CC0-1.0. Commercial use, modification and redistribution are permitted without royalties or mandatory attribution. Source information and the license are included in `public/THIRD_PARTY_NOTICES.txt` and `public/audio/piano/`; the recordings have a separate license from this application's MIT license.
 

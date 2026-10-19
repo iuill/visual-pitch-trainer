@@ -17,7 +17,7 @@
       content="お手本音に合わせて、声の高さをリアルタイムに見ながら稽古できるアプリ"
     />
   </head>
-  <body>
+  <body data-practice-view="single">
     <main class="app-shell">
       <section class="hero" aria-labelledby="app-title">
         <div>
@@ -35,22 +35,30 @@
         </div>
       </section>
 
-      <section class="practice-layout" aria-label="音程トレーニング">
-        <div class="control-panel">
-          <div class="panel-header">
+        <details id="practiceSettings" class="control-panel common-settings">
+          <summary>共通設定 <small>単音・メロディ</small>
+            <span id="practiceSettingsSummary" class="settings-summary">
+              <span class="settings-summary-item">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 4v16m-3-3 3 3 3-3M16 20V4m-3 3 3-3 3 3" /></svg>
+                <span class="settings-summary-text"><span class="settings-summary-label">音域</span><strong id="settingsSummaryRange">C3〜C4</strong></span>
+              </span>
+              <span class="settings-summary-item">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 18V6l11-3v12M9 9l11-3" /><ellipse cx="6" cy="18" rx="3" ry="2" /><ellipse cx="17" cy="15" rx="3" ry="2" /></svg>
+                <span class="settings-summary-text"><span class="settings-summary-label">音色</span><strong id="settingsSummaryInstrument">正弦波</strong></span>
+              </span>
+              <span class="settings-summary-item">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9h4l5-4v14l-5-4H4zM17 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" /></svg>
+                <span class="settings-summary-text"><span class="settings-summary-label">音量</span><strong id="settingsSummaryVolume">35%</strong></span>
+              </span>
+              <span class="settings-summary-item">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" /><path d="M12 2v3m0 14v3M2 12h3m14 0h3" /></svg>
+                <span class="settings-summary-text"><span class="settings-summary-label">判定幅</span><strong id="settingsSummaryTolerance">±半音の50%</strong></span>
+              </span>
+            </span>
+          </summary>
+          <p class="common-settings-help">ここで選んだ音域・音色・音量・マイク・判定の設定を、単音練習とメロディ練習の両方に使います。音源の声域確認には適用しません。</p>
+          <div class="common-settings-grid">
             <div>
-              <h2 class="with-icon">
-                <img class="heading-icon" src="/icons/heading-tone.png" alt="" aria-hidden="true" />
-                お手本の音
-              </h2>
-              <p id="targetFrequency">C3 / 130.81 Hz</p>
-            </div>
-            <button id="playScaleButton" class="icon-button wide" type="button">
-              <span aria-hidden="true">♪</span>
-              ドレミ稽古
-            </button>
-          </div>
-
           <div class="setting-row select-row">
             <label for="noteRangeSelect">声の高さ</label>
             <select id="noteRangeSelect">
@@ -60,29 +68,20 @@
             </select>
           </div>
 
-          <fieldset id="noteButtons" class="note-grid" aria-label="お手本の音を選択"></fieldset>
-
           <div class="setting-row select-row">
             <label for="referenceInstrumentSelect">お手本の音色</label>
             <select id="referenceInstrumentSelect" aria-describedby="referenceInstrumentStatus">
               <option value="sine">正弦波</option>
               <option value="piano">ピアノ</option>
+              <option value="harmonium">ハルモニウム</option>
+              <option value="organ">オルガン</option>
+              <option value="violin">バイオリン</option>
+              <option value="flute">フルート</option>
             </select>
           </div>
           <p id="referenceInstrumentStatus" class="reference-instrument-status" role="status">
             同じ音を鳴らし続けます。
           </p>
-
-          <div class="action-row">
-            <button id="playToneButton" class="primary-button" type="button">
-              <span aria-hidden="true">▶</span>
-              お手本音
-            </button>
-            <button id="micButton" class="secondary-button" type="button">
-              <span aria-hidden="true">●</span>
-              稽古開始
-            </button>
-          </div>
 
           <p class="compatibility-note">
             iOSではマイク使用中にお手本音へノイズが乗る場合があります。気になるときは、お手本音を止めてから稽古を開始してください。
@@ -100,16 +99,116 @@
             />
             <output id="referenceVolumeValue" for="referenceVolumeInput">35%</output>
           </div>
+            </div>
+            <div>
+          <div class="device-row">
+            <label for="micSelect">マイク</label>
+            <select id="micSelect">
+              <option value="">未選択</option>
+            </select>
+            <p id="micDeviceStatus">稽古開始後に使える入力を表示します。</p>
+          </div>
+        <div class="practice-advanced">
+          <div class="panel-header">
+            <div>
+              <h2 class="with-icon">
+                <img class="heading-icon" src="/icons/heading-record.png" alt="" aria-hidden="true" />
+                稽古の設定
+              </h2>
+              <p>判定と声の拾い方を調整します。</p>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label for="toleranceInput">音程厳密さ</label>
+            <input id="toleranceInput" type="range" min="5" max="50" value="50" step="5" />
+            <output id="toleranceValue" for="toleranceInput">半音の50%</output>
+          </div>
+
+          <div class="setting-row">
+            <label for="sensitivityInput">声の拾いやすさ</label>
+            <input id="sensitivityInput" type="range" min="2" max="20" value="6" step="1" />
+            <output id="sensitivityValue" for="sensitivityInput">ふつう</output>
+          </div>
+        </div>
+
+            </div>
+          </div>
+        </details>
+
+      <nav class="practice-nav" aria-label="練習メニュー">
+        <button type="button" data-practice-view="single" aria-pressed="true" aria-controls="practiceWorkspace">単音練習</button>
+        <button type="button" data-practice-view="melody" aria-pressed="false" aria-controls="practiceWorkspace">メロディ練習</button>
+        <button type="button" data-practice-view="audio" aria-pressed="false" aria-controls="audioFileView">音源の声域確認</button>
+      </nav>
+      <p id="practiceViewDescription" class="view-description">音をひとつ選び、お手本に合わせて声を伸ばします。</p>
+      <section id="practiceWorkspace" class="practice-layout" aria-label="音程トレーニング">
+        <div class="control-panel single-note-panel" data-single-only>
+          <div class="panel-header">
+            <div>
+              <h2 class="with-icon">
+                <img class="heading-icon" src="/icons/heading-tone.png" alt="" aria-hidden="true" />
+                お手本の音
+              </h2>
+              <p id="targetFrequency">C3 / 130.81 Hz</p>
+            </div>
+          </div>
+
+          <fieldset data-single-only id="noteButtons" class="note-grid" aria-label="お手本の音を選択"></fieldset>
         </div>
 
         <div class="graph-panel">
+          <section class="melody-practice" hidden aria-labelledby="melodyTitle">
+            <h2 id="melodyTitle">メロディ稽古</h2>
+            <details id="melodySetup" class="melody-settings" open>
+              <summary>メロディを選ぶ・長さを変える</summary>
+            <p>① お手本を見る・聴く → ② 3秒で準備 → ③ 一緒に発声して判定</p>
+            <div class="setting-row select-row">
+              <label for="melodyPatternSelect">練習するメロディ</label>
+              <select id="melodyPatternSelect"></select>
+            </div>
+            <div id="customMelodyRow" class="setting-row select-row" hidden>
+              <label for="customMelodyInput">自由メロディ</label>
+              <input id="customMelodyInput" type="text" value="ド ド ソ ソ ラ ラ ソ" maxlength="160" aria-describedby="customMelodyHelp" />
+            </div>
+            <p id="customMelodyHelp" hidden>空白で区切って2〜32音。ド レ ミ ファ ソ ラ シ 高ド、ド#などの半音も使えます。全音を同じ長さで練習します。</p>
+            <div class="setting-row select-row">
+              <label for="melodySecondsSelect">1音の長さ（お手本・発声共通）</label>
+              <select id="melodySecondsSelect">
+                <option value="1">1秒</option>
+                <option value="2" selected>2秒</option>
+                <option value="3">3秒</option>
+                <option value="4">4秒</option>
+                <option value="5">5秒</option>
+              </select>
+            </div>
+            <p class="compatibility-note">ヘッドホンを使ってください。スピーカーのお手本音をマイクが拾うと、声を出していなくても判定されます。判定はマイクに入った音の目安です。</p>
+            </details>
+            <details class="melody-sequence"><summary>音名を文字で確認</summary>
+            <ol id="melodyNotes" class="melody-notes" aria-label="練習する音の順番"></ol>
+            </details>
+            <p id="melodyStatus" class="melody-status" role="status">メロディを選んで始めてください。</p>
+            <progress id="melodyProgress" max="1" value="0" aria-label="メロディ稽古の進み具合"></progress>
+            <button id="playScaleButton" class="primary-button" type="button">メロディ稽古を始める</button>
+
+          </section>
+          <div class="action-row" data-single-only>
+            <button id="playToneButton" class="primary-button" type="button">
+              <span aria-hidden="true">▶</span>
+              お手本音
+            </button>
+            <button id="micButton" class="secondary-button" type="button">
+              <span aria-hidden="true">●</span>
+              稽古開始
+            </button>
+          </div>
           <div class="panel-header">
             <div>
               <h2 class="with-icon">
                 <img class="heading-icon" src="/icons/heading-trail.png" alt="" aria-hidden="true" />
-                声の軌跡
+                <span id="practiceGraphTitle">声の軌跡</span>
               </h2>
-              <p>直近12秒の声の高さを、音名のレーンに沿って表示します。</p>
+              <p id="practiceGraphHelp">直近12秒の声の高さを、音名のレーンに沿って表示します。</p>
             </div>
             <button
               id="clearGraphButton"
@@ -154,20 +253,22 @@
               </span>
             </span>
           </div>
-          <div class="device-row graph-device-row">
-            <label for="micSelect">マイク</label>
-            <select id="micSelect">
-              <option value="">未選択</option>
-            </select>
-            <p id="micDeviceStatus">稽古開始後に使える入力を表示します。</p>
-          </div>
-          <fieldset class="graph-target-control" aria-label="声の軌跡の目標ラインを変更">
+
+          <fieldset data-single-only class="graph-target-control" aria-label="声の軌跡の目標ラインを変更">
             <span>目標ライン</span>
             <div id="graphTargetButtons" class="target-note-strip"></div>
           </fieldset>
           <p id="graphDescription" class="visually-hidden">
             声の軌跡はまだ記録されていません。
           </p>
+          <div id="melodyGraphView" hidden>
+            <p class="graph-legend"><span class="reference-key">━ お手本</span><span class="voice-key">━ 自分の声</span><span>┆ 現在位置</span></p>
+            <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: This scroll region needs keyboard access to offscreen notes. -->
+            <section id="melodyGraphScroll" class="melody-graph-scroll" tabindex="0" aria-label="メロディ全体のグラフ。左右にスクロールできます。">
+              <canvas id="melodyCanvas" width="640" height="300" aria-label="メロディのお手本と声の軌跡" aria-describedby="melodyGraphDescription graphDescription"></canvas>
+            </section>
+            <p id="melodyGraphDescription" class="graph-hint">緑のお手本は最後まで残ります。発声した声は青い線で重なります。</p>
+          </div>
           <canvas
             id="pitchCanvas"
             width="960"
@@ -175,33 +276,10 @@
             aria-label="声の高さグラフ"
             aria-describedby="graphDescription"
           ></canvas>
+          <div id="melodyResults" class="melody-results" hidden></div>
         </div>
 
-        <div class="settings-panel">
-          <div class="panel-header">
-            <div>
-              <h2 class="with-icon">
-                <img class="heading-icon" src="/icons/heading-record.png" alt="" aria-hidden="true" />
-                稽古の設定
-              </h2>
-              <p>判定と声の拾い方を調整します。</p>
-            </div>
-          </div>
-
-          <div class="setting-row">
-            <label for="toleranceInput">音程厳密さ</label>
-            <input id="toleranceInput" type="range" min="5" max="50" value="50" step="5" />
-            <output id="toleranceValue" for="toleranceInput">半音の50%</output>
-          </div>
-
-          <div class="setting-row">
-            <label for="sensitivityInput">声の拾いやすさ</label>
-            <input id="sensitivityInput" type="range" min="2" max="20" value="6" step="1" />
-            <output id="sensitivityValue" for="sensitivityInput">ふつう</output>
-          </div>
-        </div>
-
-        <div class="summary-panel">
+        <div class="summary-panel" data-single-only>
           <h2 class="with-icon">
             <img class="heading-icon" src="/icons/heading-record.png" alt="" aria-hidden="true" />
             稽古の記録
@@ -236,7 +314,7 @@
           </div>
         </div>
 
-        <div class="audio-file-panel">
+        <div id="audioFileView" class="audio-file-panel" hidden>
           <div class="panel-header">
             <div>
               <h2 class="with-icon">
