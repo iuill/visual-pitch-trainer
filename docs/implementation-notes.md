@@ -52,6 +52,12 @@ bun run build
 
 `bun run build` で生成される `dist/` を GitHub Pages または Cloudflare Pages に配信する。Cloudflare Pages や手元で `dist/` を配信する場合に RMVPE / CREPE を使うには、build 前に `bun run download:pitch-models` を実行して `public/models/` に ONNX モデルを取得する。GitHub Pages デプロイでは GitHub Actions が取得して Pages artifact に含める。
 
+## 依存関係の更新方針
+
+`bunfig.toml` の `minimumReleaseAge = 1209600`（14日）は維持する。更新時は npm の公開日時を確認し、直接依存・推移依存ともに14日以上経過した安定版を使う。明示的なバージョン指定や既存 lockfile は待機期間のフィルターを回避できるため、lockfile 全体の公開日も確認する。
+
+2026-10-19 の更新では TypeScript 7、Vite 8.3、Biome 2.5、ONNX Runtime Web 1.30、Mediabunny 1.61 に更新した。`protobufjs` は古い固定 override を削除し、ONNX Runtime の互換範囲内の 7.6.6 に更新した。Biome 設定は `preset` に移行し、新しいアクセシビリティ検査に合わせ、名前付き操作群を `fieldset`、補足表示のフォーカス要素を `button` にした。fieldset の既定スタイルは CSS でリセットする。
+
 ## ビルドバージョン表示
 
 画面フッターには、ビルド時点のバージョン情報を表示する。
