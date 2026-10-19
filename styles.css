@@ -311,6 +311,13 @@ fieldset {
   line-height: 1.6;
 }
 
+.reference-instrument-status {
+  margin: 8px 0 12px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
 .primary-button,
 .secondary-button,
 .icon-button {

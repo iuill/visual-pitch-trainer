@@ -119,6 +119,14 @@ On pushes to `main` or SemVer tags, the app is deployed to GitHub Pages after ve
 
 The deployed app shows a build version and short commit hash in the footer. Regular GitHub Pages deployments use `GITHUB_RUN_NUMBER` to generate labels such as `v0.1.N`, so you do not need to manually increment `package.json`. `N` is the CI workflow run number and may include gaps from pull requests or manual runs. Tag deployments display the SemVer tag name, such as `v1.2.3`.
 
+### Reference Instruments
+
+Choose sine or piano with the reference instrument selector. Sine sustains continuously; piano repeats a naturally decaying strike approximately every 2.5 seconds. The selected instrument also applies to scale practice. Changing instruments cancels scale practice and switches an active reference tone.
+
+Piano uses acoustic grand piano recordings from Versilian Studios' [VCSL](https://github.com/sgossner/VCSL), released under CC0-1.0. Commercial use, modification and redistribution are permitted without royalties or mandatory attribution. Source information and the license are included in `public/THIRD_PARTY_NOTICES.txt` and `public/audio/piano/`; the recordings have a separate license from this application's MIT license.
+
+The ten recordings (about 3.5 MB total) are loaded from the application's own origin on first playback and reused for that page. No external sound service or additional npm dependency is required. Assets are committed, so normal installation and builds do not download them. Optional regeneration requires ffmpeg and `bun run prepare:reference-piano`, which verifies the pinned source recordings with SHA256.
+
 ### Microphone Input
 
 Microphone access depends on the browser and how the page is opened. If the microphone does not work in the VS Code preview, open the Dev Container host URL, such as `http://localhost:35173/`, in an external browser such as Chrome, Edge, or Safari.

@@ -62,6 +62,17 @@
 
           <fieldset id="noteButtons" class="note-grid" aria-label="お手本の音を選択"></fieldset>
 
+          <div class="setting-row select-row">
+            <label for="referenceInstrumentSelect">お手本の音色</label>
+            <select id="referenceInstrumentSelect" aria-describedby="referenceInstrumentStatus">
+              <option value="sine">正弦波</option>
+              <option value="piano">ピアノ</option>
+            </select>
+          </div>
+          <p id="referenceInstrumentStatus" class="reference-instrument-status" role="status">
+            同じ音を鳴らし続けます。
+          </p>
+
           <div class="action-row">
             <button id="playToneButton" class="primary-button" type="button">
               <span aria-hidden="true">▶</span>
