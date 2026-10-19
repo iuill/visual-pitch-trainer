@@ -147,7 +147,7 @@ Harmonium, organ, violin and flute are available alongside sine and piano. The f
 
 Organ recordings are from VCSL; violin and flute from VSCO 2 CE; harmonium from Donya Quick on Freesound (HQ MP3 preview). The additions total about 2 MB and load from the app's origin on first use of each timbre. Playback rate compensates for measured tuning. Violin below G3, flute below C4 and harmonium above D5 use transposition beyond their recorded ranges. Each instrument directory under public/audio/ includes provenance, checksums, processing notes and the full CC0 license. Optional regeneration uses Bun and ffmpeg via bun run prepare:reference-sustains; regular builds do not download recordings.
 
-Choose sine or piano with the reference instrument selector. Sine sustains continuously; piano repeats a naturally decaying strike approximately every 2.5 seconds. The selected instrument also applies to melody practice. Changing instruments cancels melody practice and switches an active reference tone.
+Sine sustains continuously; piano repeats a naturally decaying strike approximately every 2.5 seconds. The selected instrument also applies to melody practice. Changing instruments cancels melody practice and switches an active reference tone.
 
 Piano uses acoustic grand piano recordings from Versilian Studios' [VCSL](https://github.com/sgossner/VCSL), released under CC0-1.0. Commercial use, modification and redistribution are permitted without royalties or mandatory attribution. Source information and the license are included in `public/THIRD_PARTY_NOTICES.txt` and `public/audio/piano/`; the recordings have a separate license from this application's MIT license.
 

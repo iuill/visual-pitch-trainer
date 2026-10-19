@@ -2662,7 +2662,16 @@ async function playScale() {
     const player = getReferencePlayer();
     await player.prepare(instrument);
     if (requestId !== scalePlaybackRequestId) return;
-    await startMicrophone();
+    try {
+      await startMicrophone();
+    } catch (error) {
+      if (requestId !== scalePlaybackRequestId) return;
+      stopScalePlayback();
+      elements.melodyStatus.textContent =
+        "マイクを開始できませんでした。ブラウザのマイク許可と接続を確認してください。";
+      console.error(error);
+      return;
+    }
     if (requestId !== scalePlaybackRequestId) return;
     if (!state.isMicActive) {
       const message = elements.analysisStatus.textContent;
@@ -3120,6 +3129,8 @@ function updateGameEffects(
   status: ReturnType<typeof resolveAnalysisStatus>,
   now: number,
 ) {
+  // メロディは音ごとの結果で評価し、単音のスコア・自己ベストに加算しない。
+  if (state.isScalePlaying) return;
   const isInTune = status === "inRange" && sample.centsFromTarget !== null;
   const previousSample = state.session.samples.at(-2);
 

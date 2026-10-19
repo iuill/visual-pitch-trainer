@@ -32,6 +32,7 @@ export function buildMelody(
   const tokens = custom
     .trim()
     .replaceAll("♯", "#")
+    .replaceAll("＃", "#")
     .split(/[\s、,]+/)
     .filter(Boolean);
   if (tokens.length < 2 || tokens.length > 32) {

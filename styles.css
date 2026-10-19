@@ -150,7 +150,6 @@ h2 {
 
 .control-panel,
 .graph-panel,
-.settings-panel,
 .summary-panel,
 .audio-file-panel {
   min-width: 0;
@@ -160,16 +159,11 @@ h2 {
   box-shadow: var(--shadow);
 }
 
-.control-panel,
-.settings-panel {
+.control-panel {
   padding: 18px;
 }
 
 .control-panel {
-  grid-column: 1;
-}
-
-.settings-panel {
   grid-column: 1;
 }
 
@@ -568,16 +562,6 @@ input[type="range"] {
   color: var(--muted);
   font-size: 0.86rem;
   line-height: 1.5;
-}
-
-.graph-device-row {
-  grid-template-columns: auto minmax(180px, 320px) minmax(0, 1fr);
-  align-items: center;
-  margin-top: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fbfcfc;
 }
 
 .summary-grid {
@@ -1189,7 +1173,6 @@ input[type="range"] {
 
   .control-panel,
   .graph-panel,
-  .settings-panel,
   .summary-panel,
   .audio-file-panel {
     grid-column: auto;
@@ -1300,7 +1283,6 @@ input[type="range"] {
 
   .control-panel,
   .graph-panel,
-  .settings-panel,
   .summary-panel,
   .audio-file-panel {
     padding: 18px;
@@ -1385,10 +1367,6 @@ input[type="range"] {
 
   .device-row {
     margin-top: 14px;
-  }
-
-  .graph-device-row {
-    grid-template-columns: 1fr;
   }
 
   .graph-status {
@@ -1667,7 +1645,6 @@ body[data-practice-view="melody"] .status-help {
   }
 }
 
-.graph-panel.is-melody-running .graph-device-row,
 .graph-panel.is-melody-running .graph-target-control,
 .graph-panel.is-melody-running > .panel-header p {
   display: none;

@@ -28,8 +28,10 @@ describe("melody practice", () => {
   });
   test("accepts repeated notes, sharps and the upper do without silently skipping invalid notes", () => {
     expect(
-      buildMelody("custom", "ド ド、ファ♯ 高ド", 48).map((note) => note.name),
-    ).toEqual(["C3", "C3", "F#3", "C4"]);
+      buildMelody("custom", "ド ド、ファ♯ ソ＃ 高ド", 48).map(
+        (note) => note.name,
+      ),
+    ).toEqual(["C3", "C3", "F#3", "G#3", "C4"]);
     for (const input of ["", "ド", "ド 不明", Array(33).fill("ド").join(" ")]) {
       expect(() => buildMelody("custom", input, 48)).toThrow();
     }
