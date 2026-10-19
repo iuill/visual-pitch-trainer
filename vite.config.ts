@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 
 const VERSION_BASE_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const VERSION_BUILD_PATTERN = /^(0|[1-9]\d*)$/;
@@ -92,8 +92,9 @@ function readOnnxRuntimeWebVersion(): string {
   return packageJson.version;
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: "./",
+  worker: { format: "es" },
   define: {
     "import.meta.env.VITE_APP_COMMIT_HASH": JSON.stringify(readGitCommitHash()),
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(readVersion()),
@@ -103,6 +104,12 @@ export default defineConfig({
   },
   plugins: [dropUnusedOnnxWasmAsset()],
   server: {
+    allowedHosts: (
+      loadEnv(mode, process.cwd(), "DEV_ALLOWED_HOSTS").DEV_ALLOWED_HOSTS ?? ""
+    )
+      .split(",")
+      .map((host) => host.trim())
+      .filter(Boolean),
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
     watch: {
       ignored: DEV_SERVER_WATCH_IGNORES,
@@ -111,7 +118,7 @@ export default defineConfig({
   preview: {
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
   },
-});
+}));
 
 function dropUnusedOnnxWasmAsset(): Plugin {
   return {

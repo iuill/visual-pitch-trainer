@@ -1,5 +1,37 @@
 Third-party notices
 
+Live pitch matching alpha — MDX separation models (downloaded on demand)
+Model repository: https://huggingface.co/Blane187/all_public_uvr_models
+Pinned revision: fddec39677560e41e3194f24a9e4c4cd32ef0e83
+The model repository metadata declares MIT. Model files are not bundled in this
+application; the selected model is downloaded to the browser for local inference.
+UVR-MDX-NET-Voc_FT.onnx: 66,762,490 bytes
+SHA256: 534b2070fcc7df514b13ef660dc8cbb328679c2374d04354a5c42bb14ecce111
+Kim_Vocal_2.onnx: 66,759,214 bytes
+SHA256: ce74ef3b6a6024ce44211a07be9cf8bc6d87728cc852a68ab34eb8e58cde9c8b
+Architecture reference: https://github.com/kuielab/mdx-net (MIT).
+Pre/postprocessing and model parameter reference:
+https://github.com/incidentist/web-audio-separation (MIT)
+Copyright (c) 2026 Dan Kurtz
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 This application includes bundled code and audio from the following third-party
 projects.
 
