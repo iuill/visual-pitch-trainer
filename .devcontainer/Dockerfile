@@ -16,3 +16,6 @@ RUN apt-get update \
 ENV LANG=ja_JP.UTF-8 \
     LC_ALL=ja_JP.UTF-8 \
     SHELL=/bin/bash
+
+RUN mkdir -p /home/node/.codex /home/node/.config/gh \
+ && chown -R node:node /home/node/.codex /home/node/.config
