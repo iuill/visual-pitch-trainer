@@ -68,9 +68,15 @@ This app is built with Bun + Vite + TypeScript. After a production build, it can
 
 Open this repository in VS Code and run `Dev Containers: Reopen in Container`.
 
-The container includes Node.js, Bun, GitHub CLI (`gh`), OpenAI Codex CLI (`codex`), and related development tools. The expected Bun version is defined in `.bun-version` and the `packageManager` field in `package.json`.
+The container includes Node.js, Bun, GitHub CLI (`gh`), and related development tools. The expected Bun version is defined in `.bun-version` and the `packageManager` field in `package.json`.
 
-If the `codex` command has not been set up yet, `.devcontainer/bin/codex` runs `.devcontainer/scripts/install-dev-tools.sh` to prepare the required development tools.
+GitHub CLI shares the host's `~/.config/gh` read-write at `/home/node/.config/gh`, which is set as `GH_CONFIG_DIR`. Sign in with `gh auth login` on the host before starting the container. The container uses the same GitHub authentication as the host.
+
+Codex CLI uses the host's standalone installation. Before starting the container, make sure `~/.codex/packages/standalone/current/bin/codex` is executable on the host and sign in with `codex login`. Container initialization checks that the host installation exists and can run.
+
+The entire `~/.codex/packages/standalone` directory is mounted read-only at the same path, and `.devcontainer/bin/codex` runs `HOST_CODEX_BIN`. Codex is not installed separately inside the container; it uses host updates. The host's `~/.codex/auth.json` is shared read-write at `/home/node/.codex/auth.json`. Configuration and conversation history are not shared.
+
+If `dc` is installed on the host, run `dc codex` from the root of this checkout. Run `dc rebuild codex` to apply these settings to an existing container. The host must run Linux compatible with the container's `linux/amd64` platform.
 
 This repository is set up with Codex as the AI coding agent used during development. Repository-specific agent instructions are documented in `AGENTS.md`, and Codex Agent Skills are placed under `.agents/skills/`.
 

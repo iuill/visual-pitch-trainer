@@ -73,9 +73,15 @@ Browser
 
 VS Code でこのリポジトリを開き、`Dev Containers: Reopen in Container` を実行してください。
 
-コンテナには Node.js、Bun、GitHub CLI (`gh`)、OpenAI Codex CLI (`codex`) などが入ります。Bun の期待バージョンは `.bun-version` と `package.json` の `packageManager` に記載しています。
+コンテナには Node.js、Bun、GitHub CLI (`gh`) などが入ります。Bun の期待バージョンは `.bun-version` と `package.json` の `packageManager` に記載しています。
 
-`codex` コマンドが未セットアップの場合は、`.devcontainer/bin/codex` が `.devcontainer/scripts/install-dev-tools.sh` を実行して必要な開発ツールを準備します。
+GitHub CLI はホストの `~/.config/gh` をコンテナの `/home/node/.config/gh` へ読み書き可能な状態で共有し、`GH_CONFIG_DIR` に指定します。起動前にホストで `gh auth login` を済ませてください。コンテナ内でもホストと同じGitHub認証を使います。
+
+Codex CLI はホストの standalone インストールを共有します。起動前にホストの `~/.codex/packages/standalone/current/bin/codex` が実行できることを確認し、ホストで `codex login` を済ませてください。コンテナ起動時にインストールの存在と実行可否を確認します。
+
+`~/.codex/packages/standalone` 全体を同じパスへ読み取り専用でマウントし、`.devcontainer/bin/codex` が `HOST_CODEX_BIN` を実行します。コンテナ内で Codex を別途インストールせず、ホスト側の更新を使います。認証情報はホストの `~/.codex/auth.json` を `/home/node/.codex/auth.json` へ読み書き可能な状態で共有します。設定ファイルや会話履歴は共有しません。
+
+ホストに `dc` がある場合は、このチェックアウトのルートで `dc codex` を実行できます。既存コンテナへ設定を反映するには `dc rebuild codex` を実行してください。ホスト側もコンテナの `linux/amd64` と互換性のある Linux 環境を前提とします。
 
 このリポジトリでは、開発時のAIコーディングエージェントとして Codex を利用する前提で環境を整えています。エージェント向けのリポジトリルールは `AGENTS.md` にまとめ、Codex の Agent Skills は `.agents/skills/` 配下に配置しています。
 
