@@ -56,6 +56,18 @@ describe("pitch math", () => {
     expect(describe(60, 72)).toBe("↑ 1オクターブ上がる（半音12個分）");
     expect(describe(72, 60)).toBe("↓ 1オクターブ下がる（半音12個分）");
     expect(describe(76, 77)).toBe(describe(64, 65));
+    expect(
+      formatPitchMovement(midiToFrequency(60), midiToFrequency(61), true),
+    ).toBe("↑ 半音");
+    expect(
+      formatPitchMovement(midiToFrequency(62), midiToFrequency(60), true),
+    ).toBe("↓ 全音");
+    expect(
+      formatPitchMovement(midiToFrequency(60), midiToFrequency(72), true),
+    ).toBe("↑ 1オクターブ");
+    expect(
+      formatPitchMovement(midiToFrequency(60), midiToFrequency(60), true),
+    ).toBe("→ 同じ高さ");
   });
 
   test("chooses the closest confident pitch inside the target range", () => {

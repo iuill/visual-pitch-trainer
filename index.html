@@ -191,10 +191,6 @@
             <ol id="melodyNotes" class="melody-notes" aria-label="練習する音の順番"></ol>
             </details>
             <p id="melodyStatus" class="melody-status" role="status">メロディを選んで始めてください。</p>
-            <div id="melodyMovement" class="melody-movement">
-              <p id="melodyCurrentMovement"></p>
-              <p id="melodyNextMovement"></p>
-            </div>
             <progress id="melodyProgress" max="1" value="0" aria-label="メロディ稽古の進み具合"></progress>
             <button id="playScaleButton" class="primary-button" type="button">メロディ稽古を始める</button>
 
@@ -275,6 +271,11 @@
               <progress id="melodyCountdownProgress" max="3" value="0" aria-label="発声開始までの準備時間"></progress>
             </div>
             <p class="graph-legend"><span class="reference-key">━ お手本</span><span class="voice-key">━ 自分の声</span><span>┆ 現在位置</span></p>
+            <div id="melodyMovement" class="melody-movement">
+              <span class="melody-next-label" aria-hidden="true">NEXT</span>
+              <p id="melodyCurrentMovement" class="visually-hidden"></p>
+              <p id="melodyNextMovement" aria-hidden="true"></p>
+            </div>
             <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: This scroll region needs keyboard access to offscreen notes. -->
             <section id="melodyGraphScroll" class="melody-graph-scroll" tabindex="0" aria-label="メロディ全体のグラフ。左右にスクロールできます。">
               <canvas id="melodyCanvas" width="640" height="300" aria-label="メロディのお手本と声の軌跡" aria-describedby="melodyGraphDescription graphDescription"></canvas>

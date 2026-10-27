@@ -497,27 +497,35 @@ fieldset {
 }
 
 .melody-movement {
-  display: grid;
-  gap: 6px;
-  margin: 10px 0;
-  padding: 12px;
-  border-left: 4px solid var(--accent);
-  border-radius: 6px;
-  background: #edf5f5;
-  line-height: 1.6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid #39626d;
+  border-radius: 12px 12px 0 0;
+  background: #16303c;
+  color: #f4fcff;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.melody-movement p {
-  margin: 0;
-  min-height: 1.6em;
+.melody-next-label {
+  flex: 0 0 auto;
+  border-radius: 5px;
+  padding: 3px 6px;
+  background: #f7d774;
+  color: #26313c;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
 }
 .melody-movement p:last-child {
-  font-weight: 700;
+  margin: 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
-@media (max-width: 600px) {
-  .melody-movement p {
-    min-height: 3.2em;
-  }
+.melody-movement[hidden] {
+  display: none;
 }
 .melody-practice progress {
   display: block;
@@ -1618,6 +1626,9 @@ body[data-practice-view="melody"] .control-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   overscroll-behavior-x: contain;
+}
+.melody-movement:not([hidden]) + .melody-graph-scroll {
+  border-radius: 0 0 8px 8px;
 }
 
 #melodyGraphView {

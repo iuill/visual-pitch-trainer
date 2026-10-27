@@ -2416,8 +2416,11 @@ function updateMelodyMovement(notes: Note[], index: number, preparing = false) {
       : `前の音から：${formatPitchMovement(notes[index - 1].frequency, note.frequency)}`;
   const next = notes[index + 1];
   elements.melodyNextMovement.textContent = next
-    ? `次の音：${next.solfege} (${next.name})・${formatPitchMovement(note.frequency, next.frequency)}`
-    : "次の音：なし（最後の音です）";
+    ? `次：${formatPitchMovement(note.frequency, next.frequency, true)} · ${next.solfege} (${next.name})`
+    : "最後の音 · そのままキープ";
+  elements.melodyCurrentMovement.textContent += next
+    ? `。次の音：${next.solfege} (${next.name})、${formatPitchMovement(note.frequency, next.frequency)}`
+    : "。次の音はありません。最後の音です。";
 }
 
 function renderMelodyPreview() {
@@ -2521,13 +2524,15 @@ function tickMelody(schedule = true) {
   if (melodyGraphData) {
     melodyGraphData.phase = position.phase;
     melodyGraphData.cursor =
-      position.phase === "countdown" || position.phase === "finished"
+      position.phase === "finished"
         ? run.notes.length * run.seconds
-        : position.index * run.seconds +
-          position.noteElapsed *
-            (position.phase === "listen"
-              ? run.seconds / MELODY_LISTEN_SECONDS
-              : 1);
+        : position.phase === "countdown"
+          ? 0
+          : position.index * run.seconds +
+            position.noteElapsed *
+              (position.phase === "listen"
+                ? run.seconds / MELODY_LISTEN_SECONDS
+                : 1);
   }
   elements.melodyProgress.max = total;
   elements.melodyProgress.value = Math.max(
@@ -2536,6 +2541,8 @@ function tickMelody(schedule = true) {
   );
   if (position.phase === "finished") {
     updateMelodyMovement(run.notes, run.notes.length - 1);
+    elements.melodyNextMovement.textContent = "完走 · おつかれさま！";
+    elements.melodyCurrentMovement.textContent += " メロディを完走しました。";
     stopScalePlayback(true);
     showMelodyResults(run);
     elements.melodyStatus.textContent =
