@@ -57,19 +57,6 @@ export function renderMelodyKeyboard(
         name.textContent = midiToNoteName(key.midi);
         label.append(name);
         element.append(label);
-        for (const [type, text] of [
-          ["current", "今"],
-          ["next", "次"],
-        ]) {
-          const marker = document.createElement("span");
-          marker.className = `melody-key-marker is-${type}`;
-          marker.dataset.marker = type;
-          const caption = document.createElement("span");
-          caption.textContent = text;
-          marker.append(caption);
-          marker.hidden = true;
-          element.append(marker);
-        }
         return element;
       }),
     );
@@ -82,12 +69,6 @@ export function renderMelodyKeyboard(
     const midi = Number(key.dataset.midi);
     key.classList.toggle("is-current", midi === currentMidi);
     key.classList.toggle("is-next", midi === nextMidi);
-    key
-      .querySelector<HTMLElement>('[data-marker="current"]')
-      ?.toggleAttribute("hidden", midi !== currentMidi);
-    key
-      .querySelector<HTMLElement>('[data-marker="next"]')
-      ?.toggleAttribute("hidden", midi !== nextMidi);
   }
   status.textContent = `いま：${current.solfege} (${current.name}) ／ ${next ? `つぎ：${next.solfege} (${next.name})` : "つぎ：なし（最後の音）"}`;
   followMelodyKeyboard(root);

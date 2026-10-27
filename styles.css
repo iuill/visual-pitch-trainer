@@ -1664,7 +1664,7 @@ body[data-practice-view="melody"] .control-panel {
   background: #edf3f5;
 }
 .melody-keyboard-status {
-  margin: 0 0 4px;
+  margin: 4px 0 0;
   font-size: 0.8rem;
   overflow-wrap: anywhere;
 }
@@ -1708,12 +1708,13 @@ body[data-practice-view="melody"] .control-panel {
 .melody-piano-key.is-next {
   background: #fff9e7;
   color: #3d310c;
-  box-shadow: inset 0 0 0 2px #d1bc86;
+  border: 2px dashed #bba66e;
+  box-shadow: none;
 }
 .melody-piano-key.is-black.is-next {
   background: linear-gradient(#5e5746, #343128);
   color: #ffffff;
-  box-shadow: inset 0 0 0 2px #b49e68;
+  box-shadow: none;
 }
 .melody-piano-key.is-current.is-next {
   background: linear-gradient(135deg, #b5ece6 50%, #fff9e7 50%);
@@ -1724,23 +1725,24 @@ body[data-practice-view="melody"] .control-panel {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: #187e80;
+  background: #149e9d;
+  box-shadow: inset 0 0 8px 2px #84fff0;
   pointer-events: none;
-  animation: melody-key-breathe 2.8s ease-in-out infinite;
+  animation: melody-key-breathe 1.4s ease-in-out infinite;
 }
 @keyframes melody-key-breathe {
   0%,
   100% {
-    opacity: 0.02;
+    opacity: 0.75;
   }
   50% {
-    opacity: 0.22;
+    opacity: 0.12;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .melody-piano-key.is-current::after {
     animation: none;
-    opacity: 0.08;
+    opacity: 0.15;
   }
 }
 .melody-key-name {
@@ -1749,7 +1751,7 @@ body[data-practice-view="melody"] .control-panel {
   bottom: 3px;
   left: 0;
   text-align: center;
-  z-index: 1;
+  z-index: 2;
   font-size: 9px;
   font-weight: 700;
   line-height: 1.25;
@@ -1763,37 +1765,6 @@ body[data-practice-view="melody"] .control-panel {
 .is-black .melody-key-name {
   display: none;
 }
-.melody-key-marker {
-  position: absolute;
-  left: 50%;
-  display: grid;
-  width: 18px;
-  height: 18px;
-  place-items: center;
-  z-index: 1;
-  font-size: 10px;
-  font-weight: 900;
-  line-height: 1;
-}
-.melody-key-marker.is-current {
-  top: 6px;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: #0d5861;
-  color: #ffffff;
-}
-.melody-key-marker.is-next {
-  top: 30px;
-  transform: translateX(-50%) rotate(45deg);
-  border: 1px solid #bca56e;
-  border-radius: 4px;
-  background: #f9eab7;
-  color: #30250e;
-}
-.melody-key-marker.is-next span {
-  transform: rotate(-45deg);
-}
-.melody-key-marker[hidden],
 .melody-keyboard[hidden] {
   display: none;
 }
