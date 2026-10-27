@@ -136,3 +136,19 @@ export function midiToSolfegeName(midi: number): string {
   const rounded = Math.round(midi);
   return SOLFEGE_NAMES[((rounded % 12) + 12) % 12];
 }
+
+/** Adjacent target notes, rather than the microphone's momentary pitch error. */
+export function formatPitchMovement(
+  fromFrequency: number,
+  toFrequency: number,
+): string {
+  const semitones = Math.round(hzToMidi(toFrequency) - hzToMidi(fromFrequency));
+  if (semitones === 0) return "→ 同じ高さ";
+  const distance = Math.abs(semitones);
+  const direction = semitones > 0 ? "上がる" : "下がる";
+  const arrow = semitones > 0 ? "↑" : "↓";
+  if (distance === 1) return `${arrow} 半音${direction}`;
+  if (distance === 2) return `${arrow} 全音${direction}（半音2個分）`;
+  if (distance === 12) return `${arrow} 1オクターブ${direction}（半音12個分）`;
+  return `${arrow} 半音${distance}個分${direction}`;
+}

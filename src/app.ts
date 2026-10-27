@@ -58,6 +58,7 @@ import {
 } from "./pitchDetection";
 import {
   buildNoteRange,
+  formatPitchMovement,
   getRms,
   midiToNoteName,
   midiToSolfegeName,
@@ -304,6 +305,11 @@ const elements = {
   customMelodyHelp: queryElement<HTMLParagraphElement>("#customMelodyHelp"),
   melodyNotes: queryElement<HTMLOListElement>("#melodyNotes"),
   melodyStatus: queryElement<HTMLParagraphElement>("#melodyStatus"),
+  melodyMovement: queryElement<HTMLElement>("#melodyMovement"),
+  melodyCurrentMovement: queryElement<HTMLParagraphElement>(
+    "#melodyCurrentMovement",
+  ),
+  melodyNextMovement: queryElement<HTMLParagraphElement>("#melodyNextMovement"),
   melodyProgress: queryElement<HTMLProgressElement>("#melodyProgress"),
   melodyCountdown: queryElement<HTMLElement>("#melodyCountdown"),
   melodyCountdownNumber: queryElement<HTMLElement>("#melodyCountdownNumber"),
@@ -2400,6 +2406,20 @@ function selectedMelody(): Note[] {
   );
 }
 
+function updateMelodyMovement(notes: Note[], index: number, preparing = false) {
+  const note = notes[index];
+  elements.melodyMovement.hidden = !note;
+  if (!note) return;
+  elements.melodyCurrentMovement.textContent =
+    index === 0
+      ? `${preparing ? "発声の最初" : "最初の音"}：${note.solfege} (${note.name})`
+      : `前の音から：${formatPitchMovement(notes[index - 1].frequency, note.frequency)}`;
+  const next = notes[index + 1];
+  elements.melodyNextMovement.textContent = next
+    ? `次の音：${next.solfege} (${next.name})・${formatPitchMovement(note.frequency, next.frequency)}`
+    : "次の音：なし（最後の音です）";
+}
+
 function renderMelodyPreview() {
   if (state.isScalePlaying) stopScalePlayback();
   const custom = elements.melodyPatternSelect.value === "custom";
@@ -2409,6 +2429,7 @@ function renderMelodyPreview() {
   elements.melodyProgress.value = 0;
   try {
     const notes = selectedMelody();
+    updateMelodyMovement(notes, 0);
     melodyGraphData = {
       notes,
       seconds: Number(elements.melodySecondsSelect.value),
@@ -2422,7 +2443,11 @@ function renderMelodyPreview() {
     elements.melodyNotes.replaceChildren(
       ...notes.map((note, index) => {
         const item = document.createElement("li");
-        item.textContent = `${index + 1}. ${note.solfege} (${note.name})`;
+        const movement =
+          index === 0
+            ? "最初の音"
+            : `前の音から ${formatPitchMovement(notes[index - 1].frequency, note.frequency)}`;
+        item.textContent = `${index + 1}. ${note.solfege} (${note.name})・${movement}`;
         return item;
       }),
     );
@@ -2434,6 +2459,7 @@ function renderMelodyPreview() {
     elements.playScaleButton.disabled = !isAudioContextSupported();
   } catch (error) {
     elements.melodyNotes.replaceChildren();
+    elements.melodyMovement.hidden = true;
     elements.melodyStatus.textContent = (error as Error).message;
     elements.playScaleButton.disabled = true;
     melodyGraphData = null;
@@ -2509,6 +2535,7 @@ function tickMelody(schedule = true) {
     Math.min(total, state.audioContext.currentTime - run.startedAt),
   );
   if (position.phase === "finished") {
+    updateMelodyMovement(run.notes, run.notes.length - 1);
     stopScalePlayback(true);
     showMelodyResults(run);
     elements.melodyStatus.textContent =
@@ -2520,6 +2547,11 @@ function tickMelody(schedule = true) {
   const key = `${position.phase}:${position.index}`;
   if (run.positionKey !== key) {
     run.positionKey = key;
+    updateMelodyMovement(
+      run.notes,
+      position.phase === "countdown" ? 0 : position.index,
+      position.phase === "countdown",
+    );
     if (position.phase === "countdown") {
       const rect = elements.melodyCountdown.getBoundingClientRect();
       if (rect.top < 0 || rect.bottom > window.innerHeight) {

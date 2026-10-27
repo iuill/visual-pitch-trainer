@@ -3,6 +3,7 @@ import {
   buildNoteRange,
   chooseBestLibraryPitch,
   formatPitchGap,
+  formatPitchMovement,
   getRms,
   hzToCents,
   hzToMidi,
@@ -40,6 +41,21 @@ describe("pitch math", () => {
       Math.SQRT1_2,
       8,
     );
+  });
+
+  test("describes adjacent targets including repeated notes, semitones and octave changes", () => {
+    const describe = (from: number, to: number) =>
+      formatPitchMovement(midiToFrequency(from), midiToFrequency(to));
+    expect(describe(60, 60)).toBe("→ 同じ高さ");
+    expect(describe(64, 65)).toBe("↑ 半音上がる");
+    expect(describe(60, 59)).toBe("↓ 半音下がる");
+    expect(describe(60, 62)).toBe("↑ 全音上がる（半音2個分）");
+    expect(describe(62, 60)).toBe("↓ 全音下がる（半音2個分）");
+    expect(describe(60, 64)).toBe("↑ 半音4個分上がる");
+    expect(describe(67, 60)).toBe("↓ 半音7個分下がる");
+    expect(describe(60, 72)).toBe("↑ 1オクターブ上がる（半音12個分）");
+    expect(describe(72, 60)).toBe("↓ 1オクターブ下がる（半音12個分）");
+    expect(describe(76, 77)).toBe(describe(64, 65));
   });
 
   test("chooses the closest confident pitch inside the target range", () => {
