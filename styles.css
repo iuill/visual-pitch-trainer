@@ -1517,7 +1517,7 @@ input[type="range"] {
 
 .practice-nav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -1595,9 +1595,322 @@ body[data-practice-view="melody"] .control-panel {
   border-radius: 8px;
   overscroll-behavior-x: contain;
 }
+
+#melodyGraphView {
+  position: relative;
+}
+.melody-countdown {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(300px, 80%);
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 3px solid var(--accent);
+  border-radius: 16px;
+  background: #ffffffed;
+  color: var(--accent-strong);
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 8px 24px #17202622;
+}
+.melody-countdown strong {
+  font-size: 4rem;
+  line-height: 1;
+}
+.melody-countdown progress {
+  width: 100%;
+}
+.melody-countdown-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.6;
+}
+.melody-countdown-setting input {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
 #melodyCanvas {
   display: block;
   max-width: none;
+}
+
+.game-practice {
+  padding: clamp(16px, 3vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  min-width: 0;
+}
+.game-practice small {
+  color: var(--muted);
+  font-size: 0.65em;
+}
+.game-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.game-settings label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.game-settings select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+}
+.game-settings:disabled {
+  opacity: 0.65;
+}
+.game-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  position: sticky;
+  top: 8px;
+  z-index: 3;
+  padding: 8px 0;
+  background: var(--panel);
+}
+.game-setup {
+  margin-bottom: 16px;
+}
+.game-practice .game-setup > summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-weight: 700;
+}
+.game-setup[open] .game-settings {
+  margin-top: 12px;
+}
+#gameFeedback {
+  scroll-margin-top: 88px;
+}
+.game-score {
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+.game-feedback {
+  padding: 16px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  min-height: 64px;
+}
+.game-success .game-feedback {
+  background: #e1f5e9;
+  border-color: #15806d;
+  box-shadow: 0 0 18px #15806d44;
+}
+.game-countdown {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+}
+.game-readouts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.game-readouts > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.game-readouts strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.2rem;
+}
+#gameHoldProgress {
+  width: 100%;
+}
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: 260px;
+}
+.game-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.game-choices button {
+  min-height: 54px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+.game-choices button[data-result="correct"] {
+  border-color: #15806d;
+  background: #e1f5e9;
+  opacity: 1;
+}
+.game-choices button[data-result="incorrect"] {
+  border-color: #a53a31;
+  background: #fff0ed;
+  opacity: 1;
+}
+.game-history {
+  margin-top: 20px;
+}
+.game-practice .game-history > summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-weight: 700;
+}
+.game-feedback-area {
+  position: relative;
+  margin: 16px 0;
+}
+.game-feedback-area .game-feedback {
+  margin: 0;
+  padding-top: 42px;
+}
+.game-celebration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: clip;
+  border-radius: 12px;
+}
+.game-burst-label {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  padding: 4px 10px;
+  background: #fff4bf;
+  border: 1px solid #b78417;
+  border-radius: 12px;
+  color: #634307;
+  font-weight: 800;
+  animation: game-pop 0.45s ease-out both;
+}
+.game-particle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  animation: game-confetti 0.9s ease-out both;
+}
+.game-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.game-stats > div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: #edf5f5;
+  color: #365c60;
+  overflow-wrap: anywhere;
+}
+.game-stats strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.4rem;
+}
+#gameRoundProgress {
+  width: 100%;
+}
+.game-settings .game-sound-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+.game-sound-setting input {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+.game-result {
+  padding: 20px;
+  border: 2px solid #b78417;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff8dc, #eaf8f1);
+  text-align: center;
+}
+.game-rank {
+  display: block;
+  font-size: clamp(2rem, 8vw, 4rem);
+  line-height: 1.2;
+  color: #87600f;
+  text-shadow: 2px 2px #fff;
+}
+.game-holding #gameHoldProgress {
+  filter: drop-shadow(0 0 4px #15806d88);
+}
+@keyframes game-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.65) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes game-confetti {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--turn));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-burst-label,
+  .game-particle {
+    animation: none;
+  }
+  .game-particle {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .practice-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .game-settings,
+  .game-readouts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .game-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .game-stats > div {
+    padding: 8px;
+    font-size: 0.75rem;
+  }
+  .game-stats strong {
+    font-size: 1.1rem;
+  }
+  .game-readouts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    font-size: 0.8rem;
+  }
+  .game-readouts strong {
+    font-size: 1rem;
+  }
 }
 .graph-legend {
   display: flex;

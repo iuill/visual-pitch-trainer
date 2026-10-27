@@ -40,26 +40,54 @@ describe("melody practice", () => {
     expect(getMelodyPosition(0, 2, 3)).toMatchObject({
       phase: "listen",
       index: 0,
-      remaining: 3,
+      remaining: 2,
     });
-    expect(getMelodyPosition(3, 2, 3)).toMatchObject({
+    expect(getMelodyPosition(2, 2, 3)).toMatchObject({
       phase: "listen",
       index: 1,
     });
-    expect(getMelodyPosition(6, 2, 3)).toMatchObject({
+    expect(getMelodyPosition(4, 2, 3)).toMatchObject({
       phase: "countdown",
       remaining: 3,
     });
-    expect(getMelodyPosition(9, 2, 3)).toMatchObject({
+    expect(getMelodyPosition(7, 2, 3)).toMatchObject({
       phase: "sing",
       index: 0,
     });
-    expect(getMelodyPosition(12, 2, 3)).toMatchObject({
+    expect(getMelodyPosition(10, 2, 3)).toMatchObject({
       phase: "sing",
       index: 1,
     });
-    expect(getMelodyPosition(15, 2, 3).phase).toBe("finished");
+    expect(getMelodyPosition(13, 2, 3).phase).toBe("finished");
     expect(getMelodyPosition(100, 2, 3).phase).toBe("finished");
+  });
+  test("keeps demonstration at two seconds when singing duration changes", () => {
+    for (const seconds of [1, 5]) {
+      expect(getMelodyPosition(3.9, 2, seconds)).toMatchObject({
+        phase: "listen",
+        index: 1,
+      });
+      expect(getMelodyPosition(4, 2, seconds)).toMatchObject({
+        phase: "countdown",
+        remaining: 3,
+      });
+      expect(getMelodyPosition(6, 2, seconds)).toMatchObject({
+        phase: "countdown",
+        remaining: 1,
+      });
+      expect(getMelodyPosition(7, 2, seconds)).toMatchObject({
+        phase: "sing",
+        index: 0,
+        remaining: seconds,
+      });
+      expect(getMelodyPosition(7 + seconds, 2, seconds)).toMatchObject({
+        phase: "sing",
+        index: 1,
+      });
+      expect(getMelodyPosition(7 + 2 * seconds, 2, seconds).phase).toBe(
+        "finished",
+      );
+    }
   });
   test("excludes transition grace, silence, out-of-tune input, cross-note intervals and background gaps", () => {
     const results = [

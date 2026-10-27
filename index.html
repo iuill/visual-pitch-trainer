@@ -36,7 +36,7 @@
       </section>
 
         <details id="practiceSettings" class="control-panel common-settings">
-          <summary>共通設定 <small>単音・メロディ</small>
+          <summary>共通設定 <small>単音・メロディ・ゲーム</small>
             <span id="practiceSettingsSummary" class="settings-summary">
               <span class="settings-summary-item">
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 4v16m-3-3 3 3 3-3M16 20V4m-3 3 3-3 3 3" /></svg>
@@ -56,7 +56,7 @@
               </span>
             </span>
           </summary>
-          <p class="common-settings-help">ここで選んだ音域・音色・音量・マイク・判定の設定を、単音練習とメロディ練習の両方に使います。音源の声域確認には適用しません。</p>
+          <p class="common-settings-help">ここで選んだ音域・音色・音量・マイク・判定の設定を、単音練習とメロディ練習、ゲームに使います。音源の声域確認には適用しません。</p>
           <div class="common-settings-grid">
             <div>
           <div class="setting-row select-row">
@@ -139,6 +139,7 @@
       <nav class="practice-nav" aria-label="練習メニュー">
         <button type="button" data-practice-view="single" aria-pressed="true" aria-controls="practiceWorkspace">単音練習</button>
         <button type="button" data-practice-view="melody" aria-pressed="false" aria-controls="practiceWorkspace">メロディ練習</button>
+        <button type="button" data-practice-view="games" aria-pressed="false" aria-controls="gamePracticeView">ゲーム</button>
         <button type="button" data-practice-view="audio" aria-pressed="false" aria-controls="audioFileView">音源の声域確認</button>
       </nav>
       <p id="practiceViewDescription" class="view-description">音をひとつ選び、お手本に合わせて声を伸ばします。</p>
@@ -173,7 +174,7 @@
             </div>
             <p id="customMelodyHelp" hidden>空白で区切って2〜32音。ド レ ミ ファ ソ ラ シ 高ド、ド#などの半音も使えます。全音を同じ長さで練習します。</p>
             <div class="setting-row select-row">
-              <label for="melodySecondsSelect">1音の長さ（お手本・発声共通）</label>
+              <label for="melodySecondsSelect">発声練習の1音の長さ</label>
               <select id="melodySecondsSelect">
                 <option value="1">1秒</option>
                 <option value="2" selected>2秒</option>
@@ -182,6 +183,8 @@
                 <option value="5">5秒</option>
               </select>
             </div>
+            <p>お手本は1音2秒で再生します。</p>
+            <label class="melody-countdown-setting"><input id="melodyCountdownSound" type="checkbox" checked /> 準備の3・2・1と開始を音でも知らせる（お手本音量を使用）</label>
             <p class="compatibility-note">ヘッドホンを使ってください。スピーカーのお手本音をマイクが拾うと、声を出していなくても判定されます。判定はマイクに入った音の目安です。</p>
             </details>
             <details class="melody-sequence"><summary>音名を文字で確認</summary>
@@ -262,6 +265,11 @@
             声の軌跡はまだ記録されていません。
           </p>
           <div id="melodyGraphView" hidden>
+            <div id="melodyCountdown" class="melody-countdown" hidden>
+              <span>発声開始まで</span><strong id="melodyCountdownNumber">3</strong>
+              <span id="melodyCountdownSteps" aria-hidden="true">【3】 → 2 → 1</span>
+              <progress id="melodyCountdownProgress" max="3" value="0" aria-label="発声開始までの準備時間"></progress>
+            </div>
             <p class="graph-legend"><span class="reference-key">━ お手本</span><span class="voice-key">━ 自分の声</span><span>┆ 現在位置</span></p>
             <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: This scroll region needs keyboard access to offscreen notes. -->
             <section id="melodyGraphScroll" class="melody-graph-scroll" tabindex="0" aria-label="メロディ全体のグラフ。左右にスクロールできます。">
@@ -488,6 +496,42 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section id="gamePracticeView" class="game-practice" aria-labelledby="gameTitle" hidden>
+        <h2 id="gameTitle">音程ゲーム <small>試作</small></h2>
+        <details id="gameSetup" class="game-setup" open><summary>モード・難易度を選ぶ</summary>
+        <fieldset id="gameSettings" class="game-settings">
+          <legend class="visually-hidden">ゲームの設定</legend>
+          <label>モード<select id="gameMode"><option value="voice">発声チャレンジ</option><option value="ear">音当て</option></select></label>
+          <label>問題数<select id="gameRounds"><option value="5">5問</option><option value="10">10問</option></select></label>
+          <div id="voiceGameSettings"><label>連続キープする長さ<select id="voiceGameHold"><option value="1">1秒</option><option value="2" selected>2秒</option><option value="3">3秒</option><option value="5">5秒</option></select></label></div>
+          <div id="earGameSettings" hidden><label>選択肢の間隔<select id="earGameDifficulty"><option value="3">やさしい：3半音間隔・5択</option><option value="1">むずかしい：半音間隔・13択</option></select></label></div>
+          <label class="game-sound-setting"><input id="gameEffectSound" type="checkbox" checked /> 成功時の効果音（共通設定のお手本音量を使用）</label>
+        </fieldset>
+        <p id="gameInstructions"></p>
+        <p class="graph-hint">音域・判定幅・マイクなどは共通設定を使います。ゲーム中に共通設定を変えると中止します。通常練習のスコア・自己ベストには加算しません。</p>
+        </details>
+        <div class="game-actions"><button id="gameStart" type="button" class="primary-button">ゲームを始める</button><button id="gameStop" type="button" class="secondary-button" disabled>中止</button></div>
+        <p id="gameScore" class="game-score">0 / 5問 ・ 0問成功</p>
+        <progress id="gameRoundProgress" max="5" value="0" aria-label="ゲーム全体の進み具合"></progress>
+        <div class="game-stats"><div>今回のスコア<strong id="gamePoints">0 pt</strong></div><div>連続成功<strong id="gameStreak">0連続</strong></div><div>自己ベスト（同じ設定）<strong id="gameBest">0 pt</strong></div></div>
+        <div class="game-feedback-area"><p id="gameFeedback" class="game-feedback" role="status">モードを選んで始めてください。</p><div id="gameCelebration" class="game-celebration" aria-hidden="true"></div></div>
+        <section id="gameResult" class="game-result" aria-label="今回のゲーム結果" hidden></section>
+        <div id="gameVoiceStage">
+          <p id="gameCountdown" class="game-countdown" hidden>開始まで 3</p>
+          <div class="game-readouts"><div>目標音<strong id="gameTarget">—</strong></div><div>自分の声<strong id="gameVoice">—</strong></div><div>目標との差<strong id="gameGap">—</strong></div></div>
+          <p id="gameMetric">—</p><progress id="gameHoldProgress" max="2" value="0" aria-label="連続キープの進み具合"></progress>
+          <canvas id="gameCanvas" width="960" height="260" aria-label="ランダムな目標音の横棒と自分の声の軌跡"></canvas>
+          <p class="graph-legend"><span class="reference-key">━ 目標音</span><span class="voice-key">━ 自分の声（直近5秒）</span></p>
+          <p class="compatibility-note">声を検出できないとキープは途切れます。音程検出の誤差や周囲の音による誤判定があります。無理のない音域で挑戦してください。</p>
+        </div>
+        <div id="gameEarStage" hidden>
+          <button id="gameReplay" type="button" class="secondary-button" disabled>もう一度聴く</button>
+          <fieldset id="gameChoices" class="game-choices" aria-label="鳴った音の選択肢"></fieldset>
+          <button id="gameNext" type="button" class="primary-button" hidden>次の問題</button>
+        </div>
+        <details class="game-history"><summary>今回の結果</summary><ol id="gameHistory"></ol></details>
       </section>
 
       <footer class="app-footer">

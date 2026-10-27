@@ -52,6 +52,7 @@ export function buildMelody(
 }
 
 export const MELODY_COUNTDOWN_SECONDS = 3;
+export const MELODY_LISTEN_SECONDS = 2;
 export const MELODY_GRACE_SECONDS = 0.4;
 
 export type MelodyPosition = {
@@ -67,8 +68,9 @@ export function getMelodyPosition(
   count: number,
   seconds: number,
 ): MelodyPosition {
-  const passSeconds = count * seconds;
-  if (elapsed >= passSeconds * 2 + MELODY_COUNTDOWN_SECONDS) {
+  const listenSeconds = count * MELODY_LISTEN_SECONDS;
+  const singingAt = listenSeconds + MELODY_COUNTDOWN_SECONDS;
+  if (elapsed >= singingAt + count * seconds) {
     return {
       phase: "finished",
       index: count - 1,
@@ -76,27 +78,23 @@ export function getMelodyPosition(
       noteElapsed: 0,
     };
   }
-  if (
-    elapsed >= passSeconds &&
-    elapsed < passSeconds + MELODY_COUNTDOWN_SECONDS
-  ) {
+  if (elapsed >= listenSeconds && elapsed < singingAt) {
     return {
       phase: "countdown",
       index: -1,
-      remaining: passSeconds + MELODY_COUNTDOWN_SECONDS - elapsed,
+      remaining: singingAt - elapsed,
       noteElapsed: 0,
     };
   }
-  const phase = elapsed < passSeconds ? "listen" : "sing";
+  const phase = elapsed < listenSeconds ? "listen" : "sing";
+  const noteSeconds = phase === "listen" ? MELODY_LISTEN_SECONDS : seconds;
   const inPass = Math.max(
     0,
-    phase === "listen"
-      ? elapsed
-      : elapsed - passSeconds - MELODY_COUNTDOWN_SECONDS,
+    phase === "listen" ? elapsed : elapsed - singingAt,
   );
-  const index = Math.min(count - 1, Math.floor(inPass / seconds));
-  const noteElapsed = inPass - index * seconds;
-  return { phase, index, remaining: seconds - noteElapsed, noteElapsed };
+  const index = Math.min(count - 1, Math.floor(inPass / noteSeconds));
+  const noteElapsed = inPass - index * noteSeconds;
+  return { phase, index, remaining: noteSeconds - noteElapsed, noteElapsed };
 }
 
 export type MelodyNoteResult = { detectedMs: number; inTuneMs: number };

@@ -24,6 +24,7 @@ import {
   getTargetGlowStrength,
   updateGameEffectState,
 } from "./gameEffects";
+import { GamePractice } from "./gamePractice";
 import {
   buildGraphPoints,
   clamp,
@@ -45,6 +46,7 @@ import {
   getMelodyPosition,
   MELODY_COUNTDOWN_SECONDS,
   MELODY_GRACE_SECONDS,
+  MELODY_LISTEN_SECONDS,
   MELODY_PATTERNS,
   type MelodyNoteResult,
   type MelodyObservation,
@@ -303,6 +305,13 @@ const elements = {
   melodyNotes: queryElement<HTMLOListElement>("#melodyNotes"),
   melodyStatus: queryElement<HTMLParagraphElement>("#melodyStatus"),
   melodyProgress: queryElement<HTMLProgressElement>("#melodyProgress"),
+  melodyCountdown: queryElement<HTMLElement>("#melodyCountdown"),
+  melodyCountdownNumber: queryElement<HTMLElement>("#melodyCountdownNumber"),
+  melodyCountdownSteps: queryElement<HTMLElement>("#melodyCountdownSteps"),
+  melodyCountdownProgress: queryElement<HTMLProgressElement>(
+    "#melodyCountdownProgress",
+  ),
+  melodyCountdownSound: queryElement<HTMLInputElement>("#melodyCountdownSound"),
   melodyResults: queryElement<HTMLDivElement>("#melodyResults"),
   playToneButton: queryElement<HTMLButtonElement>("#playToneButton"),
   micButton: queryElement<HTMLButtonElement>("#micButton"),
@@ -436,9 +445,25 @@ const AUDIO_RANGE_GRAPH_PADDING: GraphPadding = {
   left: 54,
 };
 
-type PracticeView = "single" | "melody" | "audio";
+type PracticeView = "single" | "melody" | "audio" | "games";
 let practiceView: PracticeView = "single";
 let melodyGraphData: MelodyGraphData | null = null;
+const gamePractice = new GamePractice(
+  () => ({
+    startMidi: state.noteRangeStartMidi,
+    instrument: state.referenceInstrument,
+    volume: state.referenceVolume,
+    deviceId: state.selectedDeviceId,
+    minRms: state.minRms,
+    tolerance: state.tolerance,
+  }),
+  () => {
+    stopScalePlayback();
+    stopReferenceTone();
+    stopMicrophone();
+    pauseAudioFilePlayback();
+  },
+);
 
 function setupPracticeNavigation() {
   elements.practiceSettings.open = false;
@@ -449,6 +474,7 @@ function setupPracticeNavigation() {
     button.addEventListener("click", () => {
       const view = button.dataset.practiceView as PracticeView;
       if (view === practiceView) return;
+      gamePractice.stop();
       stopScalePlayback();
       stopReferenceTone();
       stopMicrophone();
@@ -461,12 +487,16 @@ function setupPracticeNavigation() {
   elements.practiceSettings.addEventListener("toggle", () =>
     requestAnimationFrame(drawGraph),
   );
+  elements.practiceSettings.addEventListener("change", () =>
+    gamePractice.settingsChanged(),
+  );
   applyPracticeView();
 }
 
 function applyPracticeView() {
   const melody = practiceView === "melody";
   const audio = practiceView === "audio";
+  const games = practiceView === "games";
   document.body.dataset.practiceView = practiceView;
   document
     .querySelectorAll<HTMLButtonElement>("button[data-practice-view]")
@@ -481,7 +511,8 @@ function applyPracticeView() {
     .forEach((element) => {
       element.hidden = practiceView !== "single";
     });
-  elements.graphPanel.hidden = audio;
+  elements.graphPanel.hidden = audio || games;
+  queryElement<HTMLElement>("#gamePracticeView").hidden = !games;
   elements.audioFileView.hidden = !audio;
   elements.melodySection.hidden = !melody;
   elements.melodyGraphView.hidden = !melody;
@@ -494,11 +525,13 @@ function applyPracticeView() {
   elements.practiceGraphHelp.textContent = melody
     ? "お手本は全体を表示し、終わった音も残します。自分の声を重ねて振り返れます。"
     : "直近12秒の声の高さを、音名のレーンに沿って表示します。";
-  elements.practiceViewDescription.textContent = audio
-    ? "音源や動画を読み込み、歌声の高さの目安を確認します。"
-    : melody
-      ? "お手本を確認してから、一緒に歌います。終わったら音ごとに振り返りましょう。"
-      : "音をひとつ選び、お手本に合わせて声を伸ばします。";
+  elements.practiceViewDescription.textContent = games
+    ? "ランダムな目標音への発声と、鳴った音を当てるゲームに挑戦できます。"
+    : audio
+      ? "音源や動画を読み込み、歌声の高さの目安を確認します。"
+      : melody
+        ? "お手本を確認してから、一緒に歌います。終わったら音ごとに振り返りましょう。"
+        : "音をひとつ選び、お手本に合わせて声を伸ばします。";
   if (melody)
     elements.analysisStatus.textContent =
       melodyGraphData?.phase === "finished"
@@ -2394,7 +2427,8 @@ function renderMelodyPreview() {
       }),
     );
     const duration =
-      notes.length * Number(elements.melodySecondsSelect.value) * 2 +
+      notes.length *
+        (MELODY_LISTEN_SECONDS + Number(elements.melodySecondsSelect.value)) +
       MELODY_COUNTDOWN_SECONDS;
     elements.melodyStatus.textContent = `${notes.length}音・全${duration}秒。お手本の後、同じメロディを一緒に歌います。`;
     elements.playScaleButton.disabled = !isAudioContextSupported();
@@ -2417,6 +2451,7 @@ function setMelodyControlsLocked(locked: boolean) {
   for (const control of [
     elements.melodyPatternSelect,
     elements.melodySecondsSelect,
+    elements.melodyCountdownSound,
     elements.customMelodyInput,
     elements.micSelect,
     elements.toleranceInput,
@@ -2444,13 +2479,29 @@ function tickMelody(schedule = true) {
     run.notes.length,
     run.seconds,
   );
-  const total = run.notes.length * run.seconds * 2 + MELODY_COUNTDOWN_SECONDS;
+  const total =
+    run.notes.length * (MELODY_LISTEN_SECONDS + run.seconds) +
+    MELODY_COUNTDOWN_SECONDS;
+  elements.melodyCountdown.hidden = position.phase !== "countdown";
+  if (position.phase === "countdown") {
+    const remaining = Math.ceil(position.remaining);
+    elements.melodyCountdownNumber.textContent = String(remaining);
+    elements.melodyCountdownSteps.textContent = [3, 2, 1]
+      .map((n) => (n === remaining ? `【${n}】` : String(n)))
+      .join(" → ");
+    elements.melodyCountdownProgress.value =
+      MELODY_COUNTDOWN_SECONDS - position.remaining;
+  }
   if (melodyGraphData) {
     melodyGraphData.phase = position.phase;
     melodyGraphData.cursor =
       position.phase === "countdown" || position.phase === "finished"
         ? run.notes.length * run.seconds
-        : position.index * run.seconds + position.noteElapsed;
+        : position.index * run.seconds +
+          position.noteElapsed *
+            (position.phase === "listen"
+              ? run.seconds / MELODY_LISTEN_SECONDS
+              : 1);
   }
   elements.melodyProgress.max = total;
   elements.melodyProgress.value = Math.max(
@@ -2469,6 +2520,20 @@ function tickMelody(schedule = true) {
   const key = `${position.phase}:${position.index}`;
   if (run.positionKey !== key) {
     run.positionKey = key;
+    if (position.phase === "countdown") {
+      const rect = elements.melodyCountdown.getBoundingClientRect();
+      if (rect.top < 0 || rect.bottom > window.innerHeight) {
+        window.scrollTo({
+          top: Math.max(
+            0,
+            window.scrollY + rect.top - window.innerHeight * 0.55,
+          ),
+          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "auto"
+            : "smooth",
+        });
+      }
+    }
     run.previous = null;
     if (position.phase === "sing" && position.index === 0)
       resetSessionStats(performance.now());
@@ -2704,10 +2769,14 @@ async function playScale() {
       instrument,
       notes.map((note) => note.frequency),
       {
-        noteSeconds: seconds,
+        noteSeconds: MELODY_LISTEN_SECONDS,
+        practiceNoteSeconds: seconds,
+        countdownSound: elements.melodyCountdownSound.checked,
         startAt: startedAt,
         practiceAt:
-          startedAt + notes.length * seconds + MELODY_COUNTDOWN_SECONDS,
+          startedAt +
+          notes.length * MELODY_LISTEN_SECONDS +
+          MELODY_COUNTDOWN_SECONDS,
       },
     );
     updateReferenceInstrumentDescription();
@@ -2722,6 +2791,7 @@ async function playScale() {
 }
 
 function stopScalePlayback(completed = false) {
+  elements.melodyCountdown.hidden = true;
   scalePlaybackRequestId++;
   state.referencePlayer?.stopScale();
   if (state.scalePlaybackTimerId !== null) {
@@ -2889,6 +2959,7 @@ function handlePageHide(event: PageTransitionEvent) {
 }
 
 function cleanupRuntimeResources() {
+  gamePractice.stop();
   stopAudioPlaybackTracking();
   stopAudioAnalysisMemoryTracking();
   stopScalePlayback();
@@ -3060,7 +3131,7 @@ function analyzeFrame(now: number) {
     const elapsed =
       state.audioContext.currentTime -
       melodyRun.startedAt -
-      melodyRun.notes.length * melodyRun.seconds -
+      melodyRun.notes.length * MELODY_LISTEN_SECONDS -
       MELODY_COUNTDOWN_SECONDS;
     const position = getMelodyPosition(
       state.audioContext.currentTime - melodyRun.startedAt,
@@ -3749,7 +3820,7 @@ function drawGraph() {
     }
     return;
   }
-  if (practiceView === "audio") return;
+  if (practiceView === "audio" || practiceView === "games") return;
   syncPitchCanvasSize();
 
   const canvas = elements.pitchCanvas;
