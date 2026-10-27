@@ -94,9 +94,7 @@ export class GamePractice {
       if (this.round >= this.rounds) this.finish();
       else this.nextEarRound();
     });
-    this.el<HTMLSelectElement>("gameMode").addEventListener("change", () =>
-      this.showMode(),
-    );
+    this.el("gameMode").addEventListener("change", () => this.showMode());
     new ResizeObserver(() => this.draw()).observe(this.el("gameCanvas"));
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) this.stop();
@@ -112,8 +110,15 @@ export class GamePractice {
   private message(text: string) {
     this.el("gameFeedback").textContent = text;
   }
+  private selected(name: string): string {
+    const input = this.root.querySelector<HTMLInputElement>(
+      `input[name="${name}"]:checked`,
+    );
+    if (!input) throw new Error(`ゲームの設定が選択されていません：${name}`);
+    return input.value;
+  }
   private showMode() {
-    const voice = this.el<HTMLSelectElement>("gameMode").value === "voice";
+    const voice = this.selected("gameMode") === "voice";
     this.el("voiceGameSettings").hidden = !voice;
     this.el("earGameSettings").hidden = voice;
     this.el("gameVoiceStage").hidden = !voice;
@@ -164,7 +169,7 @@ export class GamePractice {
     this.stop();
     const generation = this.generation;
     this.active = true;
-    this.mode = this.el<HTMLSelectElement>("gameMode").value;
+    this.mode = this.selected("gameMode");
     this.phase = "preparing";
     this.round = this.correct = 0;
     this.score = { points: 0, streak: 0, bestStreak: 0 };
@@ -175,7 +180,7 @@ export class GamePractice {
     this.previousIndex = null;
     this.target = null;
     this.trace = [];
-    this.rounds = Number(this.el<HTMLSelectElement>("gameRounds").value);
+    this.rounds = Number(this.selected("gameRounds"));
     this.el("gameHistory").replaceChildren();
     this.el("gameTarget").textContent = "—";
     this.el("gameVoice").textContent = "—";
@@ -197,8 +202,8 @@ export class GamePractice {
         this.settings.tolerance,
         this.settings.minRms,
         this.mode === "voice"
-          ? this.el<HTMLSelectElement>("voiceGameHold").value
-          : this.el<HTMLSelectElement>("earGameDifficulty").value,
+          ? this.selected("voiceGameHold")
+          : this.selected("earGameDifficulty"),
         this.mode === "ear" ? this.settings.instrument : null,
       ])}`;
       try {
@@ -230,10 +235,7 @@ export class GamePractice {
         const player = this.player;
         await player.prepare(this.settings.instrument);
         if (generation !== this.generation) return;
-        const step =
-          Number(this.el<HTMLSelectElement>("earGameDifficulty").value) === 3
-            ? 3
-            : 1;
+        const step = Number(this.selected("earGameDifficulty")) === 3 ? 3 : 1;
         this.choices = earChoiceOffsets(step).map(
           (offset) => this.notes[offset],
         );
@@ -322,7 +324,7 @@ export class GamePractice {
     this.challenge = createChallenge(
       this.target.frequency,
       now,
-      Number(this.el<HTMLSelectElement>("voiceGameHold").value) * 1000,
+      Number(this.selected("voiceGameHold")) * 1000,
     );
     this.el("gameTarget").textContent =
       `${this.target.solfege} (${this.target.name})`;

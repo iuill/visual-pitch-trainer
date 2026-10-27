@@ -1911,10 +1911,161 @@ body[data-practice-view="melody"] .control-panel {
   gap: 6px;
   min-width: 0;
 }
-.game-settings select {
-  width: 100%;
-  min-width: 0;
-  min-height: 44px;
+.game-option-group > legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+.game-mode-select {
+  grid-column: 1 / -1;
+}
+.game-mode-options,
+.game-option-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.game-option {
+  position: relative;
+  cursor: pointer;
+}
+.game-choice-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.game-option-face {
+  position: relative;
+  display: grid;
+  min-height: 68px;
+  padding: 16px 8px 10px;
+  place-items: center;
+  border: 2px solid #d0dce1;
+  border-radius: 12px;
+  background: linear-gradient(#ffffff, #f0f5f7);
+  box-shadow: 0 3px 0 #d5e0e5;
+  color: #354d5a;
+  text-align: center;
+  transition:
+    transform 120ms,
+    border-color 120ms,
+    box-shadow 120ms;
+}
+.game-option-face > strong {
+  font-size: 1.55rem;
+  line-height: 1.2;
+}
+.game-option-unit {
+  margin-left: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.game-choice-input:checked + .game-option-face {
+  border-color: #1b7e88;
+  background: linear-gradient(135deg, #d4f5ed, #e3f2fb);
+  box-shadow:
+    0 3px 0 #1b7e88,
+    0 0 12px #1b7e8818;
+  color: #124b57;
+}
+.game-choice-input:checked + .game-option-face::after {
+  content: "✓";
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+.game-choice-input:focus-visible + .game-option-face {
+  outline: 3px solid #2563a9;
+  outline-offset: 3px;
+}
+.game-choice-input:not(:disabled) + .game-option-face:hover {
+  transform: translateY(-2px);
+}
+.game-choice-input:not(:disabled) + .game-option-face:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+.game-choice-input:disabled + .game-option-face {
+  cursor: default;
+}
+.game-mode-face {
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  justify-items: start;
+  gap: 12px;
+  min-height: 112px;
+  padding: 24px 16px 16px;
+  border-color: #405767;
+  background: linear-gradient(135deg, #273e50, #172d3b);
+  box-shadow: 0 4px 0 #132632;
+  color: #eef9ff;
+  text-align: left;
+}
+.game-mode-icon {
+  width: 44px;
+  height: 44px;
+  padding: 7px;
+  border-radius: 12px;
+  background: #ffffff12;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.game-mode-copy {
+  display: grid;
+  gap: 4px;
+}
+.game-mode-copy strong {
+  font-size: 1.05rem;
+}
+.game-mode-description {
+  color: #c6dce5;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.game-choice-input:checked + .game-mode-face {
+  border-color: #53d2c4;
+  background: linear-gradient(135deg, #1c626a, #203b51);
+  box-shadow:
+    0 4px 0 #12626d,
+    0 0 16px #2cbeb52b;
+  color: #ffffff;
+}
+.game-choice-input:checked + .game-mode-face::after {
+  content: "選択中";
+  top: 6px;
+  right: 8px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #f7d774;
+  color: #40330f;
+  font-size: 0.6rem;
+}
+.game-difficulty-face {
+  gap: 5px;
+  min-height: 82px;
+}
+.game-difficulty-face > strong {
+  font-size: 0.95rem;
+}
+.game-option-detail {
+  font-size: 0.75rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-option-face {
+    transition: none;
+  }
+  .game-choice-input:not(:disabled) + .game-option-face:hover,
+  .game-choice-input:not(:disabled) + .game-option-face:active {
+    transform: none;
+  }
 }
 .game-settings:disabled {
   opacity: 0.65;
@@ -2137,6 +2288,9 @@ body[data-practice-view="melody"] .control-panel {
   }
 }
 @media (max-width: 600px) {
+  .game-mode-options {
+    grid-auto-flow: row;
+  }
   .practice-nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

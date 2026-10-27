@@ -185,6 +185,8 @@ src/melodyGraph.ts がメロディ専用Canvasを描画し、src/graphModel.ts �
 
 ## 音程ゲーム
 
+設定UIはfieldset / legendでグループ化したネイティブradioを、モードカードと数字の選択ボタンとして表示する。`src/gamePractice.ts` の `selected()` でcheckedの値を読み、問題数・キープ時間・選択肢間隔・自己ベストのキーへ渡す。`gameMode` グループのchangeでモード別設定とステージを切り替える。開始中は親の`gameSettings` fieldsetのdisabledで全radioを無効化し、中止・終了時に戻す。フォーカスは対応するカードに表示し、hover / 押下の軽い動きはprefers-reduced-motionで止める。
+
 `src/pitchGameModel.ts`がランダム出題、選択肢、到達・キープの状態遷移、ゲーム専用スコアとランクを扱う。到達期限は1000ms（境界を含む）、到達後の検出間隔が250ms超・無音・音程外れならキープ失敗とする。オクターブを同じ音として採点しない。各問の得点は100＋直前の連続成功数×25、失敗で連続数だけをリセットする。直前と同じ目標を避け、音当ての正解は実際の選択肢から選ぶ。
 
 `src/gamePractice.ts`が専用AudioContext、ReferencePlayer、マイク、AnalyserNode、requestAnimationFrameを管理する。発声では既存のpitchyラッパーを利用し、準備と問間の効果音中は判定しない。音当てはマイクを取得せず、音色準備と再生終了後に選択肢を有効にし、回答を1回だけ受理する。準備要求は世代番号で取り消す。共通設定変更・中止・ビュー変更・pagehide・非表示でマイクと予約音を止め、結果だけ残す。

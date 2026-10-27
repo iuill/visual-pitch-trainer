@@ -519,10 +519,46 @@
         <details id="gameSetup" class="game-setup" open><summary>モード・難易度を選ぶ</summary>
         <fieldset id="gameSettings" class="game-settings">
           <legend class="visually-hidden">ゲームの設定</legend>
-          <label>モード<select id="gameMode"><option value="voice">発声チャレンジ</option><option value="ear">音当て</option></select></label>
-          <label>問題数<select id="gameRounds"><option value="5">5問</option><option value="10">10問</option></select></label>
-          <div id="voiceGameSettings"><label>連続キープする長さ<select id="voiceGameHold"><option value="1">1秒</option><option value="2" selected>2秒</option><option value="3">3秒</option><option value="5">5秒</option></select></label></div>
-          <div id="earGameSettings" hidden><label>選択肢の間隔<select id="earGameDifficulty"><option value="3">やさしい：3半音間隔・5択</option><option value="1">むずかしい：半音間隔・13択</option></select></label></div>
+          <fieldset id="gameMode" class="game-option-group game-mode-select">
+            <legend>モード</legend>
+            <div class="game-mode-options">
+              <label class="game-option"><input class="game-choice-input" type="radio" name="gameMode" value="voice" checked /><span class="game-option-face game-mode-face">
+                <svg class="game-mode-icon" viewBox="0 0 32 32" aria-hidden="true"><rect x="11" y="3" width="10" height="17" rx="5"/><path d="M7 14v2a9 9 0 0 0 18 0v-2M16 25v5m-5 0h10"/></svg>
+                <span class="game-mode-copy"><strong>発声チャレンジ</strong><span class="game-mode-description">1秒で音を合わせてキープ</span></span>
+              </span></label>
+              <label class="game-option"><input class="game-choice-input" type="radio" name="gameMode" value="ear" /><span class="game-option-face game-mode-face">
+                <svg class="game-mode-icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 18v-3a11 11 0 0 1 22 0v3M19 12v12"/><rect x="3" y="16" width="6" height="12" rx="3"/><rect x="23" y="16" width="6" height="12" rx="3"/><ellipse cx="16" cy="24" rx="3" ry="2"/></svg>
+                <span class="game-mode-copy"><strong>音当て</strong><span class="game-mode-description">鳴った音を聴いて選ぼう</span></span>
+              </span></label>
+            </div>
+          </fieldset>
+          <fieldset id="gameRounds" class="game-option-group">
+            <legend>問題数</legend>
+            <div class="game-option-row">
+              <label class="game-option"><input class="game-choice-input" type="radio" name="gameRounds" value="5" checked /><span class="game-option-face"><strong>5<span class="game-option-unit">問</span></strong></span></label>
+              <label class="game-option"><input class="game-choice-input" type="radio" name="gameRounds" value="10" /><span class="game-option-face"><strong>10<span class="game-option-unit">問</span></strong></span></label>
+            </div>
+          </fieldset>
+          <div id="voiceGameSettings">
+            <fieldset id="voiceGameHold" class="game-option-group">
+              <legend>連続キープする長さ</legend>
+              <div class="game-option-row">
+                <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="1" /><span class="game-option-face"><strong>1<span class="game-option-unit">秒</span></strong></span></label>
+                <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="2" checked /><span class="game-option-face"><strong>2<span class="game-option-unit">秒</span></strong></span></label>
+                <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="3" /><span class="game-option-face"><strong>3<span class="game-option-unit">秒</span></strong></span></label>
+                <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="5" /><span class="game-option-face"><strong>5<span class="game-option-unit">秒</span></strong></span></label>
+              </div>
+            </fieldset>
+          </div>
+          <div id="earGameSettings" hidden>
+            <fieldset id="earGameDifficulty" class="game-option-group">
+              <legend>音当ての難易度</legend>
+              <div class="game-option-row">
+                <label class="game-option"><input class="game-choice-input" type="radio" name="earGameDifficulty" value="3" checked /><span class="game-option-face game-difficulty-face"><strong>やさしい</strong><span class="game-option-detail">3半音間隔・5択</span></span></label>
+                <label class="game-option"><input class="game-choice-input" type="radio" name="earGameDifficulty" value="1" /><span class="game-option-face game-difficulty-face"><strong>むずかしい</strong><span class="game-option-detail">半音間隔・13択</span></span></label>
+              </div>
+            </fieldset>
+          </div>
           <label class="game-sound-setting"><input id="gameEffectSound" type="checkbox" checked /> 成功時の効果音（共通設定のお手本音量を使用）</label>
         </fieldset>
         <p id="gameInstructions"></p>
