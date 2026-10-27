@@ -64,6 +64,7 @@ import {
   midiToSolfegeName,
   type Note,
 } from "./pitchMath";
+import { getPitchMovementIcon } from "./pitchMovementVisual";
 import {
   isReferenceInstrumentId,
   REFERENCE_INSTRUMENTS,
@@ -306,6 +307,10 @@ const elements = {
   melodyNotes: queryElement<HTMLOListElement>("#melodyNotes"),
   melodyStatus: queryElement<HTMLParagraphElement>("#melodyStatus"),
   melodyMovement: queryElement<HTMLElement>("#melodyMovement"),
+  melodyMovementIcon: queryElement<SVGSVGElement>("#melodyMovementIcon"),
+  melodyMovementIconPath: queryElement<SVGPathElement>(
+    "#melodyMovementIconPath",
+  ),
   melodyCurrentMovement: queryElement<HTMLParagraphElement>(
     "#melodyCurrentMovement",
   ),
@@ -2415,6 +2420,12 @@ function updateMelodyMovement(notes: Note[], index: number, preparing = false) {
       ? `${preparing ? "発声の最初" : "最初の音"}：${note.solfege} (${note.name})`
       : `前の音から：${formatPitchMovement(notes[index - 1].frequency, note.frequency)}`;
   const next = notes[index + 1];
+  elements.melodyMovementIcon.toggleAttribute("hidden", !next);
+  if (next) {
+    const icon = getPitchMovementIcon(note.frequency, next.frequency);
+    elements.melodyMovementIconPath.setAttribute("d", icon.path);
+    elements.melodyMovementIconPath.setAttribute("transform", icon.transform);
+  }
   elements.melodyNextMovement.textContent = next
     ? `次：${formatPitchMovement(note.frequency, next.frequency, true)} · ${next.solfege} (${next.name})`
     : "最後の音 · そのままキープ";

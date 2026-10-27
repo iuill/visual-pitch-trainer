@@ -519,6 +519,25 @@ fieldset {
   font-weight: 900;
   letter-spacing: 0.08em;
 }
+.melody-movement-icon {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  padding: 4px;
+  border: 1px solid #ffe69b;
+  border-radius: 10px;
+  color: #ffdf7f;
+  background: linear-gradient(145deg, #6b5730, #334747);
+  box-shadow: 0 0 12px #f7d77425;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.melody-movement-icon[hidden] {
+  display: none;
+}
 .melody-movement p:last-child {
   margin: 0;
   font-weight: 800;

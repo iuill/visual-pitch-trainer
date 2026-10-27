@@ -46,28 +46,41 @@ describe("pitch math", () => {
   test("describes adjacent targets including repeated notes, semitones and octave changes", () => {
     const describe = (from: number, to: number) =>
       formatPitchMovement(midiToFrequency(from), midiToFrequency(to));
-    expect(describe(60, 60)).toBe("→ 同じ高さ");
-    expect(describe(64, 65)).toBe("↑ 半音上がる");
-    expect(describe(60, 59)).toBe("↓ 半音下がる");
-    expect(describe(60, 62)).toBe("↑ 全音上がる（半音2個分）");
-    expect(describe(62, 60)).toBe("↓ 全音下がる（半音2個分）");
-    expect(describe(60, 64)).toBe("↑ 半音4個分上がる");
-    expect(describe(67, 60)).toBe("↓ 半音7個分下がる");
-    expect(describe(60, 72)).toBe("↑ 1オクターブ上がる（半音12個分）");
-    expect(describe(72, 60)).toBe("↓ 1オクターブ下がる（半音12個分）");
+    expect(describe(60, 60)).toBe("同じ高さ");
+    expect(describe(64, 65)).toBe("半音上がる");
+    expect(describe(60, 59)).toBe("半音下がる");
+    expect(describe(60, 62)).toBe("全音上がる（2半音）");
+    expect(describe(62, 60)).toBe("全音下がる（2半音）");
+    expect(describe(60, 64)).toBe("長3度上がる（4半音）");
+    expect(describe(67, 60)).toBe("完全5度下がる（7半音）");
+    expect(describe(60, 72)).toBe("1オクターブ上がる（12半音）");
+    expect(describe(72, 60)).toBe("1オクターブ下がる（12半音）");
     expect(describe(76, 77)).toBe(describe(64, 65));
+    expect(describe(60, 63)).toBe("増2度上がる（3半音）");
+    expect(describe(62, 65)).toBe("短3度上がる（3半音）");
+    expect(describe(65, 62)).toBe("短3度下がる（3半音）");
+    expect(describe(60, 65)).toBe("完全4度上がる（5半音）");
+    expect(describe(60, 66)).toBe("増4度上がる（6半音）");
+    expect(describe(66, 72)).toBe("減5度上がる（6半音）");
+    expect(describe(60, 68)).toBe("増5度上がる（8半音）");
+    expect(describe(64, 72)).toBe("短6度上がる（8半音）");
+    expect(describe(60, 69)).toBe("長6度上がる（9半音）");
+    expect(describe(62, 72)).toBe("短7度上がる（10半音）");
+    expect(describe(60, 71)).toBe("長7度上がる（11半音）");
+    expect(describe(71, 72)).toBe("半音上がる");
+    expect(describe(60, 76)).toBe("長10度上がる（16半音）");
     expect(
       formatPitchMovement(midiToFrequency(60), midiToFrequency(61), true),
-    ).toBe("↑ 半音");
+    ).toBe("半音");
     expect(
       formatPitchMovement(midiToFrequency(62), midiToFrequency(60), true),
-    ).toBe("↓ 全音");
+    ).toBe("全音");
     expect(
       formatPitchMovement(midiToFrequency(60), midiToFrequency(72), true),
-    ).toBe("↑ 1オクターブ");
+    ).toBe("1オクターブ");
     expect(
       formatPitchMovement(midiToFrequency(60), midiToFrequency(60), true),
-    ).toBe("→ 同じ高さ");
+    ).toBe("同じ高さ");
   });
 
   test("chooses the closest confident pitch inside the target range", () => {

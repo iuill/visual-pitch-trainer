@@ -3,6 +3,7 @@ import {
   resolveCanvasBackingSize,
 } from "./graphModel";
 import { formatPitchMovement, midiToNoteName, type Note } from "./pitchMath";
+import { getPitchMovementIcon } from "./pitchMovementVisual";
 
 export type MelodyTraceSample = { time: number; midi: number | null };
 export type MelodyGraphData = {
@@ -121,18 +122,45 @@ export function drawMelodyGraph(
         true,
       );
       context.font = `${upcoming ? "800" : "600"} 13px system-ui, sans-serif`;
-      const badgeWidth = context.measureText(label).width + 18;
+      const badgeWidth = context.measureText(label).width + 40;
       const badgeX = x + (width - badgeWidth) / 2;
-      const badgeY = Math.max(5, y - 40);
+      const distance = Math.abs(layout.midis[index] - layout.midis[index - 1]);
+      const detail = distance > 2 && distance !== 12 ? `${distance}半音` : null;
+      const badgeHeight = detail ? 38 : 30;
+      const badgeY = Math.max(5, y - badgeHeight - 14);
       context.fillStyle = upcoming ? "#f7d774" : "#edf3f5";
       context.strokeStyle = upcoming ? "#b5790b" : "#b5c7ce";
       context.lineWidth = upcoming ? 2 : 1;
       context.beginPath();
-      context.roundRect(badgeX, badgeY, badgeWidth, 25, 8);
+      context.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 9);
       context.fill();
       context.stroke();
+      const icon = getPitchMovementIcon(
+        data.notes[index - 1].frequency,
+        note.frequency,
+      );
+      context.save();
+      context.translate(badgeX + 5, badgeY + (badgeHeight - 21) / 2);
+      context.scale(0.75, 0.75);
+      if (icon.descending) {
+        context.translate(0, 28);
+        context.scale(1, -1);
+      }
+      context.strokeStyle = upcoming ? "#61420d" : "#315e6b";
+      context.lineWidth = 2.4;
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      context.stroke(new Path2D(icon.path));
+      context.restore();
       context.fillStyle = "#26313c";
-      context.fillText(label, x + width / 2, badgeY + 17);
+      context.textAlign = "left";
+      context.fillText(label, badgeX + 30, badgeY + (detail ? 15 : 20));
+      if (detail) {
+        context.font = "11px system-ui, sans-serif";
+        context.fillStyle = "#53616b";
+        context.fillText(detail, badgeX + 30, badgeY + 30);
+      }
+      context.textAlign = "center";
     }
     context.fillStyle = "#5c6870";
     context.fillText(String(index + 1), x + width / 2, layout.height - 12);

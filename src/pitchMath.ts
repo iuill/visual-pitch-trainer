@@ -137,17 +137,42 @@ export function midiToSolfegeName(midi: number): string {
   return SOLFEGE_NAMES[((rounded % 12) + 12) % 12];
 }
 
+// Use the same sharp spelling as midiToNoteName(), not a semitone-only lookup.
+// For example, C–D# is an augmented second while D–F is a minor third.
+function intervalName(fromMidi: number, toMidi: number): string {
+  const diatonicIndex = (midi: number) =>
+    Math.floor(midi / 12) * 7 + "CDEFGAB".indexOf(midiToNoteName(midi)[0]);
+  const steps = Math.abs(diatonicIndex(toMidi) - diatonicIndex(fromMidi));
+  const simple = steps % 7;
+  const normal = [0, 2, 4, 5, 7, 9, 11][simple] + Math.floor(steps / 7) * 12;
+  const adjustment = Math.abs(toMidi - fromMidi) - normal;
+  const perfect = simple === 0 || simple === 3 || simple === 4;
+  const quality =
+    adjustment === 0
+      ? perfect
+        ? "完全"
+        : "長"
+      : adjustment === -1 && !perfect
+        ? "短"
+        : adjustment > 0
+          ? "増"
+          : "減";
+  return `${quality}${steps + 1}度`;
+}
+
 /** Adjacent target notes, rather than the microphone's momentary pitch error. */
 export function formatPitchMovement(
   fromFrequency: number,
   toFrequency: number,
   compact = false,
 ): string {
-  const semitones = Math.round(hzToMidi(toFrequency) - hzToMidi(fromFrequency));
-  if (semitones === 0) return "→ 同じ高さ";
+  const fromMidi = Math.round(hzToMidi(fromFrequency));
+  const toMidi = Math.round(hzToMidi(toFrequency));
+  const semitones = toMidi - fromMidi;
+  if (semitones === 0) return "同じ高さ";
   const distance = Math.abs(semitones);
   const direction = semitones > 0 ? "上がる" : "下がる";
-  const arrow = semitones > 0 ? "↑" : "↓";
+  const name = intervalName(fromMidi, toMidi);
   if (compact) {
     const amount =
       distance === 1
@@ -156,11 +181,11 @@ export function formatPitchMovement(
           ? "全音"
           : distance === 12
             ? "1オクターブ"
-            : `半音${distance}個分`;
-    return `${arrow} ${amount}`;
+            : name;
+    return amount;
   }
-  if (distance === 1) return `${arrow} 半音${direction}`;
-  if (distance === 2) return `${arrow} 全音${direction}（半音2個分）`;
-  if (distance === 12) return `${arrow} 1オクターブ${direction}（半音12個分）`;
-  return `${arrow} 半音${distance}個分${direction}`;
+  if (distance === 1) return `半音${direction}`;
+  if (distance === 2) return `全音${direction}（2半音）`;
+  if (distance === 12) return `1オクターブ${direction}（12半音）`;
+  return `${name}${direction}（${distance}半音）`;
 }
