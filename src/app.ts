@@ -41,6 +41,7 @@ import {
   mixChannelsToMono,
 } from "./mediaAudioExtraction";
 import { drawMelodyGraph, type MelodyGraphData } from "./melodyGraph";
+import { renderMelodyKeyboard } from "./melodyKeyboard";
 import {
   buildMelody,
   getMelodyPosition,
@@ -307,6 +308,7 @@ const elements = {
   melodyNotes: queryElement<HTMLOListElement>("#melodyNotes"),
   melodyStatus: queryElement<HTMLParagraphElement>("#melodyStatus"),
   melodyMovement: queryElement<HTMLElement>("#melodyMovement"),
+  melodyKeyboard: queryElement<HTMLElement>("#melodyKeyboard"),
   melodyMovementIcon: queryElement<SVGSVGElement>("#melodyMovementIcon"),
   melodyMovementIconPath: queryElement<SVGPathElement>(
     "#melodyMovementIconPath",
@@ -2412,6 +2414,7 @@ function selectedMelody(): Note[] {
 }
 
 function updateMelodyMovement(notes: Note[], index: number, preparing = false) {
+  renderMelodyKeyboard(elements.melodyKeyboard, notes, index);
   const note = notes[index];
   elements.melodyMovement.hidden = !note;
   if (!note) return;
@@ -2453,7 +2456,7 @@ function renderMelodyPreview() {
       samples: [],
     };
     elements.melodyGraphDescription.textContent =
-      "横軸は音の順番、縦軸は声の高さです。鍵盤の移動数は黒鍵も含めて数えます。隣の鍵盤への移動が半音、2つ先が全音、12こ先の同じ音名が1オクターブです。お手本と声は終了後も残ります。長いメロディは左右にスクロールできます。範囲外の声は上下端に表示します。";
+      "横軸は音の順番、縦軸は声の高さです。お手本と声は終了後も残ります。長いメロディは左右にスクロールできます。範囲外の声は上下端に表示します。";
     elements.melodyNotes.replaceChildren(
       ...notes.map((note, index) => {
         const item = document.createElement("li");
@@ -2474,6 +2477,7 @@ function renderMelodyPreview() {
   } catch (error) {
     elements.melodyNotes.replaceChildren();
     elements.melodyMovement.hidden = true;
+    elements.melodyKeyboard.hidden = true;
     elements.melodyStatus.textContent = (error as Error).message;
     elements.playScaleButton.disabled = true;
     melodyGraphData = null;

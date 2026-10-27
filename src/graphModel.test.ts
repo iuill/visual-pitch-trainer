@@ -4,6 +4,7 @@ import {
   clamp,
   createGraphViewport,
   createMelodyGraphLayout,
+  createMelodyKeyboardLayout,
   getVisibleSamples,
   midiToY,
   resolveCanvasBackingSize,
@@ -12,6 +13,37 @@ import { midiToFrequency } from "./pitchMath";
 import { createPitchSample } from "./session";
 
 describe("graph model", () => {
+  test("lays out piano white keys equally with the correct black-key gaps", () => {
+    const layout = createMelodyKeyboardLayout([60, 72].map(midiToFrequency));
+    expect(layout.whiteCount).toBe(8);
+    expect(layout.keys.map((key) => key.midi)).toEqual(
+      Array.from({ length: 13 }, (_, i) => 60 + i),
+    );
+    expect(
+      layout.keys.filter((key) => key.black).map((key) => key.midi),
+    ).toEqual([61, 63, 66, 68, 70]);
+    const cSharp = layout.keys[1];
+    expect(cSharp.left + cSharp.width / 2).toBeCloseTo(100 / 8);
+    const last = layout.keys[layout.keys.length - 1];
+    expect(last.left + last.width).toBeCloseTo(100);
+  });
+
+  test("keeps black-key endpoints inside the piano and gives repeated notes octave context", () => {
+    const layout = createMelodyKeyboardLayout([61, 73].map(midiToFrequency));
+    expect(layout.keys[0].midi).toBe(60);
+    expect(layout.keys.at(-1)?.midi).toBe(74);
+    for (const key of layout.keys) {
+      expect(key.left).toBeGreaterThanOrEqual(0);
+      expect(key.left + key.width).toBeLessThanOrEqual(100);
+    }
+    expect(
+      createMelodyKeyboardLayout([65, 65].map(midiToFrequency)).keys,
+    ).toHaveLength(13);
+    expect(createMelodyKeyboardLayout([]).keys).toHaveLength(0);
+    expect(
+      createMelodyKeyboardLayout([71, 83].map(midiToFrequency)).whiteCount,
+    ).toBe(8);
+  });
   test("keeps the full melody range and maps each note to its fixed timeline segment", () => {
     const frequencies = [
       261.625565, 293.664768, 329.627557, 349.228231, 391.995436, 440,

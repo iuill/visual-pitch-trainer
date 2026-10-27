@@ -156,9 +156,10 @@ export function formatPitchMovement(
         ? "全音"
         : distance === 12
           ? "1オクターブ"
-          : `鍵盤${distance}個分`;
+          : `半音${distance}個分`;
   if (compact) {
     return amount;
   }
-  return `${amount}${direction}`;
+  const detail = distance === 2 ? "（半音2個分）" : "";
+  return `${amount}${direction}${detail}`;
 }

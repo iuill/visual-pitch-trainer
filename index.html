@@ -265,6 +265,7 @@
             声の軌跡はまだ記録されていません。
           </p>
           <div id="melodyGraphView" hidden>
+            <div class="melody-graph-stage">
             <div id="melodyCountdown" class="melody-countdown" hidden>
               <span>発声開始まで</span><strong id="melodyCountdownNumber">3</strong>
               <span id="melodyCountdownSteps" aria-hidden="true">【3】 → 2 → 1</span>
@@ -280,6 +281,16 @@
             <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: This scroll region needs keyboard access to offscreen notes. -->
             <section id="melodyGraphScroll" class="melody-graph-scroll" tabindex="0" aria-label="メロディ全体のグラフ。左右にスクロールできます。">
               <canvas id="melodyCanvas" width="640" height="300" aria-label="メロディのお手本と声の軌跡" aria-describedby="melodyGraphDescription graphDescription"></canvas>
+            </section>
+            </div>
+            <section id="melodyKeyboard" class="melody-keyboard" aria-labelledby="melodyKeyboardTitle">
+              <div class="melody-keyboard-heading">
+                <h3 id="melodyKeyboardTitle">鍵盤で見る</h3>
+                <p><span class="melody-key-current-label">● いま</span><span class="melody-key-next-label">◆ つぎ</span></p>
+              </div>
+              <p class="melody-keyboard-status"></p>
+              <div class="melody-keyboard-keys" aria-hidden="true"></div>
+              <p class="graph-hint">お手本の位置です。左が低い音、右が高い音。黒鍵も含め、隣の鍵盤への移動が半音です。</p>
             </section>
             <p id="melodyGraphDescription" class="graph-hint">緑のお手本は最後まで残ります。発声した声は青い線で重なります。</p>
           </div>
