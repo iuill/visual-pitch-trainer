@@ -62,6 +62,8 @@ bun run build
 
 2026-10-19 の更新では TypeScript 7、Vite 8.3、Biome 2.5、ONNX Runtime Web 1.30、Mediabunny 1.61 に更新した。`protobufjs` は古い固定 override を削除し、ONNX Runtime の互換範囲内の 7.6.6 に更新した。Biome 設定は `preset` に移行し、新しいアクセシビリティ検査に合わせ、名前付き操作群を `fieldset`、補足表示のフォーカス要素を `button` にした。fieldset の既定スタイルは CSS でリセットする。
 
+2026-10-27 は、依存監査で検出された [GHSA-587h-7wmj-h5pm](https://github.com/advisories/GHSA-587h-7wmj-h5pm) に対応して Vite を8.3.2から8.3.3へ更新した。修正版の公開日は2026-10-06で、14日以上の経過を確認した。推移依存の解決結果は変更せず、監査の基準は維持する。
+
 ## Pages の手動公開
 
 専用の `.github/workflows/deploy-pages.yml`（`Deploy Pages`）を `main` で手動実行する。監査・lint・テスト・型検査、モデル取得、ビルド後に公開する。他ブランチはスキップする。既存 CI の push 時自動公開と手動検証は維持する。実行番号は workflow ごとに採番されるため、表示バージョンの重複・前後はコミットハッシュで区別する。
