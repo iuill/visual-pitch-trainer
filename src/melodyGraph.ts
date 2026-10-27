@@ -125,7 +125,12 @@ export function drawMelodyGraph(
       const badgeWidth = context.measureText(label).width + 40;
       const badgeX = x + (width - badgeWidth) / 2;
       const distance = Math.abs(layout.midis[index] - layout.midis[index - 1]);
-      const detail = distance > 2 && distance !== 12 ? `${distance}半音` : null;
+      const detail =
+        distance === 0
+          ? null
+          : layout.midis[index] > layout.midis[index - 1]
+            ? "上げる"
+            : "下げる";
       const badgeHeight = detail ? 38 : 30;
       const badgeY = Math.max(5, y - badgeHeight - 14);
       context.fillStyle = upcoming ? "#f7d774" : "#edf3f5";

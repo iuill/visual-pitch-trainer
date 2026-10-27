@@ -2453,7 +2453,7 @@ function renderMelodyPreview() {
       samples: [],
     };
     elements.melodyGraphDescription.textContent =
-      "横軸は音の順番、縦軸は声の高さです。お手本と声は終了後も残ります。長いメロディは左右にスクロールできます。範囲外の声は上下端に表示します。";
+      "横軸は音の順番、縦軸は声の高さです。鍵盤の移動数は黒鍵も含めて数えます。隣の鍵盤への移動が半音、2つ先が全音、12こ先の同じ音名が1オクターブです。お手本と声は終了後も残ります。長いメロディは左右にスクロールできます。範囲外の声は上下端に表示します。";
     elements.melodyNotes.replaceChildren(
       ...notes.map((note, index) => {
         const item = document.createElement("li");
