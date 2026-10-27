@@ -1657,6 +1657,7 @@ body[data-practice-view="melody"] .control-panel {
   position: relative;
 }
 .melody-keyboard {
+  position: relative;
   margin-top: 6px;
   padding: 6px;
   border: 1px solid #b5c7ce;
@@ -1703,7 +1704,7 @@ body[data-practice-view="melody"] .control-panel {
 .melody-piano-key.is-current {
   background: #b5ece6;
   color: #12353e;
-  box-shadow: inset 0 0 0 3px #187e80;
+  box-shadow: inset 0 -2px 0 #3bcbbb;
 }
 .melody-piano-key.is-next {
   background: #fff9e7;
@@ -1718,7 +1719,87 @@ body[data-practice-view="melody"] .control-panel {
 }
 .melody-piano-key.is-current.is-next {
   background: linear-gradient(135deg, #b5ece6 50%, #fff9e7 50%);
-  box-shadow: inset 0 0 0 3px #187e80;
+  box-shadow: inset 0 -2px 0 #3bcbbb;
+}
+.melody-keyboard-effects {
+  position: absolute;
+  z-index: 3;
+  top: -6px;
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.melody-keyboard-effects::before,
+.melody-keyboard-effects::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--key-x) - 26px);
+  width: 52px;
+  height: 3px;
+  border-radius: 50%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #7dece5,
+    #ffffff,
+    #7dece5,
+    transparent
+  );
+  box-shadow: 0 0 8px 2px #43d2ce70;
+  animation: melody-key-breathe 1.4s ease-in-out infinite;
+}
+.melody-keyboard-effects::before {
+  top: calc(var(--key-top) - 3px);
+}
+.melody-keyboard-effects::after {
+  top: calc(var(--key-bottom) + 1px);
+}
+.melody-key-spark {
+  position: absolute;
+  top: calc(var(--key-top) - 2px);
+  left: var(--key-x);
+  width: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: #f0fffe;
+  box-shadow: 0 0 5px 1px #2dc8c3;
+  opacity: 0;
+  animation: melody-key-spark 720ms ease-out both;
+}
+.melody-key-spark:nth-child(odd) {
+  width: 8px;
+  height: 1px;
+}
+.melody-key-spark.is-lower {
+  top: calc(var(--key-bottom) + 1px);
+}
+@keyframes melody-key-spark {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .melody-keyboard-effects {
+    opacity: 0;
+  }
+  .melody-keyboard-effects::before,
+  .melody-keyboard-effects::after,
+  .melody-key-spark {
+    animation: none;
+  }
+}
+.melody-keyboard-effects[hidden] {
+  display: none;
 }
 .melody-piano-key.is-current::after {
   content: "";

@@ -8,6 +8,47 @@ import {
 
 const keyboards = new WeakSet<HTMLElement>();
 
+function positionKeyboardEffects(root: HTMLElement) {
+  const effects = root.querySelector<HTMLElement>(".melody-keyboard-effects");
+  const scroll = root.querySelector<HTMLElement>(".melody-keyboard-scroll");
+  const key = root.querySelector<HTMLElement>(".melody-piano-key.is-current");
+  if (!effects || !scroll || !key) return;
+  const view = scroll.getBoundingClientRect();
+  const target = key.getBoundingClientRect();
+  effects.hidden =
+    !view.width || target.right <= view.left || target.left >= view.right;
+  if (effects.hidden) return;
+  const bounds = effects.getBoundingClientRect();
+  const keyboard = scroll
+    .querySelector(".melody-keyboard-keys")
+    ?.getBoundingClientRect();
+  effects.style.height = `${view.bottom - bounds.top}px`;
+  effects.style.setProperty(
+    "--key-x",
+    `${target.left + target.width / 2 - bounds.left}px`,
+  );
+  effects.style.setProperty("--key-top", `${target.top - bounds.top}px`);
+  effects.style.setProperty(
+    "--key-bottom",
+    `${(keyboard?.bottom ?? target.bottom) - bounds.top}px`,
+  );
+}
+
+function playKeyboardSparks(root: HTMLElement) {
+  const effects = root.querySelector<HTMLElement>(".melody-keyboard-effects");
+  if (!effects) return;
+  effects.replaceChildren(
+    ...Array.from({ length: 6 }, (_, i) => {
+      const spark = document.createElement("span");
+      spark.className = `melody-key-spark${i >= 4 ? " is-lower" : ""}`;
+      spark.style.setProperty("--dx", `${(i % 2 ? -1 : 1) * (14 + i * 7)}px`);
+      spark.style.setProperty("--dy", `${i >= 4 ? 3 : -3 - (i % 3) * 3}px`);
+      spark.style.animationDelay = `${i * 40}ms`;
+      return spark;
+    }),
+  );
+}
+
 export function followMelodyKeyboard(root: HTMLElement) {
   const scroll = root.querySelector<HTMLElement>(".melody-keyboard-scroll");
   if (!scroll?.clientWidth) return;
@@ -26,6 +67,7 @@ export function followMelodyKeyboard(root: HTMLElement) {
   ) {
     scroll.scrollLeft = Math.max(0, (left + right - scroll.clientWidth) / 2);
   }
+  positionKeyboardEffects(root);
 }
 
 /** Only the reference targets drive these markers; this is not detected voice. */
@@ -61,6 +103,11 @@ export function renderMelodyKeyboard(
       }),
     );
     keyboards.add(root);
+    root
+      .querySelector(".melody-keyboard-scroll")
+      ?.addEventListener("scroll", () => positionKeyboardEffects(root), {
+        passive: true,
+      });
   }
   const next = notes[index + 1];
   const currentMidi = Math.round(hzToMidi(current.frequency));
@@ -72,4 +119,5 @@ export function renderMelodyKeyboard(
   }
   status.textContent = `いま：${current.solfege} (${current.name}) ／ ${next ? `つぎ：${next.solfege} (${next.name})` : "つぎ：なし（最後の音）"}`;
   followMelodyKeyboard(root);
+  playKeyboardSparks(root);
 }
