@@ -4,6 +4,7 @@ import {
   clamp,
   createGraphViewport,
   createMelodyGraphLayout,
+  createPianoKeyboardLayout,
   getVisibleSamples,
   midiToY,
   resolveCanvasBackingSize,
@@ -12,6 +13,39 @@ import { midiToFrequency } from "./pitchMath";
 import { createPitchSample } from "./session";
 
 describe("graph model", () => {
+  test("lays out all 88 piano keys from A0 to C8 with 52 white and 36 black keys", () => {
+    const layout = createPianoKeyboardLayout();
+    expect(layout.whiteCount).toBe(52);
+    expect(layout.keys).toHaveLength(88);
+    expect(layout.keys[0]).toMatchObject({ midi: 21, black: false, left: 0 });
+    expect(layout.keys.at(-1)).toMatchObject({ midi: 108, black: false });
+    expect(layout.keys.filter((key) => key.black)).toHaveLength(36);
+    const last = layout.keys[layout.keys.length - 1];
+    expect(last.left + last.width).toBeCloseTo(100);
+    for (const key of layout.keys) {
+      expect(key.left).toBeGreaterThanOrEqual(0);
+      expect(key.left + key.width).toBeLessThanOrEqual(100);
+    }
+  });
+
+  test("places piano black keys between white neighbors without adding keys at E–F or B–C", () => {
+    const layout = createPianoKeyboardLayout();
+    const c = layout.keys[60 - 21];
+    const cSharp = layout.keys[61 - 21];
+    expect(cSharp.black).toBe(true);
+    expect(cSharp.left + cSharp.width / 2).toBeCloseTo(c.left + c.width);
+    expect(
+      layout.keys
+        .filter((key) => key.midi >= 60 && key.midi <= 72 && key.black)
+        .map((key) => key.midi),
+    ).toEqual([61, 63, 66, 68, 70]);
+    expect(layout.keys[65 - 21].left - layout.keys[64 - 21].left).toBeCloseTo(
+      100 / 52,
+    );
+    expect(layout.keys[72 - 21].left - layout.keys[71 - 21].left).toBeCloseTo(
+      100 / 52,
+    );
+  });
   test("keeps the full melody range and maps each note to its fixed timeline segment", () => {
     const frequencies = [
       261.625565, 293.664768, 329.627557, 349.228231, 391.995436, 440,
