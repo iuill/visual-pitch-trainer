@@ -4,7 +4,7 @@ import {
   clamp,
   createGraphViewport,
   createMelodyGraphLayout,
-  createMelodyKeyboardLayout,
+  createPianoKeyboardLayout,
   getVisibleSamples,
   midiToY,
   resolveCanvasBackingSize,
@@ -13,36 +13,38 @@ import { midiToFrequency } from "./pitchMath";
 import { createPitchSample } from "./session";
 
 describe("graph model", () => {
-  test("lays out piano white keys equally with the correct black-key gaps", () => {
-    const layout = createMelodyKeyboardLayout([60, 72].map(midiToFrequency));
-    expect(layout.whiteCount).toBe(8);
-    expect(layout.keys.map((key) => key.midi)).toEqual(
-      Array.from({ length: 13 }, (_, i) => 60 + i),
-    );
-    expect(
-      layout.keys.filter((key) => key.black).map((key) => key.midi),
-    ).toEqual([61, 63, 66, 68, 70]);
-    const cSharp = layout.keys[1];
-    expect(cSharp.left + cSharp.width / 2).toBeCloseTo(100 / 8);
+  test("lays out all 88 piano keys from A0 to C8 with 52 white and 36 black keys", () => {
+    const layout = createPianoKeyboardLayout();
+    expect(layout.whiteCount).toBe(52);
+    expect(layout.keys).toHaveLength(88);
+    expect(layout.keys[0]).toMatchObject({ midi: 21, black: false, left: 0 });
+    expect(layout.keys.at(-1)).toMatchObject({ midi: 108, black: false });
+    expect(layout.keys.filter((key) => key.black)).toHaveLength(36);
     const last = layout.keys[layout.keys.length - 1];
     expect(last.left + last.width).toBeCloseTo(100);
-  });
-
-  test("keeps black-key endpoints inside the piano and gives repeated notes octave context", () => {
-    const layout = createMelodyKeyboardLayout([61, 73].map(midiToFrequency));
-    expect(layout.keys[0].midi).toBe(60);
-    expect(layout.keys.at(-1)?.midi).toBe(74);
     for (const key of layout.keys) {
       expect(key.left).toBeGreaterThanOrEqual(0);
       expect(key.left + key.width).toBeLessThanOrEqual(100);
     }
+  });
+
+  test("places piano black keys between white neighbors without adding keys at E–F or B–C", () => {
+    const layout = createPianoKeyboardLayout();
+    const c = layout.keys[60 - 21];
+    const cSharp = layout.keys[61 - 21];
+    expect(cSharp.black).toBe(true);
+    expect(cSharp.left + cSharp.width / 2).toBeCloseTo(c.left + c.width);
     expect(
-      createMelodyKeyboardLayout([65, 65].map(midiToFrequency)).keys,
-    ).toHaveLength(13);
-    expect(createMelodyKeyboardLayout([]).keys).toHaveLength(0);
-    expect(
-      createMelodyKeyboardLayout([71, 83].map(midiToFrequency)).whiteCount,
-    ).toBe(8);
+      layout.keys
+        .filter((key) => key.midi >= 60 && key.midi <= 72 && key.black)
+        .map((key) => key.midi),
+    ).toEqual([61, 63, 66, 68, 70]);
+    expect(layout.keys[65 - 21].left - layout.keys[64 - 21].left).toBeCloseTo(
+      100 / 52,
+    );
+    expect(layout.keys[72 - 21].left - layout.keys[71 - 21].left).toBeCloseTo(
+      100 / 52,
+    );
   });
   test("keeps the full melody range and maps each note to its fixed timeline segment", () => {
     const frequencies = [

@@ -1,4 +1,4 @@
-import { createMelodyKeyboardLayout } from "./graphModel";
+import { createPianoKeyboardLayout } from "./graphModel";
 import {
   hzToMidi,
   midiToNoteName,
@@ -6,7 +6,27 @@ import {
   type Note,
 } from "./pitchMath";
 
-const layouts = new WeakMap<HTMLElement, string>();
+const keyboards = new WeakSet<HTMLElement>();
+
+export function followMelodyKeyboard(root: HTMLElement) {
+  const scroll = root.querySelector<HTMLElement>(".melody-keyboard-scroll");
+  if (!scroll?.clientWidth) return;
+  const targets = [
+    ...root.querySelectorAll<HTMLElement>(
+      ".melody-piano-key.is-current, .melody-piano-key.is-next",
+    ),
+  ];
+  if (!targets.length) return;
+  const left = Math.min(...targets.map((key) => key.offsetLeft)) - 12;
+  const right =
+    Math.max(...targets.map((key) => key.offsetLeft + key.offsetWidth)) + 12;
+  if (
+    left < scroll.scrollLeft ||
+    right > scroll.scrollLeft + scroll.clientWidth
+  ) {
+    scroll.scrollLeft = Math.max(0, (left + right - scroll.clientWidth) / 2);
+  }
+}
 
 /** Only the reference targets drive these markers; this is not detected voice. */
 export function renderMelodyKeyboard(
@@ -20,11 +40,8 @@ export function renderMelodyKeyboard(
   const keys = root.querySelector<HTMLElement>(".melody-keyboard-keys");
   const status = root.querySelector<HTMLElement>(".melody-keyboard-status");
   if (!keys || !status) return;
-  const signature = notes.map((note) => note.frequency).join(",");
-  if (layouts.get(root) !== signature) {
-    const layout = createMelodyKeyboardLayout(
-      notes.map((note) => note.frequency),
-    );
+  if (!keyboards.has(root)) {
+    const layout = createPianoKeyboardLayout();
     keys.replaceChildren(
       ...layout.keys.map((key) => {
         const element = document.createElement("div");
@@ -56,7 +73,7 @@ export function renderMelodyKeyboard(
         return element;
       }),
     );
-    layouts.set(root, signature);
+    keyboards.add(root);
   }
   const next = notes[index + 1];
   const currentMidi = Math.round(hzToMidi(current.frequency));
@@ -73,4 +90,5 @@ export function renderMelodyKeyboard(
       ?.toggleAttribute("hidden", midi !== nextMidi);
   }
   status.textContent = `いま：${current.solfege} (${current.name}) ／ ${next ? `つぎ：${next.solfege} (${next.name})` : "つぎ：なし（最後の音）"}`;
+  followMelodyKeyboard(root);
 }

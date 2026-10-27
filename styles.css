@@ -1657,45 +1657,27 @@ body[data-practice-view="melody"] .control-panel {
   position: relative;
 }
 .melody-keyboard {
-  margin-top: 12px;
-  padding: 12px;
+  margin-top: 6px;
+  padding: 6px;
   border: 1px solid #b5c7ce;
   border-radius: 12px;
   background: #edf3f5;
 }
-.melody-keyboard-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-}
-.melody-keyboard-heading h3,
-.melody-keyboard-heading p {
-  margin: 0;
-  font-size: 0.95rem;
-}
-.melody-keyboard-heading p {
-  display: flex;
-  gap: 12px;
-  font-weight: 800;
-}
-.melody-key-current-label {
-  color: #0d5861;
-}
-.melody-key-next-label {
-  color: #795106;
-}
 .melody-keyboard-status {
-  margin: 8px 0;
-  font-size: 0.85rem;
+  margin: 0 0 4px;
+  font-size: 0.8rem;
   overflow-wrap: anywhere;
+}
+.melody-keyboard-scroll {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  overscroll-behavior-x: contain;
 }
 .melody-keyboard-keys {
   position: relative;
-  height: 142px;
-  max-width: 720px;
-  margin: 0 auto;
+  height: 90px;
+  min-width: 1040px;
   border-radius: 5px;
   box-shadow: 0 3px 0 #bac7ce;
 }
@@ -1724,70 +1706,92 @@ body[data-practice-view="melody"] .control-panel {
   box-shadow: inset 0 0 0 3px #187e80;
 }
 .melody-piano-key.is-next {
-  background: #fff0b4;
+  background: #fff9e7;
   color: #3d310c;
-  box-shadow: inset 0 0 0 3px #a57517;
+  box-shadow: inset 0 0 0 2px #d1bc86;
+}
+.melody-piano-key.is-black.is-next {
+  background: linear-gradient(#5e5746, #343128);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 2px #b49e68;
 }
 .melody-piano-key.is-current.is-next {
-  background: linear-gradient(135deg, #b5ece6 50%, #fff0b4 50%);
+  background: linear-gradient(135deg, #b5ece6 50%, #fff9e7 50%);
   box-shadow: inset 0 0 0 3px #187e80;
+}
+.melody-piano-key.is-current::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #187e80;
+  pointer-events: none;
+  animation: melody-key-breathe 2.8s ease-in-out infinite;
+}
+@keyframes melody-key-breathe {
+  0%,
+  100% {
+    opacity: 0.02;
+  }
+  50% {
+    opacity: 0.22;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .melody-piano-key.is-current::after {
+    animation: none;
+    opacity: 0.08;
+  }
 }
 .melody-key-name {
   position: absolute;
   right: 0;
-  bottom: 5px;
+  bottom: 3px;
   left: 0;
   text-align: center;
-  font-size: 11px;
+  z-index: 1;
+  font-size: 9px;
   font-weight: 700;
   line-height: 1.25;
+  white-space: nowrap;
 }
 .melody-key-octave {
   display: block;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 400;
 }
 .is-black .melody-key-name {
-  font-size: 8px;
-  white-space: nowrap;
-}
-.is-black .melody-key-octave {
   display: none;
 }
 .melody-key-marker {
   position: absolute;
   left: 50%;
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   place-items: center;
-  font-size: 12px;
+  z-index: 1;
+  font-size: 10px;
   font-weight: 900;
   line-height: 1;
 }
 .melody-key-marker.is-current {
-  top: 45px;
+  top: 6px;
   transform: translateX(-50%);
   border-radius: 50%;
   background: #0d5861;
   color: #ffffff;
 }
 .melody-key-marker.is-next {
-  top: 75px;
+  top: 30px;
   transform: translateX(-50%) rotate(45deg);
-  border: 1px solid #795106;
+  border: 1px solid #bca56e;
   border-radius: 4px;
-  background: #f7d774;
+  background: #f9eab7;
   color: #30250e;
 }
 .melody-key-marker.is-next span {
   transform: rotate(-45deg);
-}
-.is-black .melody-key-marker.is-current {
-  top: 7px;
-}
-.is-black .melody-key-marker.is-next {
-  top: 37px;
 }
 .melody-key-marker[hidden],
 .melody-keyboard[hidden] {

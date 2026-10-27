@@ -191,22 +191,12 @@ export function createMelodyGraphLayout(
 }
 
 /** Piano geometry in white-key units, with black keys between their neighbors. */
-export function createMelodyKeyboardLayout(frequencies: readonly number[]) {
-  if (!frequencies.length) return { keys: [], whiteCount: 0 };
-  const midis = frequencies.map((frequency) => Math.round(hzToMidi(frequency)));
+export function createPianoKeyboardLayout() {
   const isBlack = (midi: number) =>
     [1, 3, 6, 8, 10].includes(((midi % 12) + 12) % 12);
-  let first = Math.min(...midis);
-  let last = Math.max(...midis);
-  if (last - first < 12) {
-    first = Math.floor(first / 12) * 12;
-    last = Math.max(first + 12, last);
-  }
-  if (isBlack(first)) first--;
-  if (isBlack(last)) last++;
   const keys = [];
   let whiteCount = 0;
-  for (let midi = first; midi <= last; midi++) {
+  for (let midi = 21; midi <= 108; midi++) {
     const black = isBlack(midi);
     keys.push({
       midi,

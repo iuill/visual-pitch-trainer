@@ -283,14 +283,12 @@
               <canvas id="melodyCanvas" width="640" height="300" aria-label="メロディのお手本と声の軌跡" aria-describedby="melodyGraphDescription graphDescription"></canvas>
             </section>
             </div>
-            <section id="melodyKeyboard" class="melody-keyboard" aria-labelledby="melodyKeyboardTitle">
-              <div class="melody-keyboard-heading">
-                <h3 id="melodyKeyboardTitle">鍵盤で見る</h3>
-                <p><span class="melody-key-current-label">● いま</span><span class="melody-key-next-label">◆ つぎ</span></p>
-              </div>
+            <section id="melodyKeyboard" class="melody-keyboard" aria-label="お手本のいまとつぎの鍵盤位置">
               <p class="melody-keyboard-status"></p>
-              <div class="melody-keyboard-keys" aria-hidden="true"></div>
-              <p class="graph-hint">お手本の位置です。左が低い音、右が高い音。黒鍵も含め、隣の鍵盤への移動が半音です。</p>
+              <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard access is needed to inspect the full piano range. -->
+              <section class="melody-keyboard-scroll" tabindex="0" aria-label="88鍵の鍵盤。左右にスクロールできます。">
+                <div class="melody-keyboard-keys" aria-hidden="true"></div>
+              </section>
             </section>
             <p id="melodyGraphDescription" class="graph-hint">緑のお手本は最後まで残ります。発声した声は青い線で重なります。</p>
           </div>

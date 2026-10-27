@@ -41,7 +41,7 @@ import {
   mixChannelsToMono,
 } from "./mediaAudioExtraction";
 import { drawMelodyGraph, type MelodyGraphData } from "./melodyGraph";
-import { renderMelodyKeyboard } from "./melodyKeyboard";
+import { followMelodyKeyboard, renderMelodyKeyboard } from "./melodyKeyboard";
 import {
   buildMelody,
   getMelodyPosition,
@@ -554,6 +554,7 @@ function applyPracticeView() {
           : "お手本を確認してから、一緒に発声して判定します。";
   requestAnimationFrame(() => {
     drawGraph();
+    if (melody) followMelodyKeyboard(elements.melodyKeyboard);
     if (audio) drawAudioRangeGraph();
   });
 }
@@ -3487,6 +3488,8 @@ function setupPitchCanvas() {
     const observer = new ResizeObserverClass(() => {
       syncPitchCanvasSize();
       drawGraph();
+      if (practiceView === "melody")
+        followMelodyKeyboard(elements.melodyKeyboard);
     });
     observer.observe(elements.pitchCanvas);
     observer.observe(elements.melodyGraphScroll);
@@ -3497,6 +3500,8 @@ function setupPitchCanvas() {
   state.pitchCanvasResizeHandler = () => {
     syncPitchCanvasSize();
     drawGraph();
+    if (practiceView === "melody")
+      followMelodyKeyboard(elements.melodyKeyboard);
   };
   window.addEventListener("resize", state.pitchCanvasResizeHandler);
 }
