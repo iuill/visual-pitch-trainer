@@ -2,7 +2,8 @@ import {
   createMelodyGraphLayout,
   resolveCanvasBackingSize,
 } from "./graphModel";
-import { midiToNoteName, type Note } from "./pitchMath";
+import { formatPitchMovement, midiToNoteName, type Note } from "./pitchMath";
+import { getPitchMovementIcon } from "./pitchMovementVisual";
 
 export type MelodyTraceSample = { time: number; midi: number | null };
 export type MelodyGraphData = {
@@ -26,7 +27,7 @@ export function drawMelodyGraph(
   const layout = createMelodyGraphLayout(
     data.notes.map((note) => note.frequency),
     data.seconds,
-    scroll.clientWidth,
+    Math.max(scroll.clientWidth, data.notes.length * 112 + 70),
     300,
   );
   const backing = resolveCanvasBackingSize(
@@ -43,6 +44,12 @@ export function drawMelodyGraph(
   context.fillStyle = "#fbfcfc";
   context.fillRect(0, 0, layout.width, layout.height);
   context.font = "12px system-ui, sans-serif";
+  const playing = data.phase === "listen" || data.phase === "sing";
+  const currentIndex = Math.min(
+    data.notes.length - 1,
+    Math.floor(data.cursor / data.seconds),
+  );
+  const nextIndex = data.phase === "finished" ? -1 : currentIndex + 1;
   for (let midi = layout.minMidi; midi <= layout.maxMidi; midi++) {
     const y = layout.y(midi);
     context.strokeStyle = "#e1e8eb";
@@ -56,6 +63,21 @@ export function drawMelodyGraph(
       context.fillText(midiToNoteName(midi), 5, y + 4);
     }
   }
+  // Keep the route behind the bars and the voice trace.
+  for (let index = 1; index < data.notes.length; index++) {
+    const boundary = layout.x(index * data.seconds);
+    const fromY = layout.y(layout.midis[index - 1]);
+    const toY = layout.y(layout.midis[index]);
+    const upcoming = index === nextIndex;
+    context.strokeStyle = upcoming ? "#b5790b" : "#9aafb7";
+    context.lineWidth = upcoming ? 2.5 : 1.5;
+    context.setLineDash([4, 4]);
+    context.beginPath();
+    context.moveTo(boundary - 18, fromY);
+    context.lineTo(boundary + 18, toY);
+    context.stroke();
+    context.setLineDash([]);
+  }
   data.notes.forEach((note, index) => {
     const start = index * data.seconds;
     const x = layout.x(start) + 2;
@@ -63,19 +85,25 @@ export function drawMelodyGraph(
     const midi = layout.midis[index];
     const y = layout.y(midi);
     const visited = data.cursor >= (index + 1) * data.seconds;
-    const active =
-      data.phase !== "ready" &&
-      data.phase !== "countdown" &&
-      data.cursor >= start &&
-      data.cursor < start + data.seconds;
+    const active = playing && index === currentIndex;
     const top = layout.y(midi + data.tolerance / 100);
     const bottom = layout.y(midi - data.tolerance / 100);
     context.fillStyle = visited
       ? "rgba(20,108,117,0.15)"
       : "rgba(20,108,117,0.07)";
     context.fillRect(x, top, width, Math.max(4, bottom - top));
+    if (active) {
+      context.fillStyle = "rgba(20,108,117,0.15)";
+      context.fillRect(x, top - 5, width, Math.max(14, bottom - top + 10));
+      context.fillStyle = "#35c2b3";
+      const progress = Math.max(
+        0,
+        Math.min(1, (data.cursor - start) / data.seconds),
+      );
+      context.fillRect(x, bottom + 5, width * progress, 3);
+    }
     context.strokeStyle = active ? "#0d4f56" : "#4a858a";
-    context.lineWidth = active ? 4 : 2;
+    context.lineWidth = active ? 5 : 2;
     context.beginPath();
     context.moveTo(x, y);
     context.lineTo(x + width, y);
@@ -85,7 +113,60 @@ export function drawMelodyGraph(
     context.font = active
       ? "700 12px system-ui, sans-serif"
       : "12px system-ui, sans-serif";
-    context.fillText(note.solfege, x + width / 2, y - 12);
+    context.fillText(note.solfege, x + width / 2, y + 23);
+    if (index > 0) {
+      const upcoming = index === nextIndex;
+      const label = formatPitchMovement(
+        data.notes[index - 1].frequency,
+        note.frequency,
+        true,
+      );
+      context.font = `${upcoming ? "800" : "600"} 13px system-ui, sans-serif`;
+      const badgeWidth = context.measureText(label).width + 40;
+      const badgeX = x + (width - badgeWidth) / 2;
+      const distance = Math.abs(layout.midis[index] - layout.midis[index - 1]);
+      const detail =
+        distance === 0
+          ? null
+          : layout.midis[index] > layout.midis[index - 1]
+            ? "上げる"
+            : "下げる";
+      const badgeHeight = detail ? 38 : 30;
+      const badgeY = Math.max(5, y - badgeHeight - 14);
+      context.fillStyle = upcoming ? "#f7d774" : "#edf3f5";
+      context.strokeStyle = upcoming ? "#b5790b" : "#b5c7ce";
+      context.lineWidth = upcoming ? 2 : 1;
+      context.beginPath();
+      context.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 9);
+      context.fill();
+      context.stroke();
+      const icon = getPitchMovementIcon(
+        data.notes[index - 1].frequency,
+        note.frequency,
+      );
+      context.save();
+      context.translate(badgeX + 5, badgeY + (badgeHeight - 21) / 2);
+      context.scale(0.75, 0.75);
+      if (icon.descending) {
+        context.translate(0, 28);
+        context.scale(1, -1);
+      }
+      context.strokeStyle = upcoming ? "#61420d" : "#315e6b";
+      context.lineWidth = 2.4;
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      context.stroke(new Path2D(icon.path));
+      context.restore();
+      context.fillStyle = "#26313c";
+      context.textAlign = "left";
+      context.fillText(label, badgeX + 30, badgeY + (detail ? 15 : 20));
+      if (detail) {
+        context.font = "11px system-ui, sans-serif";
+        context.fillStyle = "#53616b";
+        context.fillText(detail, badgeX + 30, badgeY + 30);
+      }
+      context.textAlign = "center";
+    }
     context.fillStyle = "#5c6870";
     context.fillText(String(index + 1), x + width / 2, layout.height - 12);
   });
@@ -126,12 +207,18 @@ export function drawMelodyGraph(
     context.lineTo(x, layout.height - layout.padding.bottom);
     context.stroke();
     context.setLineDash([]);
+    const guideRight =
+      layout.x(Math.min(data.notes.length, currentIndex + 1.5) * data.seconds) +
+      56;
     if (
       follow &&
-      (x - scroll.scrollLeft > scroll.clientWidth - 60 ||
+      (guideRight > scroll.scrollLeft + scroll.clientWidth ||
         x < scroll.scrollLeft + 55)
     ) {
-      scroll.scrollLeft = Math.max(0, x - scroll.clientWidth / 2);
+      scroll.scrollLeft = Math.max(
+        0,
+        layout.x(currentIndex * data.seconds) - 60,
+      );
     }
   }
 }

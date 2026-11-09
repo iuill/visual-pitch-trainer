@@ -143,22 +143,40 @@ export class ReferencePlayer {
     frequencies: readonly number[],
     options: {
       noteSeconds?: number;
+      practiceNoteSeconds?: number;
       startAt?: number;
       practiceAt?: number;
+      countdownSound?: boolean;
     } = {},
   ) {
     this.stopScale();
     const at = options.startAt ?? this.context.currentTime + 0.01;
     const seconds = options.noteSeconds ?? 0.5;
-    const starts =
-      options.practiceAt === undefined ? [at] : [at, options.practiceAt];
-    for (const start of starts)
+    const starts = [{ at, seconds }];
+    if (options.practiceAt !== undefined) {
+      starts.push({
+        at: options.practiceAt,
+        seconds: options.practiceNoteSeconds ?? seconds,
+      });
+      if (options.countdownSound) {
+        for (let remaining = 3; remaining >= 0; remaining--) {
+          this.createVoice(
+            "sine",
+            remaining === 0 ? 1046.5 : 784,
+            options.practiceAt - remaining,
+            0.12,
+            this.scaleVoices,
+          );
+        }
+      }
+    }
+    for (const { at: start, seconds: duration } of starts)
       frequencies.forEach((frequency, index) => {
         this.createVoice(
           instrument,
           frequency,
-          start + index * seconds,
-          seconds - 0.08,
+          start + index * duration,
+          duration - 0.08,
           this.scaleVoices,
         );
       });

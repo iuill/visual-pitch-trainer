@@ -320,4 +320,25 @@ describe("reference player", () => {
     expect(h.gains[0].disconnected).toBe(true);
     await expect(h.player.prepare("piano")).rejects.toThrow("closed");
   });
+  test("schedules independent listen/sing durations and cancellable countdown cues", () => {
+    const h = createHarness();
+    h.player.playScale("sine", [261.63, 293.66], {
+      startAt: 1,
+      noteSeconds: 2,
+      practiceAt: 8,
+      practiceNoteSeconds: 5,
+      countdownSound: true,
+    });
+    const notes = h.oscillators.filter((voice) => voice.frequency.value < 500);
+    const cues = h.oscillators.filter((voice) => voice.frequency.value > 500);
+    expect(notes.map((voice) => voice.startedAt)).toEqual([1, 3, 8, 13]);
+    expect(notes[0].stops[0]).toBeCloseTo(2.94);
+    expect(notes[2].stops[0]).toBeCloseTo(12.94);
+    expect(cues.map((voice) => voice.startedAt)).toEqual([5, 6, 7, 8]);
+    h.context.currentTime = 4.5;
+    h.player.stopScale();
+    expect(h.oscillators.every((voice) => voice.stops.at(-1) === 4.56)).toBe(
+      true,
+    );
+  });
 });

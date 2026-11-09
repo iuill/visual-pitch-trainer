@@ -3,6 +3,7 @@ import {
   buildNoteRange,
   chooseBestLibraryPitch,
   formatPitchGap,
+  formatPitchMovement,
   getRms,
   hzToCents,
   hzToMidi,
@@ -40,6 +41,37 @@ describe("pitch math", () => {
       Math.SQRT1_2,
       8,
     );
+  });
+
+  test("describes adjacent targets including repeated notes, semitones and octave changes", () => {
+    const describe = (from: number, to: number) =>
+      formatPitchMovement(midiToFrequency(from), midiToFrequency(to));
+    expect(describe(60, 60)).toBe("同じ高さ");
+    expect(describe(64, 65)).toBe("半音上げる");
+    expect(describe(60, 59)).toBe("半音下げる");
+    expect(describe(60, 62)).toBe("全音上げる（半音2個分）");
+    expect(describe(62, 60)).toBe("全音下げる（半音2個分）");
+    expect(describe(60, 64)).toBe("半音4個分上げる");
+    expect(describe(67, 60)).toBe("半音7個分下げる");
+    expect(describe(60, 72)).toBe("1オクターブ上げる");
+    expect(describe(72, 60)).toBe("1オクターブ下げる");
+    expect(describe(76, 77)).toBe(describe(64, 65));
+    expect(describe(60, 63)).toBe("半音3個分上げる");
+    expect(describe(62, 65)).toBe(describe(60, 63));
+    expect(describe(65, 62)).toBe("半音3個分下げる");
+    expect(describe(60, 76)).toBe("半音16個分上げる");
+    expect(
+      formatPitchMovement(midiToFrequency(60), midiToFrequency(61), true),
+    ).toBe("半音");
+    expect(
+      formatPitchMovement(midiToFrequency(62), midiToFrequency(60), true),
+    ).toBe("全音");
+    expect(
+      formatPitchMovement(midiToFrequency(60), midiToFrequency(72), true),
+    ).toBe("1オクターブ");
+    expect(
+      formatPitchMovement(midiToFrequency(60), midiToFrequency(60), true),
+    ).toBe("同じ高さ");
   });
 
   test("chooses the closest confident pitch inside the target range", () => {
