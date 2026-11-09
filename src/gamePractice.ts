@@ -124,7 +124,7 @@ export class GamePractice {
     this.el("gameVoiceStage").hidden = !voice;
     this.el("gameEarStage").hidden = voice;
     this.el("gameInstructions").textContent = voice
-      ? "目標がランダムに変わります。1秒以内に音を合わせ、その後は指定秒数ずっとキープ。お手本音は鳴らさず、画面を見て挑戦します。"
+      ? `目標がランダムに変わります。${APPROACH_MS / 1000}秒以内に音を合わせ、その後は指定秒数ずっとキープ。お手本音は鳴らさず、画面を見て挑戦します。`
       : "鳴った音を選択肢から当てます。最初は3半音間隔、上級は半音間隔。何度でも聴き直せます。マイクは使いません。";
     this.draw();
   }
@@ -205,6 +205,7 @@ export class GamePractice {
           ? this.selected("voiceGameHold")
           : this.selected("earGameDifficulty"),
         this.mode === "ear" ? this.settings.instrument : null,
+        ...(this.mode === "voice" ? [APPROACH_MS] : []),
       ])}`;
       try {
         const stored = Number(localStorage.getItem(this.bestKey));
@@ -331,7 +332,7 @@ export class GamePractice {
     this.el("gameCountdown").hidden = true;
     this.root.classList.remove("game-success");
     this.message(
-      `第${this.round}問：1秒以内に${this.target.solfege}へ合わせてください。`,
+      `第${this.round}問：${APPROACH_MS / 1000}秒以内に${this.target.solfege}へ合わせてください。`,
     );
     this.updateScore();
   }
@@ -470,7 +471,7 @@ export class GamePractice {
           const result = success
             ? "成功！ 指定時間キープできました。"
             : previous.phase === "approach"
-              ? "時間切れ。1秒以内に合わせられませんでした。"
+              ? `時間切れ。${APPROACH_MS / 1000}秒以内に合わせられませんでした。`
               : "キープが途切れました。";
           this.message(`${result} 次の目標を準備します。`);
           this.addHistory(

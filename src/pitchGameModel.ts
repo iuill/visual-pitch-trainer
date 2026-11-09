@@ -8,7 +8,7 @@ export type Challenge = {
   heldMs: number;
   lastAt: number | null;
 };
-export const APPROACH_MS = 1000;
+export const APPROACH_MS = 3000;
 export const CHALLENGE_MAX_GAP_MS = 250;
 
 export function createChallenge(
@@ -26,7 +26,7 @@ export function createChallenge(
   };
 }
 
-/** Reach within one second, then sustain continuously. Missing input never earns time. */
+/** Reach within the approach window, then sustain continuously. Missing input never earns time. */
 export function observeChallenge(
   state: Challenge,
   now: number,

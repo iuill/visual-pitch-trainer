@@ -32,14 +32,17 @@ describe("pitch games", () => {
     state = observeChallenge(state, 2900, 440, 25);
     expect(state.phase).toBe("success");
     expect(
-      observeChallenge(createChallenge(440, 0, 2000), 1001, 440, 25).phase,
+      observeChallenge(createChallenge(440, 0, 2000), 3001, 440, 25).phase,
     ).toBe("failure");
     expect(
-      observeChallenge(createChallenge(440, 0, 2000), 1000, 440, 25).phase,
+      observeChallenge(createChallenge(440, 0, 2000), 3000, 440, 25).phase,
     ).toBe("hold");
     expect(
-      observeChallenge(createChallenge(440, 0, 2000), 1001, null, 25).phase,
+      observeChallenge(createChallenge(440, 0, 2000), 3001, null, 25).phase,
     ).toBe("failure");
+    expect(
+      observeChallenge(createChallenge(440, 0, 2000), 2000, null, 25).phase,
+    ).toBe("approach");
   });
   test("rejects silence, octave errors, broken holds and long gaps", () => {
     const start = createChallenge(440, 0, 2000);
