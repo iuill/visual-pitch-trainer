@@ -92,7 +92,7 @@ Start the Vite development server with:
 bun run dev
 ```
 
-In the Dev Container, the Vite development server runs on port 5173 inside the container and is available from the host at `http://localhost:35173/`. The Vite dev server and `bun run preview` return Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy headers required by browser-based vocal extraction.
+In the Dev Container, the Vite development server runs on port 5173 inside the container and is available from the host at `http://localhost:35173/`. Docker binds the host port to `127.0.0.1`. The Vite dev server and `bun run preview` return Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy headers required by browser-based vocal extraction.
 
 Basic verification commands:
 

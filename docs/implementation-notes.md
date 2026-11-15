@@ -40,7 +40,7 @@ Dev Container では以下で起動できる。
 bun run dev
 ```
 
-このコマンドは Vite の開発サーバをコンテナ内の 5173 番で起動し、起動時に Dev Container のホスト側URLである `http://localhost:35173/` も表示する。
+このコマンドは Vite の開発サーバをコンテナ内の 5173 番で起動し、起動時に Dev Container のホスト側URLである `http://localhost:35173/` も表示する。Docker のポート公開は `127.0.0.1:35173:5173` とし、ホストへの公開先をループバックアドレスに限定する。
 Vite の dev server と preview server は、ボーカル抽出で使う SharedArrayBuffer を有効にするため、Cross-Origin-Opener-Policy と Cross-Origin-Embedder-Policy をレスポンスヘッダに付与する。
 
 Vite dev server では、巨大なモデルと BS-RoFormer 変換用の `.tmp/onnx-tools` Python venv を監視対象から外す。これらを監視すると、初回アクセス時に多数のファイルを走査して表示完了が遅くなる。
