@@ -10,7 +10,7 @@ export type MelodyGraphData = {
   notes: Note[];
   seconds: number;
   tolerance: number;
-  phase: "ready" | "listen" | "countdown" | "sing" | "finished" | "stopped";
+  phase: "ready" | "countdown" | "sing" | "stopped";
   cursor: number;
   samples: MelodyTraceSample[];
 };
@@ -44,12 +44,12 @@ export function drawMelodyGraph(
   context.fillStyle = "#fbfcfc";
   context.fillRect(0, 0, layout.width, layout.height);
   context.font = "12px system-ui, sans-serif";
-  const playing = data.phase === "listen" || data.phase === "sing";
+  const playing = data.phase === "sing";
   const currentIndex = Math.min(
     data.notes.length - 1,
     Math.floor(data.cursor / data.seconds),
   );
-  const nextIndex = data.phase === "finished" ? -1 : currentIndex + 1;
+  const nextIndex = data.phase === "stopped" ? -1 : currentIndex + 1;
   for (let midi = layout.minMidi; midi <= layout.maxMidi; midi++) {
     const y = layout.y(midi);
     context.strokeStyle = "#e1e8eb";
