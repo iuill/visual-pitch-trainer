@@ -2621,7 +2621,7 @@ function showMelodyResults(
   elapsed: number,
 ) {
   const heading = document.createElement("p");
-  heading.textContent = `練習全体の集計です。グラフは停止した周回の声です。判定幅は半音の${melodyGraphData?.tolerance ?? state.tolerance}%です。各周回の最初の${MELODY_GRACE_SECONDS}秒だけが発声開始の猶予です。途中の音の切り替わりには猶予を設けません。「合った割合」は停止までの判定対象時間に対する割合で、無音・検出不能も含みます。`;
+  heading.textContent = `練習全体の集計です。グラフは停止した周回の声です。判定幅は半音の${melodyGraphData?.tolerance ?? state.tolerance}%です。各周回の最初の${MELODY_GRACE_SECONDS}秒だけが周回開始の猶予です。途中の音の切り替わりには猶予を設けません。「合った割合」は停止までの判定対象時間に対する割合で、無音・検出不能も含みます。`;
   const table = document.createElement("table");
   const caption = table.createCaption();
   caption.textContent = "音ごとの判定（マイクに入った音の目安）";
@@ -3236,7 +3236,7 @@ function analyzeFrame(now: number) {
   updateReadouts(sample, now);
   if (isMelodyTransition)
     elements.analysisStatus.textContent =
-      "発声の準備中です（各周回の最初の0.4秒は判定しません）";
+      "周回開始の猶予中です（各周回の最初の0.4秒は判定しません）";
   drawGraph();
 
   state.animationId = requestAnimationFrame(analyzeFrame);

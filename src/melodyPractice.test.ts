@@ -134,7 +134,7 @@ describe("melody practice", () => {
     expect(results[1].inTuneMs).toBeCloseTo(200);
     expect(results[1].detectedMs).toBeCloseTo(200);
   });
-  test("excludes transition grace, silence, out-of-tune input, cross-note intervals and background gaps", () => {
+  test("excludes lap-start grace, silence, out-of-tune input, cross-note intervals and background gaps", () => {
     const results = [
       { detectedMs: 0, inTuneMs: 0 },
       { detectedMs: 0, inTuneMs: 0 },
