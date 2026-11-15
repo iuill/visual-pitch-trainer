@@ -7,9 +7,20 @@ export function setupPwa() {
   const button = document.querySelector<HTMLButtonElement>("#installApp");
   const status = document.querySelector<HTMLElement>("#pwaStatus");
   if (!button || !status) return;
+  const help = document.querySelector<HTMLElement>("#installAppHelp");
+  const standalone = window.matchMedia("(display-mode: standalone)");
+  const installed = () =>
+    standalone.matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  const updateInstallHelp = () => {
+    if (help) help.hidden = installed();
+  };
+  updateInstallHelp();
+  standalone.addEventListener("change", updateInstallHelp);
   let prompt: InstallPrompt | null = null;
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
+    if (installed()) return;
     prompt = event as InstallPrompt;
     button.hidden = false;
   });
@@ -28,6 +39,7 @@ export function setupPwa() {
   window.addEventListener("appinstalled", () => {
     button.hidden = true;
     prompt = null;
+    if (help) help.hidden = true;
   });
   if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
   void navigator.serviceWorker

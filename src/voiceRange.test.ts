@@ -4,9 +4,29 @@ import {
   midiToKaraokeName,
   midiToSolfegeWithOctave,
 } from "./pitchMath";
-import { createVoiceRange, observeVoiceRange } from "./voiceRange";
+import {
+  createVoiceRange,
+  observeVoiceRange,
+  removeVoiceRangeNote,
+} from "./voiceRange";
 
 describe("voice range", () => {
+  test("removing an erroneous extreme updates the range without losing other notes and allows a sustained retry", () => {
+    const state = createVoiceRange();
+    state.notes = [43, 55, 79];
+    state.candidate = 79;
+    state.heldMs = 1000;
+    state.previousAt = 0;
+    removeVoiceRangeNote(state, 79);
+    expect(state.notes).toEqual([43, 55]);
+    observeVoiceRange(state, midiToFrequency(79), 100);
+    expect(state.notes).toEqual([43, 55]);
+    for (let at = 200; at <= 700; at += 100)
+      observeVoiceRange(state, midiToFrequency(79), at);
+    expect(state.notes).toEqual([43, 55, 79]);
+    removeVoiceRangeNote(state, 43);
+    expect(state.notes).toEqual([55, 79]);
+  });
   test("maps solfege octaves and karaoke A boundaries without mixing scientific C boundaries", () => {
     for (const [midi, name] of [
       [24, "LowLowC"],

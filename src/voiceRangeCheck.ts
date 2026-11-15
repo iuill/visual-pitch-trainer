@@ -1,6 +1,9 @@
 import { PitchDetector } from "pitchy";
 import { VOICE_RANGE_GRAPH_MS, type VoiceRangeGraphSample } from "./graphModel";
-import { detectVoiceRangePitch } from "./pitchDetection";
+import {
+  detectVoiceRangePitch,
+  VOICE_RANGE_MIN_CLARITY,
+} from "./pitchDetection";
 import {
   hzToMidi,
   midiToKaraokeName,
@@ -11,6 +14,7 @@ import {
   createVoiceRange,
   observeVoiceRange,
   RANGE_HOLD_MS,
+  removeVoiceRangeNote,
 } from "./voiceRange";
 import {
   drawVoiceRangeGraph,
@@ -28,6 +32,8 @@ export class VoiceRangeCheck {
   private active = false;
   private samples: VoiceRangeGraphSample[] = [];
   private readonly root: HTMLElement;
+  private pendingMessage = "";
+  private pendingMessageAt = 0;
 
   constructor(
     private readonly settings: () => { deviceId: string; minRms: number },
@@ -36,6 +42,7 @@ export class VoiceRangeCheck {
     const root = document.querySelector<HTMLElement>("#voiceRangeView");
     if (!root) throw new Error("声域チェック画面がありません。");
     this.root = root;
+    this.el<HTMLProgressElement>("voiceRangeHold").max = RANGE_HOLD_MS;
     this.el<HTMLButtonElement>("voiceRangeStart").addEventListener(
       "click",
       () => void this.start(),
@@ -73,7 +80,14 @@ export class VoiceRangeCheck {
     return element;
   }
 
-  private message(text: string) {
+  private message(text: string, now?: number) {
+    if (now !== undefined) {
+      if (text !== this.pendingMessage) {
+        this.pendingMessage = text;
+        this.pendingMessageAt = now;
+      }
+      if (now - this.pendingMessageAt < 200) return;
+    } else this.pendingMessage = "";
     const element = this.el("voiceRangeStatus");
     if (element.textContent !== text) element.textContent = text;
   }
@@ -103,7 +117,7 @@ export class VoiceRangeCheck {
     const last = this.samples.at(-1);
     if (wasActive && last && last.midi !== null)
       this.samples.push({ timeMs: last.timeMs, midi: null });
-    this.drawGraph();
+    this.render();
     if (wasActive)
       this.message(
         this.range.notes.length
@@ -117,6 +131,7 @@ export class VoiceRangeCheck {
     this.beforeStart();
     const generation = this.generation;
     this.active = true;
+    this.render();
     this.el<HTMLButtonElement>("voiceRangeStart").disabled = true;
     this.el<HTMLButtonElement>("voiceRangeStop").disabled = false;
     this.message("マイクの利用を許可してください。");
@@ -154,7 +169,7 @@ export class VoiceRangeCheck {
       this.source.connect(analyser);
       const buffer = new Float32Array(analyser.fftSize);
       const detector = PitchDetector.forFloat32Array(buffer.length);
-      detector.clarityThreshold = 0.93;
+      detector.clarityThreshold = VOICE_RANGE_MIN_CLARITY;
       detector.minVolumeAbsolute = minRms;
       const detectors = {
         detector,
@@ -195,6 +210,7 @@ export class VoiceRangeCheck {
             : this.range.heldMs >= RANGE_HOLD_MS
               ? "この音を記録しました。無理のない範囲で低い音・高い音も試せます。"
               : "その高さを少し保ってください…",
+          now,
         );
         if (before !== this.range.notes.length) this.render();
         this.frame = requestAnimationFrame(tick);
@@ -228,8 +244,24 @@ export class VoiceRangeCheck {
     this.el("voiceRangeNotes").replaceChildren(
       ...this.range.notes.map((midi) => {
         const item = document.createElement("li");
-        item.className = "voice-range-recorded-note";
-        item.textContent = `${midiToSolfegeWithOctave(midi)} / ${midiToNoteName(midi)} / ${midiToKaraokeName(midi)}`;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "voice-range-recorded-note";
+        button.disabled = this.active;
+        const label = `${midiToSolfegeWithOctave(midi)} / ${midiToNoteName(midi)} / ${midiToKaraokeName(midi)}`;
+        button.textContent = `${label} ×`;
+        button.setAttribute("aria-label", `${label}を記録から削除`);
+        button.addEventListener("click", () => {
+          removeVoiceRangeNote(this.range, midi);
+          this.render();
+          this.message(`${label}の記録を削除しました。`);
+          (
+            this.root.querySelector<HTMLButtonElement>(
+              ".voice-range-recorded-note",
+            ) ?? this.el<HTMLButtonElement>("voiceRangeReset")
+          ).focus();
+        });
+        item.append(button);
         return item;
       }),
     );

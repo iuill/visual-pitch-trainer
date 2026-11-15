@@ -1,5 +1,6 @@
 import { hzToMidi } from "./pitchMath";
 
+// Provisional usability setting; not a validated physiological threshold.
 export const RANGE_HOLD_MS = 600;
 export type VoiceRange = {
   notes: number[];
@@ -10,6 +11,15 @@ export type VoiceRange = {
 
 export function createVoiceRange(): VoiceRange {
   return { notes: [], candidate: null, heldMs: 0, previousAt: null };
+}
+
+export function removeVoiceRangeNote(state: VoiceRange, midi: number): void {
+  state.notes = state.notes.filter((note) => note !== midi);
+  if (state.candidate === midi) {
+    state.candidate = null;
+    state.heldMs = 0;
+    state.previousAt = null;
+  }
 }
 
 export function observeVoiceRange(

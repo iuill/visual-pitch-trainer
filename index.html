@@ -555,7 +555,7 @@
         </div>
         <p id="voiceRangeStatus" role="status">開始するとマイクの利用許可を求めます。</p>
         <div class="voice-range-live"><span>いまの声</span><strong id="voiceRangeCurrent">—</strong>
-          <label for="voiceRangeHold">同じ音を保てた時間</label><progress id="voiceRangeHold" value="0" max="600"></progress>
+          <label for="voiceRangeHold">同じ音を保てた時間</label><progress id="voiceRangeHold" value="0" max="1"></progress>
         </div>
         <div class="voice-range-graph-header"><h3>声の高さの変化</h3>
           <label for="voiceRangeGraphNotation">音名の表記 <select id="voiceRangeGraphNotation"><option value="scientific">C4など</option><option value="solfege">ドレミ＋オクターブ</option><option value="karaoke">Low・mid・hi</option></select></label>
@@ -569,9 +569,11 @@
           <div><span>カラオケ式（Low・mid・hi）</span><strong id="voiceRangeKaraoke">—</strong></div>
         </div>
         <p id="voiceRangeSpan"></p>
-        <p class="graph-hint">ドレミの数字はオクターブです（ド4＝C4）。カラオケ式はLowG＝G2、mid1G＝G3、mid2C＝C4、hiA＝A4として表示します。Aで区切る方式です。</p>
-        <details><summary>記録した音を確認</summary><ul id="voiceRangeNotes" class="voice-range-notes"></ul></details>
-        <p class="compatibility-note">測定対象はC1〜C7です。低音、息の多い声、周囲の音などで検出できなかったり、1オクターブずれて記録されたりする場合があります。地声・裏声の区別や声種の診断は行いません。記録はこの画面を開いている間だけ保持し、音声の保存・送信は行いません。</p>
+        <details><summary>記録した音を確認・削除</summary><p class="graph-hint">停止後に音のボタンを押すと、その音だけを記録から削除できます。青い声の軌跡は残ります。</p><ul id="voiceRangeNotes" class="voice-range-notes"></ul></details>
+        <details class="voice-range-help"><summary>測定の目安・音名の読み方</summary>
+          <p class="graph-hint">ドレミの数字はオクターブです（ド4＝C4）。カラオケ式はLowG＝G2、mid1G＝G3、mid2C＝C4、hiA＝A4として表示します。Aで区切る方式です。</p>
+          <p class="compatibility-note">測定対象はC1〜C7です。0.6秒の保持時間は調整中の仮の値です。低音、息の多い声、周囲の音などで検出できなかったり、1オクターブずれて記録されたりする場合があります。地声・裏声の区別や声種の診断は行いません。記録はこの画面を開いている間だけ保持し、音声の保存・送信は行いません。</p>
+        </details>
       </section>
 
       <section id="gamePracticeView" class="game-practice" aria-labelledby="gameTitle" hidden>
@@ -650,7 +652,8 @@
         <div class="pwa-controls">
           <button id="installApp" type="button" class="secondary-button" hidden>アプリをインストール</button>
           <p id="pwaStatus" role="status"></p>
-          <p class="graph-hint">ホーム画面への追加はブラウザのメニューからも行えます。音源解析にはインターネット接続が必要な場合があります。</p>
+          <p id="installAppHelp" class="graph-hint">ホーム画面への追加はブラウザのメニューからも行えます。</p>
+          <p class="graph-hint">音源解析にはインターネット接続が必要な場合があります。</p>
         </div>
         <small>
           <span>Copyright &copy; 2026 iuill.</span>

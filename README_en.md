@@ -39,7 +39,7 @@ Browser
 
 ## Main Features
 
-Switch between single-note practice, melody practice, games, your own voice range check, and audio range analysis using the top menu. Shared settings sit above the menu and apply to both single-note and melody practice. Open shared settings with the labeled button; the current range, instrument, volume and tolerance remain visible on the practice screen. The default instrument is piano. Choose single-note targets on the practice screen, and open Melody Settings to change the melody or note duration. Changes apply immediately. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
+Switch between single-note practice, melody practice, games, your own voice range check, and audio range analysis using the top menu. Shared settings sit above the menu and apply to single-note practice, melody practice and games. Voice range checks use only the microphone and sensitivity settings. Open shared settings with the labeled button; the current range, instrument, volume and tolerance remain visible on the practice screen. The default instrument is piano. Choose single-note targets on the practice screen, and open Melody Settings to change the melody or note duration. Changes apply immediately. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
 
 - Select and play reference tones across one chromatic octave
 - Choose vocal ranges with voice range guides: C3-C4 / C4-C5 / C5-C6
@@ -59,11 +59,13 @@ Switch between single-note practice, melody practice, games, your own voice rang
 
 ## Voice Range Check
 
-Open “自分の声域チェック” and sustain comfortable low and high notes. A pitch held for about 0.6 seconds is recorded. The lowest and highest confirmed notes appear in solfege with octave numbers, scientific pitch notation, and karaoke notation. Karaoke names use A boundaries: G2 = LowG, G3 = mid1G, C4 = mid2C, A4 = hiA. A graph shows the last 12 seconds of detected pitch, with dashed lines for confirmed endpoints and selectable scientific, solfege or karaoke labels. Stopping preserves the graph; resetting clears both trace and results. The measurement covers C1–C7 and uses the shared microphone and sensitivity settings, independently of the practice target range. It does not identify chest/falsetto registers or diagnose voice type. Octave errors remain possible, and the endpoints do not imply every note between them was confirmed. Results stay in page memory; audio is never stored or uploaded.
+Sustain comfortable low and high notes to view the confirmed range in solfege, scientific and karaoke notation alongside a pitch graph. After stopping, individual incorrect notes can be removed. The hold duration is provisional; real-voice and iOS evaluation is still pending. See the [implementation notes](docs/implementation-notes.md#自分の声域チェック) for notation and detection details.
 
 ## PWA and Offline Use
 
-On HTTPS, use a supported browser's install button or home-screen menu. After the first online preparation, the basic app, microphone practice and voice range check work offline. Recorded reference instruments are cached when used; sine tones need no downloads. Large models, external WASM and external resources are not automatically cached, so audio-file analysis may still need a connection. Browser storage eviction also requires another online visit. Updates never reload an active practice: close all app tabs/windows and reopen to apply an available update. Service Workers run only in production builds; test with `bun run build` and `bun run preview`.
+On HTTPS, use a supported browser's install or home-screen menu. The basic app works offline after initial online preparation. Used reference recordings remain cached across app updates while the audio assets are unchanged; file analysis may still need a connection. Chromium behavior is tested; actual OS installation and iOS devices are unverified.
+
+Updates never reload an active practice. Close all app tabs/windows and reopen to apply an available update. Test production behavior with `bun run build` and `bun run preview`; see the [implementation notes](docs/implementation-notes.md#pwa) for cache scope and limits.
 
 ## Documentation
 

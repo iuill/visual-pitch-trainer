@@ -2642,10 +2642,23 @@ body:has(.settings-dialog[open]) {
   list-style: none;
 }
 .voice-range-recorded-note {
+  min-height: 44px;
   padding: 6px 10px;
   background: #e6f2f0;
   border: 1px solid var(--accent);
   border-radius: 6px;
+}
+.voice-range-recorded-note:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.voice-range-help {
+  margin-top: 12px;
+}
+@media (max-width: 600px) {
+  .practice-nav button:last-child {
+    grid-column: 1 / -1;
+  }
 }
 .pwa-controls {
   margin-bottom: 16px;

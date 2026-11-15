@@ -18,6 +18,8 @@ export type PitchDetectionOptions = {
   targetFrequency: number;
 };
 
+export const VOICE_RANGE_MIN_CLARITY = 0.93;
+
 export function detectPitchWithLibraries(
   buffer: Float32Array<ArrayBuffer>,
   detectors: LibraryDetectors,
@@ -81,7 +83,7 @@ export function detectVoiceRangePitch(
       Number.isFinite(frequency) &&
       frequency >= 32.7 &&
       frequency <= 2100 &&
-      clarity >= 0.93
+      clarity >= VOICE_RANGE_MIN_CLARITY
         ? frequency
         : null,
     clarity: Number.isFinite(clarity) ? clamp(clarity, 0, 1) : null,
