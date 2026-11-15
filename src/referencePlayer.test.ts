@@ -166,7 +166,6 @@ describe("reference player", () => {
       h.player.playScale(instrument, [440, 880], {
         noteSeconds: 5,
         startAt: 31,
-        practiceAt: 44,
       });
       expect(
         h.samplers
@@ -284,21 +283,29 @@ describe("reference player", () => {
     expect(h.samplers.length).toBe(4);
   });
 
-  test("schedules both melody passes on the audio clock and cancels the future singing pass", () => {
+  test("loops notes on the audio clock with bounded scheduling and cancels future notes", () => {
     const h = createHarness();
     h.player.playScale("sine", [261.63, 293.66], {
       noteSeconds: 3,
       startAt: 1,
-      practiceAt: 10,
+      loop: true,
     });
+    expect(h.oscillators).toHaveLength(0);
+    for (const time of [0.9, 3.9, 6.9, 9.9]) {
+      h.context.currentTime = time;
+      h.tick();
+    }
     expect(h.oscillators.map((voice) => voice.startedAt)).toEqual([
-      1, 4, 10, 13,
+      1, 4, 7, 10,
     ]);
     expect(h.oscillators[0].stops[0]).toBeCloseTo(3.94);
     h.player.stopScale();
-    expect(h.oscillators.every((voice) => voice.stops.at(-1) === 0.06)).toBe(
+    expect(h.oscillators.every((voice) => voice.stops.at(-1) === 9.96)).toBe(
       true,
     );
+    h.context.currentTime = 100;
+    h.tick();
+    expect(h.oscillators).toHaveLength(4);
   });
 
   test("cancels future scale notes as well as sounding voices on stop and dispose", async () => {
@@ -320,24 +327,30 @@ describe("reference player", () => {
     expect(h.gains[0].disconnected).toBe(true);
     await expect(h.player.prepare("piano")).rejects.toThrow("closed");
   });
-  test("schedules independent listen/sing durations and cancellable countdown cues", () => {
+  test("counts down only once and skips missed loop notes without replaying a backlog", () => {
     const h = createHarness();
     h.player.playScale("sine", [261.63, 293.66], {
       startAt: 1,
       noteSeconds: 2,
-      practiceAt: 8,
-      practiceNoteSeconds: 5,
+      countdownSeconds: 3,
+      loop: true,
       countdownSound: true,
     });
-    const notes = h.oscillators.filter((voice) => voice.frequency.value < 500);
     const cues = h.oscillators.filter((voice) => voice.frequency.value > 500);
-    expect(notes.map((voice) => voice.startedAt)).toEqual([1, 3, 8, 13]);
-    expect(notes[0].stops[0]).toBeCloseTo(2.94);
-    expect(notes[2].stops[0]).toBeCloseTo(12.94);
-    expect(cues.map((voice) => voice.startedAt)).toEqual([5, 6, 7, 8]);
-    h.context.currentTime = 4.5;
+    expect(cues.map((voice) => voice.startedAt)).toEqual([1, 2, 3, 4]);
+    for (const time of [3.9, 5.9, 7.9, 100]) {
+      h.context.currentTime = time;
+      h.tick();
+    }
+    const notes = h.oscillators.filter((voice) => voice.frequency.value < 500);
+    expect(notes.map((voice) => voice.startedAt)).toEqual([4, 6, 8, 100]);
+    expect(notes[0].stops[0]).toBeCloseTo(5.94);
+    expect(
+      h.oscillators.filter((voice) => voice.frequency.value > 500),
+    ).toHaveLength(4);
+    h.context.currentTime = 100.5;
     h.player.stopScale();
-    expect(h.oscillators.every((voice) => voice.stops.at(-1) === 4.56)).toBe(
+    expect(h.oscillators.every((voice) => voice.stops.at(-1) === 100.56)).toBe(
       true,
     );
   });

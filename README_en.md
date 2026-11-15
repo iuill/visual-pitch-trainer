@@ -39,7 +39,7 @@ Browser
 
 ## Main Features
 
-Switch between single-note practice, melody practice and audio range analysis using the top menu. Shared settings sit above the menu and apply to both single-note and melody practice. Their collapsed summary shows range, instrument, volume and tolerance. Choose the target note or melody within its own practice view. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
+Switch between single-note practice, melody practice and audio range analysis using the top menu. Shared settings sit above the menu and apply to both single-note and melody practice. Open shared settings with the labeled button; the current range, instrument, volume and tolerance remain visible on the practice screen. The default instrument is piano. Choose single-note targets on the practice screen, and open Melody Settings to change the melody or note duration. Changes apply immediately. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
 
 - Select and play reference tones across one chromatic octave
 - Choose vocal ranges with voice range guides: C3-C4 / C4-C5 / C5-C6
@@ -133,11 +133,11 @@ Version run numbers are scoped to each workflow and may overlap or go backwards 
 
 ### Melody Practice
 
-The dedicated melody graph shows the whole reference as stepped bars before practice starts. Green bars/bands show the reference, a blue line shows microphone pitch, and a black dashed line marks the current position. Pitch bounds and timeline stay fixed; the reference and full voice trace remain after completion, including traces older than 12 seconds. Long melodies scroll horizontally and follow playback; after finishing, scroll freely to review. A collapsible text list provides the note sequence.
+The dedicated melody graph shows the whole reference as stepped bars before practice starts. Green bars/bands show the reference, a blue line shows microphone pitch, and a black dashed line marks the current position. Pitch bounds and timeline cover one lap. The voice trace resets each lap, retaining the whole current lap even beyond 12 seconds. Stopping preserves that lap for review. Long melodies scroll horizontally and follow playback; after finishing, scroll freely to review. A collapsible text list provides the note sequence.
 
 Melody Practice offers ascending/descending major scales, a five-note up-and-down pattern, do–mi–sol–mi–do, chromatic scales, and custom sequences. Enter 2–32 Japanese solfege tokens separated by spaces, including sharps such as ド# and upper do (高ド). Notes stay within the selected voice range and have equal durations; rests and per-note rhythms are not supported.
 
-After microphone permission and instrument loading, watch/listen to one demonstration, prepare during a three-second visual countdown, then sing with reference audio and live pitch feedback. Each note lasts 1–5 seconds (default 2). The first 0.4 seconds per note are excluded from scoring. Per-note results show in-tune time, percentage of remaining scheduled time (including silence/undetected input), and detected-pitch time.
+After microphone permission and instrument loading, prepare during a three-second visual countdown, then sing with reference audio and live pitch feedback. The melody loops until stopped, without further countdowns or breaks. Each note lasts 0.5 seconds or 1–5 seconds (default 2) for both playback and singing. Only the first 0.4 seconds of each lap are excluded from scoring. Later note changes are scored immediately. After stopping, per-note results aggregate all laps, including a partial final lap: in-tune time, percentage of practiced assessment time (including silence/undetected input), and detected-pitch time. Notes with no assessment time show “—”.
 
 Use headphones: reference audio leaking into the microphone can be scored as singing. Training effectiveness for people with hearing loss has not been evaluated. Cancellation, target/range/instrument changes, or leaving the tab stop playback and the microphone.
 

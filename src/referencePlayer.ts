@@ -30,6 +30,7 @@ export class ReferencePlayer {
   } | null = null;
   private repeatTimer: IntervalHandle | null = null;
   private nextRepeatAt = 0;
+  private scaleTimer: IntervalHandle | null = null;
   private disposed = false;
 
   constructor(
@@ -143,43 +144,64 @@ export class ReferencePlayer {
     frequencies: readonly number[],
     options: {
       noteSeconds?: number;
-      practiceNoteSeconds?: number;
       startAt?: number;
-      practiceAt?: number;
       countdownSound?: boolean;
+      countdownSeconds?: number;
+      loop?: boolean;
     } = {},
   ) {
     this.stopScale();
     const at = options.startAt ?? this.context.currentTime + 0.01;
     const seconds = options.noteSeconds ?? 0.5;
-    const starts = [{ at, seconds }];
-    if (options.practiceAt !== undefined) {
-      starts.push({
-        at: options.practiceAt,
-        seconds: options.practiceNoteSeconds ?? seconds,
-      });
-      if (options.countdownSound) {
-        for (let remaining = 3; remaining >= 0; remaining--) {
-          this.createVoice(
-            "sine",
-            remaining === 0 ? 1046.5 : 784,
-            options.practiceAt - remaining,
-            0.12,
-            this.scaleVoices,
-          );
-        }
+    if (!frequencies.length) return;
+    const countdown = options.countdownSeconds ?? 0;
+    const singingAt = at + countdown;
+    if (options.countdownSound && countdown > 0) {
+      for (let remaining = countdown; remaining >= 0; remaining--) {
+        this.createVoice(
+          "sine",
+          remaining === 0 ? 1046.5 : 784,
+          singingAt - remaining,
+          0.12,
+          this.scaleVoices,
+        );
       }
     }
-    for (const { at: start, seconds: duration } of starts)
+    if (!options.loop) {
       frequencies.forEach((frequency, index) => {
         this.createVoice(
           instrument,
           frequency,
-          start + index * duration,
-          duration - 0.08,
+          singingAt + index * seconds,
+          seconds - 0.08,
           this.scaleVoices,
         );
       });
+      return;
+    }
+    let nextNote = 0;
+    const schedule = () => {
+      // Keep a bounded lookahead and skip missed notes after a stalled timer.
+      nextNote = Math.max(
+        nextNote,
+        Math.ceil((this.context.currentTime - singingAt) / seconds),
+      );
+      while (singingAt + nextNote * seconds <= this.context.currentTime + 0.2) {
+        this.createVoice(
+          instrument,
+          frequencies[nextNote % frequencies.length],
+          singingAt + nextNote * seconds,
+          seconds - 0.08,
+          this.scaleVoices,
+        );
+        nextNote++;
+      }
+    };
+    schedule();
+    this.scaleTimer = (this.options.setInterval ?? globalThis.setInterval)(
+      schedule,
+      50,
+    );
   }
 
   private createVoice(
@@ -249,6 +271,10 @@ export class ReferencePlayer {
   }
 
   stopScale() {
+    if (this.scaleTimer !== null) {
+      (this.options.clearInterval ?? globalThis.clearInterval)(this.scaleTimer);
+      this.scaleTimer = null;
+    }
     this.stopVoices(this.scaleVoices);
   }
 

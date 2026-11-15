@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildMelody,
+  getMelodyAssessedSeconds,
   getMelodyPosition,
   recordMelodyObservation,
 } from "./melodyPractice";
@@ -36,58 +37,102 @@ describe("melody practice", () => {
       expect(() => buildMelody("custom", input, 48)).toThrow();
     }
   });
-  test("moves through demonstration, three-second countdown, singing and completion at exact audio boundaries", () => {
+  test("counts down once then loops on exact audio boundaries", () => {
     expect(getMelodyPosition(0, 2, 3)).toMatchObject({
-      phase: "listen",
-      index: 0,
-      remaining: 2,
-    });
-    expect(getMelodyPosition(2, 2, 3)).toMatchObject({
-      phase: "listen",
-      index: 1,
-    });
-    expect(getMelodyPosition(4, 2, 3)).toMatchObject({
       phase: "countdown",
       remaining: 3,
     });
-    expect(getMelodyPosition(7, 2, 3)).toMatchObject({
-      phase: "sing",
-      index: 0,
+    expect(getMelodyPosition(2, 2, 3)).toMatchObject({
+      phase: "countdown",
+      remaining: 1,
     });
-    expect(getMelodyPosition(10, 2, 3)).toMatchObject({
+    expect(getMelodyPosition(3, 2, 3)).toMatchObject({
+      phase: "sing",
+      lap: 0,
+      index: 0,
+      remaining: 3,
+    });
+    expect(getMelodyPosition(6, 2, 3)).toMatchObject({
       phase: "sing",
       index: 1,
     });
-    expect(getMelodyPosition(13, 2, 3).phase).toBe("finished");
-    expect(getMelodyPosition(100, 2, 3).phase).toBe("finished");
+    expect(getMelodyPosition(9, 2, 3)).toMatchObject({
+      phase: "sing",
+      lap: 1,
+      index: 0,
+      elapsedInLap: 0,
+    });
+    expect(getMelodyPosition(6003, 2, 3)).toMatchObject({
+      phase: "sing",
+      lap: 1000,
+      index: 0,
+    });
   });
-  test("keeps demonstration at two seconds when singing duration changes", () => {
-    for (const seconds of [1, 5]) {
-      expect(getMelodyPosition(3.9, 2, seconds)).toMatchObject({
-        phase: "listen",
-        index: 1,
-      });
-      expect(getMelodyPosition(4, 2, seconds)).toMatchObject({
+  test("uses the selected duration on every lap without another countdown", () => {
+    for (const seconds of [0.5, 1, 5]) {
+      expect(getMelodyPosition(0, 2, seconds)).toMatchObject({
         phase: "countdown",
         remaining: 3,
       });
-      expect(getMelodyPosition(6, 2, seconds)).toMatchObject({
+      expect(getMelodyPosition(2, 2, seconds)).toMatchObject({
         phase: "countdown",
         remaining: 1,
       });
-      expect(getMelodyPosition(7, 2, seconds)).toMatchObject({
+      expect(getMelodyPosition(3, 2, seconds)).toMatchObject({
         phase: "sing",
         index: 0,
         remaining: seconds,
       });
-      expect(getMelodyPosition(7 + seconds, 2, seconds)).toMatchObject({
+      expect(getMelodyPosition(3 + seconds, 2, seconds)).toMatchObject({
         phase: "sing",
         index: 1,
       });
-      expect(getMelodyPosition(7 + 2 * seconds, 2, seconds).phase).toBe(
-        "finished",
+      expect(getMelodyPosition(3 + 2 * seconds, 2, seconds)).toMatchObject({
+        phase: "sing",
+        lap: 1,
+        index: 0,
+        remaining: seconds,
+      });
+    }
+  });
+  test("assesses all laps and only the practiced part of the final note", () => {
+    expect(getMelodyAssessedSeconds(2, 2, 3, 0)).toBe(0);
+    expect(getMelodyAssessedSeconds(3.2, 2, 3, 0)).toBe(0);
+    expect(getMelodyAssessedSeconds(4, 2, 3, 0)).toBeCloseTo(0.6);
+    expect(getMelodyAssessedSeconds(4, 2, 3, 1)).toBe(0);
+    expect(getMelodyAssessedSeconds(9, 2, 3, 0)).toBeCloseTo(2.6);
+    expect(getMelodyAssessedSeconds(10, 2, 3, 0)).toBeCloseTo(3.2);
+    expect(getMelodyAssessedSeconds(10, 2, 3, 1)).toBeCloseTo(3);
+    expect(getMelodyAssessedSeconds(4, 2, 0.5, 0)).toBeCloseTo(0.1);
+    expect(getMelodyAssessedSeconds(4, 2, 0.5, 1)).toBeCloseTo(0.5);
+    expect(getMelodyAssessedSeconds(3.65, 2, 0.5, 1)).toBeCloseTo(0.15);
+    expect(getMelodyAssessedSeconds(4.2, 2, 0.5, 0)).toBeCloseTo(0.1);
+    expect(getMelodyAssessedSeconds(4.2, 2, 0.5, 1)).toBeCloseTo(0.5);
+  });
+  test("scores the second note immediately while excluding grace at the start of each lap", () => {
+    const results = [
+      { detectedMs: 0, inTuneMs: 0 },
+      { detectedMs: 0, inTuneMs: 0 },
+    ];
+    for (let lap = 0; lap < 2; lap++) {
+      recordMelodyObservation(
+        results,
+        { index: 0, elapsed: 0.1, cents: 0 },
+        { index: 0, elapsed: 0.2, cents: 0 },
+        0.5,
+        30,
+      );
+      recordMelodyObservation(
+        results,
+        { index: 1, elapsed: 0.55, cents: 0 },
+        { index: 1, elapsed: 0.65, cents: 0 },
+        0.5,
+        30,
       );
     }
+    expect(results[0].inTuneMs).toBe(0);
+    expect(results[1].inTuneMs).toBeCloseTo(200);
+    expect(results[1].detectedMs).toBeCloseTo(200);
   });
   test("excludes transition grace, silence, out-of-tune input, cross-note intervals and background gaps", () => {
     const results = [

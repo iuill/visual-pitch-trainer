@@ -75,6 +75,7 @@ export function renderMelodyKeyboard(
   root: HTMLElement,
   notes: Note[],
   index: number,
+  looping = false,
 ) {
   const current = notes[index];
   root.hidden = !current;
@@ -109,7 +110,7 @@ export function renderMelodyKeyboard(
         passive: true,
       });
   }
-  const next = notes[index + 1];
+  const next = notes[index + 1] ?? (looping ? notes[0] : undefined);
   const currentMidi = Math.round(hzToMidi(current.frequency));
   const nextMidi = next ? Math.round(hzToMidi(next.frequency)) : null;
   for (const key of keys.querySelectorAll<HTMLElement>(".melody-piano-key")) {
