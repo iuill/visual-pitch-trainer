@@ -64,3 +64,26 @@ export function detectPitchWithLibraries(
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
+
+/** Voice range measurement has no target note or octave correction. */
+export function detectVoiceRangePitch(
+  buffer: Float32Array<ArrayBuffer>,
+  detectors: LibraryDetectors,
+  minRms: number,
+): PitchDetection {
+  if (getRms(buffer) < minRms) return { frequency: null, clarity: null };
+  const [frequency, clarity] = detectors.detector.findPitch(
+    buffer,
+    detectors.sampleRate,
+  );
+  return {
+    frequency:
+      Number.isFinite(frequency) &&
+      frequency >= 32.7 &&
+      frequency <= 2100 &&
+      clarity >= 0.93
+        ? frequency
+        : null,
+    clarity: Number.isFinite(clarity) ? clamp(clarity, 0, 1) : null,
+  };
+}

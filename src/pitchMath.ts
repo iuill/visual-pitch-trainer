@@ -137,6 +137,27 @@ export function midiToSolfegeName(midi: number): string {
   return SOLFEGE_NAMES[((rounded % 12) + 12) % 12];
 }
 
+/** A4 = hiA; the karaoke octave boundary is A rather than C. */
+export function midiToKaraokeName(midi: number): string {
+  const rounded = Math.round(midi);
+  const band = Math.floor((rounded - 21) / 12);
+  const prefix =
+    band <= 0
+      ? "Low".repeat(2 - band)
+      : band === 1
+        ? "Low"
+        : band === 2
+          ? "mid1"
+          : band === 3
+            ? "mid2"
+            : "hi".repeat(band - 3);
+  return `${prefix}${NOTE_NAMES[((rounded % 12) + 12) % 12]}`;
+}
+
+export function midiToSolfegeWithOctave(midi: number): string {
+  return `${midiToSolfegeName(midi)}${Math.floor(Math.round(midi) / 12) - 1}`;
+}
+
 /** Adjacent target notes, rather than the microphone's momentary pitch error. */
 export function formatPitchMovement(
   fromFrequency: number,

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { PitchDetector } from "pitchy";
 import {
   detectPitchWithLibraries,
+  detectVoiceRangePitch,
   type LibraryDetectors,
 } from "./pitchDetection";
 
@@ -33,6 +34,43 @@ function createSineBuffer(
 }
 
 describe("pitch detection", () => {
+  test("voice range uses a wide range without a practice target and gates noise", () => {
+    const buffer = new Float32Array([0.2, -0.2, 0.2, -0.2]);
+    for (const hz of [32.71, 98, 196, 440, 1046, 2093]) {
+      expect(
+        detectVoiceRangePitch(buffer, createDetectors(hz, 0.99), 0.006)
+          .frequency,
+      ).toBe(hz);
+    }
+    for (const [hz, clarity] of [
+      [440, 0.6],
+      [30, 1],
+      [2200, 1],
+      [Infinity, 1],
+    ]) {
+      expect(
+        detectVoiceRangePitch(buffer, createDetectors(hz, clarity), 0.006)
+          .frequency,
+      ).toBe(null);
+    }
+    expect(
+      detectVoiceRangePitch(new Float32Array(4), createDetectors(440, 1), 0.006)
+        .frequency,
+    ).toBe(null);
+  });
+  test("voice range detects real low and high sine waves", () => {
+    for (const frequency of [32.71, 65.41, 98, 440, 1046.5]) {
+      const buffer = createSineBuffer(frequency, TEST_SAMPLE_RATE, 8192);
+      const detector = PitchDetector.forFloat32Array(8192);
+      const detection = detectVoiceRangePitch(
+        buffer,
+        { detector, sampleRate: TEST_SAMPLE_RATE, bufferSize: 8192 },
+        0.006,
+      );
+      expect(detection.frequency).not.toBe(null);
+      expect(Math.abs((detection.frequency ?? 0) - frequency)).toBeLessThan(1);
+    }
+  });
   test("skips pitch detection when the buffer is below the RMS gate", () => {
     const detection = detectPitchWithLibraries(
       new Float32Array([0, 0, 0, 0]) as Float32Array<ArrayBuffer>,

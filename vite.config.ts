@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
 
@@ -101,7 +102,7 @@ export default defineConfig({
       readOnnxRuntimeWebVersion(),
     ),
   },
-  plugins: [dropUnusedOnnxWasmAsset()],
+  plugins: [dropUnusedOnnxWasmAsset(), buildServiceWorker()],
   server: {
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
     watch: {
@@ -112,6 +113,45 @@ export default defineConfig({
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
   },
 });
+
+function buildServiceWorker(): Plugin {
+  return {
+    name: "build-service-worker",
+    apply: "build",
+    generateBundle(_, bundle) {
+      const staticFiles = [
+        "manifest.webmanifest",
+        "favicon.png",
+        "apple-touch-icon.png",
+        "icons/app-logo.png",
+        "icons/heading-record.png",
+        "icons/heading-tone.png",
+        "icons/heading-trail.png",
+        "icons/pwa-192.png",
+        "icons/pwa-512.png",
+        "icons/pwa-maskable-512.png",
+      ];
+      const files = [
+        "index.html",
+        ...Object.keys(bundle).filter((file) => /\.(js|css)$/.test(file)),
+        ...staticFiles,
+      ];
+      const template = readFileSync("scripts/service-worker.js", "utf8");
+      const hash = createHash("sha256").update(template);
+      for (const item of Object.values(bundle))
+        hash.update(item.type === "chunk" ? item.code : item.source);
+      for (const file of staticFiles)
+        hash.update(readFileSync(`public/${file}`));
+      this.emitFile({
+        type: "asset",
+        fileName: "sw.js",
+        source: template
+          .replace("__PRECACHE__", JSON.stringify(files))
+          .replace("__CACHE_VERSION__", hash.digest("hex").slice(0, 16)),
+      });
+    },
+  };
+}
 
 function dropUnusedOnnxWasmAsset(): Plugin {
   return {

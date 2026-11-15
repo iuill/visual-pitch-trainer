@@ -66,6 +66,7 @@ import {
   type Note,
 } from "./pitchMath";
 import { getPitchMovementIcon } from "./pitchMovementVisual";
+import { setupPwa } from "./pwa";
 import {
   isReferenceInstrumentId,
   REFERENCE_INSTRUMENTS,
@@ -101,6 +102,7 @@ import {
   type VocalSeparationModelId,
   type VocalSeparationProgress,
 } from "./vocalSeparation";
+import { VoiceRangeCheck } from "./voiceRangeCheck";
 import "../styles.css";
 
 type AppState = {
@@ -465,7 +467,7 @@ const AUDIO_RANGE_GRAPH_PADDING: GraphPadding = {
   left: 54,
 };
 
-type PracticeView = "single" | "melody" | "audio" | "games";
+type PracticeView = "single" | "melody" | "audio" | "games" | "range";
 let practiceView: PracticeView = "single";
 let melodyGraphData: MelodyGraphData | null = null;
 const gamePractice = new GamePractice(
@@ -478,10 +480,24 @@ const gamePractice = new GamePractice(
     tolerance: state.tolerance,
   }),
   () => {
+    voiceRangeCheck.stop();
     stopScalePlayback();
     stopReferenceTone();
     stopMicrophone();
     pauseAudioFilePlayback();
+  },
+);
+
+const voiceRangeCheck = new VoiceRangeCheck(
+  () => ({ deviceId: state.selectedDeviceId, minRms: state.minRms }),
+  () => {
+    gamePractice.stop();
+    stopScalePlayback();
+    stopReferenceTone();
+    stopMicrophone();
+    state.isMicStarting = false;
+    pauseAudioFilePlayback();
+    elements.practiceSettings.close();
   },
 );
 
@@ -495,6 +511,7 @@ function setupPracticeNavigation() {
     button.addEventListener("click", () => {
       const view = button.dataset.practiceView as PracticeView;
       if (view === practiceView) return;
+      voiceRangeCheck.stop();
       gamePractice.stop();
       stopScalePlayback();
       stopReferenceTone();
@@ -505,9 +522,10 @@ function setupPracticeNavigation() {
       applyPracticeView();
     });
   });
-  elements.practiceSettings.addEventListener("change", () =>
-    gamePractice.settingsChanged(),
-  );
+  elements.practiceSettings.addEventListener("change", () => {
+    gamePractice.settingsChanged();
+    voiceRangeCheck.stop();
+  });
   applyPracticeView();
 }
 
@@ -515,6 +533,7 @@ function applyPracticeView() {
   const melody = practiceView === "melody";
   const audio = practiceView === "audio";
   const games = practiceView === "games";
+  const range = practiceView === "range";
   document.body.dataset.practiceView = practiceView;
   document
     .querySelectorAll<HTMLButtonElement>("button[data-practice-view]")
@@ -529,7 +548,8 @@ function applyPracticeView() {
     .forEach((element) => {
       element.hidden = practiceView !== "single";
     });
-  elements.graphPanel.hidden = audio || games;
+  elements.graphPanel.hidden = audio || games || range;
+  queryElement<HTMLElement>("#voiceRangeView").hidden = !range;
   queryElement<HTMLElement>("#gamePracticeView").hidden = !games;
   elements.audioFileView.hidden = !audio;
   elements.melodySection.hidden = !melody;
@@ -545,13 +565,15 @@ function applyPracticeView() {
   elements.practiceGraphHelp.textContent = melody
     ? "お手本は全体を表示し、終わった音も残します。自分の声を重ねて振り返れます。"
     : "直近12秒の声の高さを、音名のレーンに沿って表示します。";
-  elements.practiceViewDescription.textContent = games
-    ? "ランダムな目標音への発声と、鳴った音を当てるゲームに挑戦できます。"
-    : audio
-      ? "音源や動画を読み込み、歌声の高さの目安を確認します。"
-      : melody
-        ? "お手本と一緒に歌い、停止するまで繰り返します。停止後に音ごとに振り返れます。"
-        : "音をひとつ選び、お手本に合わせて声を伸ばします。";
+  elements.practiceViewDescription.textContent = range
+    ? "マイクで自分の声域をチェックします。安定して出せた音を3通りの表記で確認できます。"
+    : games
+      ? "ランダムな目標音への発声と、鳴った音を当てるゲームに挑戦できます。"
+      : audio
+        ? "音源や動画を読み込み、歌声の高さの目安を確認します。"
+        : melody
+          ? "お手本と一緒に歌い、停止するまで繰り返します。停止後に音ごとに振り返れます。"
+          : "音をひとつ選び、お手本に合わせて声を伸ばします。";
   if (melody)
     elements.analysisStatus.textContent =
       melodyGraphData?.phase === "stopped"
@@ -574,6 +596,7 @@ function updatePracticeSettingsSummary() {
 }
 
 function init() {
+  setupPwa();
   updateBuildInfo();
   setupPracticeNavigation();
   elements.vocalSeparationModelSelect.value = state.vocalSeparationModel;
@@ -3026,6 +3049,7 @@ function handlePageHide(event: PageTransitionEvent) {
 }
 
 function cleanupRuntimeResources() {
+  voiceRangeCheck.stop();
   gamePractice.stop();
   stopAudioPlaybackTracking();
   stopAudioAnalysisMemoryTracking();
@@ -3887,7 +3911,12 @@ function drawGraph() {
     }
     return;
   }
-  if (practiceView === "audio" || practiceView === "games") return;
+  if (
+    practiceView === "audio" ||
+    practiceView === "games" ||
+    practiceView === "range"
+  )
+    return;
   syncPitchCanvasSize();
 
   const canvas = elements.pitchCanvas;

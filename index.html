@@ -6,6 +6,8 @@
     <title>音程トレーニング道場</title>
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#146c75" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -67,7 +69,7 @@
             <button type="button" class="secondary-button" data-close-dialog>閉じる</button>
           </div>
           <div class="settings-dialog-body">
-          <p class="common-settings-help">ここで選んだ音域・音色・音量・マイク・判定の設定を、単音練習とメロディ練習、ゲームに使います。音源の声域確認には適用しません。</p>
+          <p class="common-settings-help">ここで選んだ音域・音色・音量・マイク・判定の設定を、単音練習とメロディ練習、ゲームに使います。自分の声域チェックではマイクと声の拾いやすさだけを使います。音源の声域確認には適用しません。</p>
           <div class="common-settings-grid">
             <div>
           <div class="setting-row select-row">
@@ -153,6 +155,7 @@
         <button type="button" data-practice-view="single" aria-pressed="true" aria-controls="practiceWorkspace">単音練習</button>
         <button type="button" data-practice-view="melody" aria-pressed="false" aria-controls="practiceWorkspace">メロディ練習</button>
         <button type="button" data-practice-view="games" aria-pressed="false" aria-controls="gamePracticeView">ゲーム</button>
+        <button type="button" data-practice-view="range" aria-pressed="false" aria-controls="voiceRangeView">自分の声域チェック</button>
         <button type="button" data-practice-view="audio" aria-pressed="false" aria-controls="audioFileView">音源の声域確認</button>
       </nav>
       <p id="practiceViewDescription" class="view-description">音をひとつ選び、お手本に合わせて声を伸ばします。</p>
@@ -541,6 +544,36 @@
         </div>
       </section>
 
+      <section id="voiceRangeView" class="voice-range-check" aria-labelledby="voiceRangeTitle" hidden>
+        <div class="panel-header"><div><h2 id="voiceRangeTitle">自分の声域チェック</h2><p>楽な高さから始めて、低い声・高い声をゆっくり伸ばしてください。</p></div></div>
+        <p>同じ音を約0.6秒保つと記録します。無理に声を張らず、つらくなったら停止してください。お手本音は鳴りません。</p>
+        <p class="graph-hint">共通設定のマイクと「声の拾いやすさ」を使います。「声の高さ」の設定にかかわらず、低い音から高い音まで測れます。</p>
+        <div class="voice-range-actions">
+          <button id="voiceRangeStart" type="button" class="primary-button">声域チェックを開始・続ける</button>
+          <button id="voiceRangeStop" type="button" class="secondary-button" disabled>停止</button>
+          <button id="voiceRangeReset" type="button" class="secondary-button">記録を消す</button>
+        </div>
+        <p id="voiceRangeStatus" role="status">開始するとマイクの利用許可を求めます。</p>
+        <div class="voice-range-live"><span>いまの声</span><strong id="voiceRangeCurrent">—</strong>
+          <label for="voiceRangeHold">同じ音を保てた時間</label><progress id="voiceRangeHold" value="0" max="600"></progress>
+        </div>
+        <div class="voice-range-graph-header"><h3>声の高さの変化</h3>
+          <label for="voiceRangeGraphNotation">音名の表記 <select id="voiceRangeGraphNotation"><option value="scientific">C4など</option><option value="solfege">ドレミ＋オクターブ</option><option value="karaoke">Low・mid・hi</option></select></label>
+        </div>
+        <canvas id="voiceRangeCanvas" class="voice-range-canvas" width="640" height="320" aria-label="声域チェックの声の高さのグラフ" aria-describedby="voiceRangeGraphHelp voiceRangeSpan"></canvas>
+        <p id="voiceRangeGraphHelp" class="graph-hint">横軸は直近12秒、縦軸は声の高さです。青い実線が検出した声、最低・最高の破線が記録した音の両端です。音程を検出できない間は線が途切れます。停止後も表示を残します。</p>
+        <h3>記録した声域の目安</h3>
+        <div class="voice-range-results">
+          <div><span>ドレミ＋オクターブ</span><strong id="voiceRangeSolfege">—</strong></div>
+          <div><span>国際式（C4など）</span><strong id="voiceRangeScientific">—</strong></div>
+          <div><span>カラオケ式（Low・mid・hi）</span><strong id="voiceRangeKaraoke">—</strong></div>
+        </div>
+        <p id="voiceRangeSpan"></p>
+        <p class="graph-hint">ドレミの数字はオクターブです（ド4＝C4）。カラオケ式はLowG＝G2、mid1G＝G3、mid2C＝C4、hiA＝A4として表示します。Aで区切る方式です。</p>
+        <details><summary>記録した音を確認</summary><ul id="voiceRangeNotes" class="voice-range-notes"></ul></details>
+        <p class="compatibility-note">測定対象はC1〜C7です。低音、息の多い声、周囲の音などで検出できなかったり、1オクターブずれて記録されたりする場合があります。地声・裏声の区別や声種の診断は行いません。記録はこの画面を開いている間だけ保持し、音声の保存・送信は行いません。</p>
+      </section>
+
       <section id="gamePracticeView" class="game-practice" aria-labelledby="gameTitle" hidden>
         <h2 id="gameTitle">音程ゲーム <small>試作</small></h2>
         <details id="gameSetup" class="game-setup" open><summary>モード・難易度を選ぶ</summary>
@@ -614,6 +647,11 @@
       </section>
 
       <footer class="app-footer">
+        <div class="pwa-controls">
+          <button id="installApp" type="button" class="secondary-button" hidden>アプリをインストール</button>
+          <p id="pwaStatus" role="status"></p>
+          <p class="graph-hint">ホーム画面への追加はブラウザのメニューからも行えます。音源解析にはインターネット接続が必要な場合があります。</p>
+        </div>
         <small>
           <span>Copyright &copy; 2026 iuill.</span>
           <span>
