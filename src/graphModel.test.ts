@@ -5,6 +5,7 @@ import {
   createGraphViewport,
   createMelodyGraphLayout,
   createPianoKeyboardLayout,
+  createVoiceRangeGraphLayout,
   getVisibleSamples,
   midiToY,
   resolveCanvasBackingSize,
@@ -13,6 +14,47 @@ import { midiToFrequency } from "./pitchMath";
 import { createPitchSample } from "./session";
 
 describe("graph model", () => {
+  test("voice range graph retains twelve seconds and fits confirmed endpoints beyond recent samples", () => {
+    const layout = createVoiceRangeGraphLayout(
+      [
+        { timeMs: 0, midi: 60 },
+        { timeMs: 1000, midi: null },
+        { timeMs: 12_000, midi: 65.2 },
+        { timeMs: 13_000, midi: 67.3 },
+      ],
+      [43, 81],
+      375,
+      320,
+    );
+    expect(layout.visible).toHaveLength(3);
+    expect(layout.visible[0].midi).toBe(null);
+    expect(layout.start).toBe(1000);
+    expect(layout.minMidi).toBeLessThan(43);
+    expect(layout.maxMidi).toBeGreaterThan(81);
+    expect(layout.x(1000)).toBe(layout.padding.left);
+    expect(layout.x(13_000)).toBe(375 - layout.padding.right);
+    expect(layout.y(81)).toBeLessThan(layout.y(43));
+  });
+  test("voice range graph handles an empty trace, a single note and both measurement limits", () => {
+    const empty = createVoiceRangeGraphLayout([], [], 375, 320);
+    expect(empty.minMidi).toBe(36);
+    expect(empty.maxMidi).toBe(72);
+    for (const midi of [24, 60, 96]) {
+      const layout = createVoiceRangeGraphLayout(
+        [{ timeMs: 0, midi }],
+        [midi],
+        280,
+        320,
+      );
+      expect(layout.maxMidi - layout.minMidi).toBeGreaterThanOrEqual(12);
+      expect(layout.minMidi).toBeGreaterThanOrEqual(24);
+      expect(layout.maxMidi).toBeLessThanOrEqual(96);
+      expect(layout.y(midi)).toBeGreaterThanOrEqual(layout.padding.top);
+      expect(layout.y(midi)).toBeLessThanOrEqual(
+        layout.padding.top + layout.plotHeight,
+      );
+    }
+  });
   test("lays out all 88 piano keys from A0 to C8 with 52 white and 36 black keys", () => {
     const layout = createPianoKeyboardLayout();
     expect(layout.whiteCount).toBe(52);

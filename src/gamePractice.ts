@@ -1,4 +1,5 @@
 import { PitchDetector } from "pitchy";
+import { formatMicrophoneError } from "./microphone";
 import {
   detectPitchWithLibraries,
   type LibraryDetectors,
@@ -192,6 +193,7 @@ export class GamePractice {
     this.el<HTMLFieldSetElement>("gameSettings").disabled = true;
     this.el<HTMLDetailsElement>("gameSetup").open = false;
     this.updateScore();
+    let startingMicrophone = false;
     try {
       this.beforeStart();
       this.settings = this.getSettings();
@@ -251,8 +253,12 @@ export class GamePractice {
         );
         this.nextEarRound();
       } else {
+        startingMicrophone = true;
         if (!navigator.mediaDevices?.getUserMedia)
-          throw new Error("マイクにはHTTPSまたはlocalhostが必要です。");
+          throw new DOMException(
+            "マイクにはHTTPSまたはlocalhostが必要です。",
+            "SecurityError",
+          );
         this.message("マイクの使用を許可してください。");
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -304,7 +310,9 @@ export class GamePractice {
     } catch (error) {
       if (generation !== this.generation) return;
       this.stop(
-        `開始できませんでした：${error instanceof Error ? error.message : String(error)}`,
+        startingMicrophone
+          ? formatMicrophoneError(error)
+          : `開始できませんでした：${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

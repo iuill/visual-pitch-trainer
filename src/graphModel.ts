@@ -30,6 +30,54 @@ export type GraphPoint = {
   startsLine: boolean;
 };
 
+export type VoiceRangeGraphSample = { timeMs: number; midi: number | null };
+export const VOICE_RANGE_GRAPH_MS = 12_000;
+
+export function createVoiceRangeGraphLayout(
+  samples: VoiceRangeGraphSample[],
+  notes: number[],
+  width: number,
+  height: number,
+) {
+  const end = samples.at(-1)?.timeMs ?? 0;
+  const start = end - VOICE_RANGE_GRAPH_MS;
+  const visible = samples.filter((sample) => sample.timeMs >= start);
+  const pitches = visible.flatMap((sample) =>
+    sample.midi === null ? [] : [sample.midi],
+  );
+  const bounds = [...pitches, ...notes];
+  let minMidi = bounds.length
+    ? Math.max(24, Math.floor(Math.min(...bounds)) - 3)
+    : 36;
+  let maxMidi = bounds.length
+    ? Math.min(96, Math.ceil(Math.max(...bounds)) + 3)
+    : 72;
+  if (maxMidi - minMidi < 12) {
+    const center = (minMidi + maxMidi) / 2;
+    minMidi = Math.max(24, Math.min(84, Math.floor(center - 6)));
+    maxMidi = minMidi + 12;
+  }
+  const padding = { left: 84, right: 12, top: 24, bottom: 32 };
+  const plotWidth = Math.max(1, width - padding.left - padding.right);
+  const plotHeight = Math.max(1, height - padding.top - padding.bottom);
+  const x = (time: number) =>
+    padding.left + ((time - start) / VOICE_RANGE_GRAPH_MS) * plotWidth;
+  const y = (midi: number) =>
+    padding.top + ((maxMidi - midi) / (maxMidi - minMidi)) * plotHeight;
+  return {
+    visible,
+    start,
+    end,
+    minMidi,
+    maxMidi,
+    padding,
+    plotWidth,
+    plotHeight,
+    x,
+    y,
+  };
+}
+
 export const DEFAULT_GRAPH_PADDING: GraphPadding = {
   top: 38,
   right: 20,

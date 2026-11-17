@@ -39,7 +39,7 @@ Browser
 
 ## Main Features
 
-Switch between single-note practice, melody practice and audio range analysis using the top menu. Shared settings sit above the menu and apply to both single-note and melody practice. Open shared settings with the labeled button; the current range, instrument, volume and tolerance remain visible on the practice screen. The default instrument is piano. Choose single-note targets on the practice screen, and open Melody Settings to change the melody or note duration. Changes apply immediately. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
+Switch between single-note practice, melody practice, games, your own voice range check, and audio range analysis using the top menu. Shared settings sit above the menu and apply to single-note practice, melody practice and games. Voice range checks use only the microphone and sensitivity settings. Open shared settings with the labeled button; the current range, instrument, volume and tolerance remain visible on the practice screen. The default instrument is piano. Choose single-note targets on the practice screen, and open Melody Settings to change the melody or note duration. Changes apply immediately. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
 
 - Select and play reference tones across one chromatic octave
 - Choose vocal ranges with voice range guides: C3-C4 / C4-C5 / C5-C6
@@ -56,6 +56,16 @@ Switch between single-note practice, melody practice and audio range analysis us
 - Export a development PNG comparing pitchy / CREPE / RMVPE pitch graphs
 - Play either the analyzed audio file or a separately selected playback audio file while following the current position on the vocal range graph
 - Responsive UI for desktop, tablet, and smartphone browsers
+
+## Voice Range Check
+
+Sustain comfortable low and high notes to view the confirmed range in solfege, scientific and karaoke notation alongside a pitch graph. After stopping, individual incorrect notes can be removed. The hold duration is provisional; real-voice and iOS evaluation is still pending. See the [implementation notes](docs/implementation-notes.md#自分の声域チェック) for notation and detection details.
+
+## PWA and Offline Use
+
+On HTTPS, use a supported browser's install or home-screen menu. The basic app works offline after initial online preparation. Used reference recordings remain cached across app updates while the audio assets are unchanged; file analysis may still need a connection. Chromium behavior is tested; actual OS installation and iOS devices are unverified.
+
+Updates never reload an active practice. Close all app tabs/windows and reopen to apply an available update. Test production behavior with `bun run build` and `bun run preview`; see the [implementation notes](docs/implementation-notes.md#pwa) for cache scope and limits.
 
 ## Documentation
 
