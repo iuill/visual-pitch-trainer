@@ -53,6 +53,7 @@ import {
   type MelodyObservation,
   recordMelodyObservation,
 } from "./melodyPractice";
+import { formatMicrophoneError } from "./microphone";
 import {
   detectPitchWithLibraries,
   type LibraryDetectors,
@@ -2810,8 +2811,7 @@ async function playScale() {
     } catch (error) {
       if (requestId !== scalePlaybackRequestId) return;
       stopScalePlayback();
-      elements.melodyStatus.textContent =
-        "マイクを開始できませんでした。ブラウザのマイク許可と接続を確認してください。";
+      elements.melodyStatus.textContent = formatMicrophoneError(error);
       console.error(error);
       return;
     }
@@ -2927,8 +2927,7 @@ async function toggleMicrophone() {
       updateMicButtonState("stopped");
     }
   } catch (error) {
-    elements.analysisStatus.textContent =
-      "稽古を開始できませんでした。ブラウザのマイク許可を確認してください。";
+    elements.analysisStatus.textContent = formatMicrophoneError(error);
     updateMicButtonState("stopped");
     console.error(error);
   } finally {
@@ -3163,17 +3162,11 @@ async function refreshAudioDevices() {
 
 function updateActiveDeviceFromStream(stream: MediaStream) {
   const track = stream.getAudioTracks()[0];
-  const settings = track?.getSettings?.();
-  const deviceId = settings?.deviceId || "";
-
-  if (deviceId) {
-    state.selectedDeviceId = deviceId;
-    elements.micSelect.value = deviceId;
-  }
-
+  // The active device is informational. Keep the user's default/explicit choice
+  // unchanged so restarting does not promote a transient ID to an exact constraint.
   const selectedLabel =
-    elements.micSelect.selectedOptions[0]?.textContent ||
     track?.label ||
+    elements.micSelect.selectedOptions[0]?.textContent ||
     "既定のマイク";
   elements.micDeviceStatus.textContent = `使用中: ${selectedLabel}`;
 }
