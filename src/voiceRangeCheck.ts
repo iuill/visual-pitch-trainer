@@ -1,5 +1,6 @@
 import { PitchDetector } from "pitchy";
 import { VOICE_RANGE_GRAPH_MS, type VoiceRangeGraphSample } from "./graphModel";
+import { formatMicrophoneError } from "./microphone";
 import {
   detectVoiceRangePitch,
   VOICE_RANGE_MIN_CLARITY,
@@ -137,7 +138,7 @@ export class VoiceRangeCheck {
     this.message("マイクの利用を許可してください。");
     try {
       if (!navigator.mediaDevices?.getUserMedia)
-        throw new Error("microphone unavailable");
+        throw new DOMException("microphone unavailable", "SecurityError");
       const Context = window.AudioContext || window.webkitAudioContext;
       if (!Context) throw new Error("audio unavailable");
       const context = new Context();
@@ -216,12 +217,10 @@ export class VoiceRangeCheck {
         this.frame = requestAnimationFrame(tick);
       };
       this.frame = requestAnimationFrame(tick);
-    } catch {
+    } catch (error) {
       if (generation !== this.generation) return;
       this.stop();
-      this.message(
-        "マイクを開始できません。HTTPSまたはlocalhostで開き、ブラウザのマイク許可と接続を確認してください。",
-      );
+      this.message(formatMicrophoneError(error));
     }
   }
 
