@@ -6,8 +6,9 @@ export const CALIBRATION_BEAT_MS = 750;
 export const CALIBRATION_COUNTDOWN_MS = 3000;
 
 export function calibrationTapIndex(tapMs: number, startMs: number): number {
-  if (tapMs < startMs) return -1;
-  const index = Math.round((tapMs - startMs) / CALIBRATION_BEAT_MS);
+  const index = Math.floor(
+    (tapMs - startMs + CALIBRATION_BEAT_MS / 2) / CALIBRATION_BEAT_MS,
+  );
   return index >= 0 && index < CALIBRATION_TAPS ? index : -1;
 }
 

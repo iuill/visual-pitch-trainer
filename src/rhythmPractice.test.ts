@@ -243,14 +243,21 @@ describe("rhythm calibration", () => {
   });
 
   test("assigns a calibration tap to the nearest flash", () => {
-    expect(calibrationTapIndex(749, 750)).toBe(-1);
+    expect(calibrationTapIndex(374, 750)).toBe(-1);
+    expect(calibrationTapIndex(375, 750)).toBe(0);
+    expect(calibrationTapIndex(749, 750)).toBe(0);
     expect(calibrationTapIndex(750, 750)).toBe(0);
     expect(calibrationTapIndex(750 + 374, 750)).toBe(0);
     expect(calibrationTapIndex(750 + 375, 750)).toBe(1);
     expect(calibrationTapIndex(750 + (CALIBRATION_TAPS - 1) * 750, 750)).toBe(
       CALIBRATION_TAPS - 1,
     );
-    expect(calibrationTapIndex(750 + CALIBRATION_TAPS * 750, 750)).toBe(-1);
+    expect(calibrationTapIndex(750 + CALIBRATION_TAPS * 750 - 376, 750)).toBe(
+      CALIBRATION_TAPS - 1,
+    );
+    expect(calibrationTapIndex(750 + CALIBRATION_TAPS * 750 - 375, 750)).toBe(
+      -1,
+    );
   });
 
   test("converts audio-guide taps with the output clock and falls back to latency", () => {
