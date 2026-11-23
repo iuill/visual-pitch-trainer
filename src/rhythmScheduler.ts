@@ -11,17 +11,45 @@ const countFiles = ["one", "two", "three", "four", "and"];
 const maxCountRate = 1.4;
 const countVoiceRms = 0.15;
 const countVoicePeak = 0.97;
+const countVoiceWindowSeconds = 0.02;
+const countVoiceEnergyFloorRatio = 0.03;
 
 function prepareCountVoice(buffer: AudioBuffer) {
-  let squareSum = 0;
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) =>
+    buffer.getChannelData(index),
+  );
+  const windowFrames = Math.max(
+    1,
+    Math.round(buffer.sampleRate * countVoiceWindowSeconds),
+  );
+  const windowEnergies: number[] = [];
+  let loudestWindow = 0;
   let peak = 0;
-  for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-    for (const sample of buffer.getChannelData(channel)) {
-      squareSum += sample * sample;
-      peak = Math.max(peak, Math.abs(sample));
+  for (let start = 0; start < buffer.length; start += windowFrames) {
+    const end = Math.min(start + windowFrames, buffer.length);
+    let squareSum = 0;
+    for (const channel of channels) {
+      for (let frame = start; frame < end; frame++) {
+        const sample = channel[frame];
+        squareSum += sample * sample;
+        peak = Math.max(peak, Math.abs(sample));
+      }
     }
+    // Treat the last partial window as zero-padded to the same duration.
+    const meanSquare = squareSum / (windowFrames * channels.length);
+    loudestWindow = Math.max(loudestWindow, meanSquare);
+    windowEnergies.push(meanSquare);
   }
-  const rms = Math.sqrt(squareSum / (buffer.length * buffer.numberOfChannels));
+  // Ignore windows whose energy is below 3% of the loudest speech window.
+  const activeEnergies = windowEnergies.filter(
+    (energy) => energy > loudestWindow * countVoiceEnergyFloorRatio,
+  );
+  const rms = activeEnergies.length
+    ? Math.sqrt(
+        activeEnergies.reduce((sum, energy) => sum + energy, 0) /
+          activeEnergies.length,
+      )
+    : 0;
   const gain =
     rms > 0 ? Math.min(countVoiceRms / rms, countVoicePeak / peak) : 1;
   return { buffer, gain };

@@ -19,7 +19,7 @@ export interface RhythmStep {
   mixed?: boolean;
 }
 
-export const RHYTHM_BARS = 4;
+const RHYTHM_MIN_BEATS = 16;
 
 export function rhythmSlotsPerBeat(step: RhythmStep) {
   if (step.beatsPerBar === 7) return 1;
@@ -558,7 +558,7 @@ export function createRhythmBars(
 ): string[] {
   if (step.melody) return [...step.patterns];
   const bars: string[] = [];
-  const barCount = Math.ceil((RHYTHM_BARS * 4) / (step.beatsPerBar ?? 4));
+  const barCount = Math.ceil(RHYTHM_MIN_BEATS / (step.beatsPerBar ?? 4));
   for (let index = 0; index < barCount; index++) {
     const choices =
       step.mixed && step.patterns.length > 1
