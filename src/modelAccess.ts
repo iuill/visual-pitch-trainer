@@ -1,3 +1,6 @@
+export const PITCH_MODEL_SETUP_HINT =
+  "ローカル開発や Cloudflare Pages など GitHub Pages 以外の配信では、build 前に bun run download:pitch-models を実行して public/models/ にモデルを取得してください。";
+
 type ModelAccessOptions = {
   label: string;
   modelUrl: string;

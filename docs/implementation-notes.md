@@ -27,6 +27,7 @@ src/audioContext.ts
 src/audioFileView.ts
 src/audioFilePlayback.ts
 src/audioAnalysisPipeline.ts
+src/onnxRuntime.ts
 src/audioAnalysisProgress.ts
 src/audioDownloads.ts
 src/audioFileAnalysis.ts
@@ -240,6 +241,8 @@ src/melodyGraph.ts がメロディ専用Canvasを描画し、src/graphModel.ts �
 ## 音源ファイル解析
 
 音源ファイル解析の流れは `src/audioAnalysisPipeline.ts`、軽量推定と共通の結果集計は `src/audioFileAnalysis.ts` が扱う。メディアファイルから PCM データを取り出す処理は `src/mediaAudioExtraction.ts`、任意のボーカル抽出は `src/vocalSeparation.ts` に分離している。
+
+WebGPUの利用可否とアダプタ取得、テンソルの解放、CREPE / RMVPEのセッション生成は `src/onnxRuntime.ts` を使う。Demucs と BS-RoFormer のステレオへのリサンプリングは `src/mediaAudioExtraction.ts` を共有し、モデルが必要とするサンプリングレートを渡す。モデルの前処理、セッションの再利用、分離モデルのセッション設定は各実装が扱う。
 
 現在の処理:
 

@@ -44,6 +44,50 @@ function shouldDecodeWithMediabunnyFirst(file: File): boolean {
   return /\.(mkv|mov|mp4|webm)$/i.test(file.name);
 }
 
+export async function resampleToStereo(
+  decodedAudio: DecodedMediaAudio,
+  sampleRate: number,
+): Promise<{
+  left: Float32Array;
+  right: Float32Array;
+}> {
+  const left = decodedAudio.channels[0] ?? new Float32Array(0);
+  const right = decodedAudio.channels[1] ?? left;
+
+  if (decodedAudio.sampleRate === sampleRate) {
+    return {
+      left: new Float32Array(left),
+      right: new Float32Array(right),
+    };
+  }
+
+  const frameCount = Math.max(
+    1,
+    Math.ceil((left.length / decodedAudio.sampleRate) * sampleRate),
+  );
+  const offlineContext = new OfflineAudioContext(2, frameCount, sampleRate);
+  const buffer = offlineContext.createBuffer(
+    2,
+    Math.max(left.length, right.length, 1),
+    decodedAudio.sampleRate,
+  );
+
+  buffer.copyToChannel(new Float32Array(left), 0);
+  buffer.copyToChannel(new Float32Array(right), 1);
+
+  const source = offlineContext.createBufferSource();
+  source.buffer = buffer;
+  source.connect(offlineContext.destination);
+  source.start();
+
+  const rendered = await offlineContext.startRendering();
+
+  return {
+    left: new Float32Array(rendered.getChannelData(0)),
+    right: new Float32Array(rendered.getChannelData(1)),
+  };
+}
+
 export function mixChannelsToMono(channels: Float32Array[]): Float32Array {
   const length = Math.max(...channels.map((channel) => channel.length), 0);
   const mixed = new Float32Array(length);

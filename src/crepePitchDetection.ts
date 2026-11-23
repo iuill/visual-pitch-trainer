@@ -4,11 +4,18 @@ import {
   refineAudioPitchPoints,
   summarizeVoiceRange,
 } from "./audioFileAnalysis";
-import { assertModelUrlAccessible } from "./modelAccess";
-import { configureOnnxRuntimeWebGpu } from "./onnxRuntimeConfig";
+import {
+  assertModelUrlAccessible,
+  PITCH_MODEL_SETUP_HINT,
+} from "./modelAccess";
+import {
+  assertWebGpuSupported,
+  createPitchModelSession,
+  disposeTensors,
+  getWebGpuSupportMessage,
+  type PitchModelSession,
+} from "./onnxRuntime";
 import { getRms, hzToMidi } from "./pitchMath";
-
-type OnnxRuntimeWebGpu = typeof import("onnxruntime-web/webgpu");
 
 export type CrepeAnalysisProgress = {
   phase: "loading-runtime" | "loading-model" | "analyzing";
@@ -49,15 +56,7 @@ const CREPE_MODEL_PATHS = {
 
 export type CrepeModelSize = keyof typeof CREPE_MODEL_PATHS;
 
-const crepeSessionPromises = new Map<
-  string,
-  Promise<{
-    ort: OnnxRuntimeWebGpu;
-    session: Awaited<
-      ReturnType<OnnxRuntimeWebGpu["InferenceSession"]["create"]>
-    >;
-  }>
->();
+const crepeSessionPromises = new Map<string, Promise<PitchModelSession>>();
 
 export async function analyzeAudioDataWithCrepe(
   audioData: Float32Array,
@@ -148,8 +147,7 @@ export async function analyzeAudioDataWithCrepe(
         });
       }
     } finally {
-      disposeTensor(input);
-      disposeTensors(Object.values(output));
+      disposeTensors(input, ...Object.values(output));
     }
 
     options.onProgress?.({
@@ -175,31 +173,11 @@ export async function analyzeAudioDataWithCrepe(
 }
 
 export function getCrepePitchDetectionSupportMessage(): string | null {
-  if (!window.isSecureContext) {
-    return "CREPE推定にはHTTPSまたはlocalhostの安全な接続が必要です。";
-  }
-
-  if (!getNavigatorGpu()) {
-    return "このブラウザではWebGPUが使えないため、CREPE推定はPC版Chrome/Edgeなどで試してください。";
-  }
-
-  return null;
+  return getWebGpuSupportMessage("CREPE推定");
 }
-
-export async function assertCrepePitchDetectionSupported(): Promise<void> {
-  const supportMessage = getCrepePitchDetectionSupportMessage();
-  if (supportMessage) {
-    throw new Error(supportMessage);
-  }
-
-  const adapter = await getNavigatorGpu()?.requestAdapter?.();
-  if (!adapter) {
-    throw new Error(
-      "この環境ではWebGPUアダプタを取得できないため、CREPE推定を使えません。",
-    );
-  }
+export function assertCrepePitchDetectionSupported(): Promise<void> {
+  return assertWebGpuSupported("CREPE推定");
 }
-
 export function resampleLinear(
   audioData: Float32Array,
   sourceSampleRate: number,
@@ -326,8 +304,7 @@ export async function assertCrepeModelAccessible(
     label: `CREPE ${modelSize}`,
     modelUrl: getCrepeModelUrl(modelSize),
     minBytes: 1024 * 1024,
-    setupHint:
-      "ローカル開発や Cloudflare Pages など GitHub Pages 以外の配信では、build 前に bun run download:pitch-models を実行して public/models/ にモデルを取得してください。",
+    setupHint: PITCH_MODEL_SETUP_HINT,
   });
 }
 
@@ -456,93 +433,21 @@ function getOfflineAudioContextConstructor():
 async function getCrepeSession(
   modelUrl: string,
   onCreate?: () => void,
-): Promise<{
-  ort: OnnxRuntimeWebGpu;
-  session: Awaited<ReturnType<OnnxRuntimeWebGpu["InferenceSession"]["create"]>>;
-}> {
+): Promise<PitchModelSession> {
   let crepeSessionPromise = crepeSessionPromises.get(modelUrl);
 
   if (!crepeSessionPromise) {
     onCreate?.();
-    crepeSessionPromise = createCrepeSession(modelUrl).catch((error) => {
-      if (crepeSessionPromises.get(modelUrl) === crepeSessionPromise) {
-        crepeSessionPromises.delete(modelUrl);
-      }
-      throw error;
-    });
+    crepeSessionPromise = createPitchModelSession("CREPE", modelUrl).catch(
+      (error) => {
+        if (crepeSessionPromises.get(modelUrl) === crepeSessionPromise) {
+          crepeSessionPromises.delete(modelUrl);
+        }
+        throw error;
+      },
+    );
     crepeSessionPromises.set(modelUrl, crepeSessionPromise);
   }
 
   return crepeSessionPromise;
-}
-
-async function createCrepeSession(modelUrl: string): Promise<{
-  ort: OnnxRuntimeWebGpu;
-  session: Awaited<ReturnType<OnnxRuntimeWebGpu["InferenceSession"]["create"]>>;
-}> {
-  const ort = await import("onnxruntime-web/webgpu");
-  configureOnnxRuntime(ort);
-
-  let session: Awaited<
-    ReturnType<OnnxRuntimeWebGpu["InferenceSession"]["create"]>
-  >;
-  try {
-    session = await ort.InferenceSession.create(modelUrl, {
-      executionProviders: ["webgpu"],
-      graphOptimizationLevel: "all",
-    });
-  } catch (error) {
-    throw createOnnxModelLoadError("CREPE", modelUrl, error);
-  }
-
-  return { ort, session };
-}
-
-function createOnnxModelLoadError(
-  label: string,
-  modelUrl: string,
-  error: unknown,
-) {
-  const message = error instanceof Error ? error.message : "";
-  if (
-    !message.includes("protobuf parsing failed") &&
-    !message.includes("Failed to load model")
-  ) {
-    return error;
-  }
-
-  return new Error(
-    `${label}モデルを読み込めませんでした。${modelUrl} が有効な ONNX モデルとして配信されているか確認してください。ローカル開発や Cloudflare Pages など GitHub Pages 以外の配信では、build 前に bun run download:pitch-models を実行して public/models/ にモデルを取得してください。元のエラー: ${message}`,
-  );
-}
-
-function configureOnnxRuntime(ort: OnnxRuntimeWebGpu) {
-  configureOnnxRuntimeWebGpu(ort, {
-    numThreads: 1,
-    powerPreference: "high-performance",
-  });
-}
-
-function getNavigatorGpu():
-  | {
-      requestAdapter?: () => Promise<unknown>;
-    }
-  | undefined {
-  return (
-    navigator as Navigator & {
-      gpu?: {
-        requestAdapter?: () => Promise<unknown>;
-      };
-    }
-  ).gpu;
-}
-
-function disposeTensor(tensor: { dispose?: () => void }) {
-  tensor.dispose?.();
-}
-
-function disposeTensors(tensors: Array<{ dispose?: () => void } | undefined>) {
-  for (const tensor of tensors) {
-    tensor?.dispose?.();
-  }
 }

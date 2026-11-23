@@ -1,6 +1,10 @@
 import type * as ort from "onnxruntime-web/webgpu";
-import type { DecodedMediaAudio } from "./mediaAudioExtraction";
+import {
+  type DecodedMediaAudio,
+  resampleToStereo,
+} from "./mediaAudioExtraction";
 import { assertModelUrlAccessible } from "./modelAccess";
+import { disposeTensors, requestWebGpuAdapter } from "./onnxRuntime";
 
 export type RoformerVocalModelId = "bs-roformer-fp16";
 
@@ -412,8 +416,7 @@ async function separateWithRoformerSession(
         overlapWeights[outputIndex] += weight;
       }
     } finally {
-      disposeTensor(tensor);
-      disposeTensors(Object.values(results));
+      disposeTensors(tensor, ...Object.values(results));
     }
 
     options.onProgress?.({
@@ -486,13 +489,12 @@ async function validateRoformerWarmup(
         .join(" "),
     });
   } finally {
-    disposeTensor(tensor);
-    disposeTensors(Object.values(results));
+    disposeTensors(tensor, ...Object.values(results));
   }
 }
 
 async function getWebGpuAdapterDiagnostics(): Promise<string> {
-  const adapter = await getNavigatorGpu()?.requestAdapter?.();
+  const adapter = await requestWebGpuAdapter();
 
   if (!adapter) {
     return "webgpuAdapter=unavailable";
@@ -837,50 +839,6 @@ function reflectPad(signal: Float32Array, padSize: number): Float32Array {
   return padded;
 }
 
-async function resampleToStereo(
-  decodedAudio: DecodedMediaAudio,
-  sampleRate: number,
-): Promise<{
-  left: Float32Array;
-  right: Float32Array;
-}> {
-  const left = decodedAudio.channels[0] ?? new Float32Array(0);
-  const right = decodedAudio.channels[1] ?? left;
-
-  if (decodedAudio.sampleRate === sampleRate) {
-    return {
-      left: new Float32Array(left),
-      right: new Float32Array(right),
-    };
-  }
-
-  const frameCount = Math.max(
-    1,
-    Math.ceil((left.length / decodedAudio.sampleRate) * sampleRate),
-  );
-  const offlineContext = new OfflineAudioContext(2, frameCount, sampleRate);
-  const buffer = offlineContext.createBuffer(
-    2,
-    Math.max(left.length, right.length, 1),
-    decodedAudio.sampleRate,
-  );
-
-  buffer.copyToChannel(new Float32Array(left), 0);
-  buffer.copyToChannel(new Float32Array(right), 1);
-
-  const source = offlineContext.createBufferSource();
-  source.buffer = buffer;
-  source.connect(offlineContext.destination);
-  source.start();
-
-  const rendered = await offlineContext.startRendering();
-
-  return {
-    left: new Float32Array(rendered.getChannelData(0)),
-    right: new Float32Array(rendered.getChannelData(1)),
-  };
-}
-
 function getFrameCount(config: RoformerVocalModelConfig): number {
   const inputLength = config.centeredStft
     ? config.chunkSize + config.nFft
@@ -891,16 +849,6 @@ function getFrameCount(config: RoformerVocalModelConfig): number {
 
 function yieldToBrowser(): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, 0));
-}
-
-function disposeTensors(tensors: Array<{ dispose?: () => void } | undefined>) {
-  for (const tensor of tensors) {
-    disposeTensor(tensor);
-  }
-}
-
-function disposeTensor(tensor: { dispose?: () => void } | undefined) {
-  tensor?.dispose?.();
 }
 
 function getSignalStats(signal: Float32Array): SignalStats {
@@ -1023,18 +971,4 @@ function formatDebugNumber(value: number): string {
   }
 
   return value.toExponential(3);
-}
-
-function getNavigatorGpu():
-  | {
-      requestAdapter?: () => Promise<GPUAdapter | null>;
-    }
-  | undefined {
-  return (
-    navigator as Navigator & {
-      gpu?: {
-        requestAdapter?: () => Promise<GPUAdapter | null>;
-      };
-    }
-  ).gpu;
 }
