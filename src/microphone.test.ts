@@ -47,10 +47,13 @@ test("stopping a pending microphone acquisition releases the late stream before 
         throw new Error("A cancelled acquisition must not notify the view.");
       },
     });
+    expect(microphone.isStarting).toBe(true);
     microphone.stop();
+    expect(microphone.isStarting).toBe(false);
     pending.resolve(stream);
 
     expect(await starting).toBeNull();
+    expect(microphone.isActive).toBe(false);
     expect(stops).toBe(1);
     expect(analyserStarts).toBe(0);
   } finally {

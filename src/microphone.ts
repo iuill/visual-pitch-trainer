@@ -1,4 +1,5 @@
 import { PitchDetector } from "pitchy";
+import { AnimationLoop } from "./animationLoop";
 import {
   analyzeTargetPitch,
   analyzeVoiceRangePitch,
@@ -7,6 +8,7 @@ import {
 } from "./pitchDetection";
 
 export const PRACTICE_MIC_FFT_SIZE = 4096;
+export const PRACTICE_MIN_CLARITY = 0.52;
 const PITCHY_CLARITY_THRESHOLD = 0.93;
 
 export type MicrophoneCapture = {
@@ -24,9 +26,24 @@ type MicrophoneOptions = {
 export class MicrophoneInput {
   private generation = 0;
   private release: (() => void) | null = null;
+  private readonly loop = new AnimationLoop();
+  private capture: MicrophoneCapture | null = null;
+  private starting = false;
+
+  get isActive() {
+    return this.capture !== null;
+  }
+
+  get isStarting() {
+    return this.starting;
+  }
+
+  isCurrent(capture: MicrophoneCapture) {
+    return this.capture === capture;
+  }
 
   async start(
-    context: AudioContext,
+    context: AudioContext | (() => AudioContext),
     options: MicrophoneOptions,
   ): Promise<MicrophoneCapture | null> {
     this.stop();
@@ -38,22 +55,38 @@ export class MicrophoneInput {
       );
     }
 
-    let stream: MediaStream;
+    this.starting = true;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          ...(options.deviceId
-            ? { deviceId: { exact: options.deviceId } }
-            : {}),
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
-      });
+      const capture = await this.acquire(
+        typeof context === "function" ? context() : context,
+        options,
+        generation,
+      );
+      if (generation !== this.generation) return null;
+      this.capture = capture;
+      return capture;
     } catch (error) {
       if (generation !== this.generation) return null;
+      this.disposeCapture();
       throw error;
+    } finally {
+      if (generation === this.generation) this.starting = false;
     }
+  }
+
+  private async acquire(
+    context: AudioContext,
+    options: MicrophoneOptions,
+    generation: number,
+  ): Promise<MicrophoneCapture | null> {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        ...(options.deviceId ? { deviceId: { exact: options.deviceId } } : {}),
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      },
+    });
     const tracks = stream.getTracks();
     if (generation !== this.generation) {
       for (const track of tracks) track.stop();
@@ -75,41 +108,48 @@ export class MicrophoneInput {
       analyser?.disconnect();
     };
 
-    try {
-      const inputAnalyser = context.createAnalyser();
-      analyser = inputAnalyser;
-      analyser.fftSize = options.fftSize;
-      analyser.smoothingTimeConstant = 0;
-      source = context.createMediaStreamSource(stream);
-      source.connect(analyser);
-      const buffer = new Float32Array(analyser.fftSize);
-      const detector = PitchDetector.forFloat32Array(buffer.length);
-      detector.clarityThreshold = PITCHY_CLARITY_THRESHOLD;
-      for (const track of tracks) track.addEventListener("ended", onEnded);
-      const detectors = { detector, sampleRate: context.sampleRate };
-      function readWaveform() {
-        inputAnalyser.getFloatTimeDomainData(buffer);
-        return buffer;
-      }
-      return {
-        deviceLabel: stream.getAudioTracks()[0]?.label ?? "",
-        sampleTarget(options) {
-          return analyzeTargetPitch(readWaveform(), detectors, options);
-        },
-        sampleVoiceRange(minRms) {
-          return analyzeVoiceRangePitch(readWaveform(), detectors, minRms);
-        },
-      };
-    } catch (error) {
-      this.stop();
-      throw error;
+    const inputAnalyser = context.createAnalyser();
+    analyser = inputAnalyser;
+    analyser.fftSize = options.fftSize;
+    analyser.smoothingTimeConstant = 0;
+    source = context.createMediaStreamSource(stream);
+    source.connect(analyser);
+    const buffer = new Float32Array(analyser.fftSize);
+    const detector = PitchDetector.forFloat32Array(buffer.length);
+    detector.clarityThreshold = PITCHY_CLARITY_THRESHOLD;
+    for (const track of tracks) track.addEventListener("ended", onEnded);
+    const detectors = { detector, sampleRate: context.sampleRate };
+    function readWaveform() {
+      inputAnalyser.getFloatTimeDomainData(buffer);
+      return buffer;
     }
+    return {
+      deviceLabel: stream.getAudioTracks()[0]?.label ?? "",
+      sampleTarget(options) {
+        return analyzeTargetPitch(readWaveform(), detectors, options);
+      },
+      sampleVoiceRange(minRms) {
+        return analyzeVoiceRangePitch(readWaveform(), detectors, minRms);
+      },
+    };
+  }
+
+  startFrames(onFrame: (now: number, capture: MicrophoneCapture) => void) {
+    const capture = this.capture;
+    if (capture) this.loop.start((now) => onFrame(now, capture));
   }
 
   stop() {
     this.generation++;
+    this.starting = false;
+    this.loop.stop();
+    this.disposeCapture();
+  }
+
+  private disposeCapture() {
     this.release?.();
     this.release = null;
+    this.capture = null;
   }
 }
 
@@ -125,7 +165,7 @@ export function formatMicrophoneError(error: unknown): string {
   switch (name) {
     case "NotAllowedError":
     case "SecurityError":
-      return `${prefix}ブラウザのマイク許可と、HTTPSで開いていることを確認してください。`;
+      return `${prefix}ブラウザのマイク許可と、HTTPSまたはlocalhostで開いていることを確認してください。`;
     case "OverconstrainedError":
     case "NotFoundError":
       return `${prefix}共通設定のマイクを「既定のマイク」に戻すか、接続中の入力を選び直してください。`;

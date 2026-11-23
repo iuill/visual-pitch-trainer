@@ -39,6 +39,8 @@ Browser
 
 ## Main Features
 
+On narrow screens, you can stop single-note practice, melody practice, and the voice range check from the bottom of the screen while viewing the graph.
+
 Switch between single-note practice, melody practice, games, your own voice range check, and audio range analysis using the top menu. Shared settings sit above the menu and apply to single-note practice, melody practice and games. Voice range checks use only the microphone and sensitivity settings. Open shared settings with the labeled button; the current range, instrument, volume and tolerance remain visible on the practice screen. The default instrument is piano. Choose single-note targets on the practice screen, and open Melody Settings to change the melody or note duration. Changes apply immediately. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
 
 - Select and play reference tones across one chromatic octave

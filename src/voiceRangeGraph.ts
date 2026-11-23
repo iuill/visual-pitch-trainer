@@ -1,6 +1,6 @@
+import { getGraphTheme, resizeGraphCanvas } from "./graphCanvas";
 import {
   createVoiceRangeGraphLayout,
-  resolveCanvasBackingSize,
   type VoiceRangeGraphSample,
 } from "./graphModel";
 import {
@@ -22,16 +22,10 @@ export function drawVoiceRangeGraph(
   if (!width || !height) return;
   const context = canvas.getContext("2d");
   if (!context) return;
-  const backing = resolveCanvasBackingSize(
-    width,
-    height,
-    window.devicePixelRatio,
-  );
-  if (canvas.width !== backing.width) canvas.width = backing.width;
-  if (canvas.height !== backing.height) canvas.height = backing.height;
+  const backing = resizeGraphCanvas(canvas, width, height);
   context.setTransform(backing.pixelRatio, 0, 0, backing.pixelRatio, 0, 0);
   context.clearRect(0, 0, width, height);
-  context.fillStyle = "#fbfcfc";
+  context.fillStyle = getGraphTheme().background;
   context.fillRect(0, 0, width, height);
   const layout = createVoiceRangeGraphLayout(samples, notes, width, height);
   const { padding, plotWidth, plotHeight, x, y } = layout;
@@ -49,26 +43,26 @@ export function drawVoiceRangeGraph(
     midi <= layout.maxMidi;
     midi += step
   ) {
-    context.strokeStyle = "#dce5e8";
+    context.strokeStyle = getGraphTheme().grid;
     context.lineWidth = 1;
     context.beginPath();
     context.moveTo(padding.left, y(midi));
     context.lineTo(width - padding.right, y(midi));
     context.stroke();
-    context.fillStyle = "#475663";
+    context.fillStyle = getGraphTheme().label;
     context.fillText(format(midi), padding.left - 8, y(midi) + 4);
   }
   context.textAlign = "center";
   for (let seconds = -12; seconds <= 0; seconds += 3) {
     const at = x(layout.end + seconds * 1000);
-    context.fillStyle = "#475663";
+    context.fillStyle = getGraphTheme().label;
     context.fillText(seconds === 0 ? "0秒" : `${seconds}秒`, at, height - 10);
   }
   context.save();
   context.beginPath();
   context.rect(padding.left, padding.top, plotWidth, plotHeight);
   context.clip();
-  context.strokeStyle = "#2b6cb0";
+  context.strokeStyle = getGraphTheme().voice;
   context.lineWidth = 2.5;
   context.beginPath();
   let previous: VoiceRangeGraphSample | null = null;
@@ -85,7 +79,7 @@ export function drawVoiceRangeGraph(
   context.stroke();
   const last = layout.visible.at(-1);
   if (last?.midi !== null && last?.midi !== undefined) {
-    context.fillStyle = "#2b6cb0";
+    context.fillStyle = getGraphTheme().voice;
     context.beginPath();
     context.arc(x(last.timeMs), y(last.midi), 4, 0, Math.PI * 2);
     context.fill();
@@ -95,9 +89,9 @@ export function drawVoiceRangeGraph(
     high = notes.at(-1);
   if (low !== undefined && high !== undefined) {
     for (const [midi, label, color] of low === high
-      ? ([[low, "記録", "#146c75"]] as const)
+      ? ([[low, "記録", getGraphTheme().target]] as const)
       : ([
-          [low, "最低", "#146c75"],
+          [low, "最低", getGraphTheme().target],
           [high, "最高", "#875a12"],
         ] as const)) {
       context.setLineDash([6, 4]);

@@ -4,13 +4,13 @@ import {
   getComboTierProgress,
   getTargetGlowStrength,
 } from "./gameEffects";
+import { getGraphTheme, resizeGraphCanvas } from "./graphCanvas";
 import {
   buildGraphPoints,
   clamp,
   createGraphViewport,
   type GraphPadding,
   midiToY,
-  resolveCanvasBackingSize,
 } from "./graphModel";
 import { midiToNoteName, midiToSolfegeName, type Note } from "./pitchMath";
 import type { PitchSample } from "./session";
@@ -19,13 +19,7 @@ export const GRAPH_SECONDS = 12;
 const GRAPH_RANGE_SEMITONES = 6;
 export const LANDING_RIPPLE_DURATION_MS = 850;
 export const COMBO_MILESTONE_DURATION_MS = 1600;
-const COMBO_TIER_COLORS = [
-  "#2b6cb0",
-  "#15857d",
-  "#2f9e44",
-  "#e09f10",
-  "#e8590c",
-];
+const COMBO_TIER_COLORS = ["#15857d", "#2f9e44", "#e09f10", "#e8590c"];
 
 export function drawSinglePracticeGraph(
   canvas: HTMLCanvasElement,
@@ -39,18 +33,14 @@ export function drawSinglePracticeGraph(
   const context = canvas.getContext("2d");
   if (!context) return;
   const rect = canvas.getBoundingClientRect();
-  const size = resolveCanvasBackingSize(
+  const size = resizeGraphCanvas(
+    canvas,
     Math.max(1, Math.round(rect.width || canvas.clientWidth || canvas.width)),
     Math.max(
       1,
       Math.round(rect.height || canvas.clientHeight || canvas.height),
     ),
-    window.devicePixelRatio || 1,
   );
-  if (canvas.width !== size.width || canvas.height !== size.height) {
-    canvas.width = size.width;
-    canvas.height = size.height;
-  }
   const { pixelRatio } = size;
   const width = size.width / pixelRatio;
   const height = size.height / pixelRatio;
@@ -68,7 +58,7 @@ export function drawSinglePracticeGraph(
 
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   context.clearRect(0, 0, width, height);
-  context.fillStyle = "#fbfcfc";
+  context.fillStyle = getGraphTheme().background;
   context.fillRect(0, 0, width, height);
 
   context.fillStyle = "rgba(47, 133, 90, 0.12)";
@@ -82,7 +72,7 @@ export function drawSinglePracticeGraph(
   drawGrid(context, viewport);
   drawTargetGlow(context, width, viewport, latestSample, tolerance);
 
-  context.strokeStyle = "#146c75";
+  context.strokeStyle = getGraphTheme().target;
   context.lineWidth = 3;
   context.beginPath();
   context.moveTo(viewport.padding.left, viewport.zeroY);
@@ -94,7 +84,8 @@ export function drawSinglePracticeGraph(
   context.fillText(target.name, viewport.padding.left + 8, viewport.zeroY - 10);
 
   const comboTier = getComboTier(effects.stableComboMs);
-  const trailColor = COMBO_TIER_COLORS[comboTier.level] ?? "#2b6cb0";
+  const trailColor =
+    COMBO_TIER_COLORS[comboTier.level - 1] ?? getGraphTheme().voice;
 
   context.save();
 
@@ -140,7 +131,8 @@ function drawComboMilestones(
     const age = now - milestone.createdAt;
     const progress = clamp(age / COMBO_MILESTONE_DURATION_MS, 0, 1);
     const alpha = 1 - progress;
-    const color = COMBO_TIER_COLORS[milestone.level] ?? "#2b6cb0";
+    const color =
+      COMBO_TIER_COLORS[milestone.level - 1] ?? getGraphTheme().voice;
     const x = clamp(
       viewport.padding.left +
         ((milestone.timeMs - viewport.startTime) / (GRAPH_SECONDS * 1000)) *
@@ -210,7 +202,8 @@ function drawComboMeter(
   }
 
   const tierProgress = getComboTierProgress(stableComboMs);
-  const color = COMBO_TIER_COLORS[tierProgress.current.level] ?? "#2b6cb0";
+  const color =
+    COMBO_TIER_COLORS[tierProgress.current.level - 1] ?? getGraphTheme().voice;
   const meterWidth = 180;
   const meterHeight = 10;
   const x = width - viewport.padding.right - meterWidth;
@@ -332,7 +325,7 @@ function drawGrid(
   context.strokeStyle = "#d7dee2";
   context.lineWidth = 1;
   context.font = "16px system-ui, sans-serif";
-  context.fillStyle = "#5c6870";
+  context.fillStyle = getGraphTheme().label;
 
   for (
     let midi = Math.ceil(viewport.minMidi);
@@ -347,10 +340,10 @@ function drawGrid(
     const isTarget = Math.round(midi) === Math.round(viewport.targetMidi);
 
     context.strokeStyle = isTarget
-      ? "#146c75"
+      ? getGraphTheme().target
       : isOctave
-        ? "#c6d4d8"
-        : "#e8edf0";
+        ? getGraphTheme().octave
+        : getGraphTheme().grid;
     context.lineWidth = isTarget ? 2 : 1;
     context.beginPath();
     context.moveTo(viewport.padding.left, y);
@@ -358,7 +351,7 @@ function drawGrid(
     context.stroke();
 
     if (isOctave || isTarget || midi % 2 === 0) {
-      context.fillStyle = isTarget ? "#172026" : "#73808a";
+      context.fillStyle = isTarget ? "#172026" : getGraphTheme().label;
       context.fillText(midiToNoteName(midi), 8, y + 5);
     }
   }
@@ -382,7 +375,7 @@ function drawGraphLabels(
   height: number,
   padding: GraphPadding,
 ) {
-  context.fillStyle = "#5c6870";
+  context.fillStyle = getGraphTheme().label;
   context.font = "16px system-ui, sans-serif";
   context.fillText("音名", 8, 20);
   context.fillText("12秒前", padding.left, height - 10);
