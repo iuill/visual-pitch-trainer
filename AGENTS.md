@@ -15,7 +15,8 @@
   - `index.html`: アプリの HTML。
   - `styles.css`: 画面全体のスタイル。
   - `src/app.ts`: 画面の初期化・切り替えとページのライフサイクル。
-  - `src/practiceView.ts` / `src/melodyPracticeView.ts`: 共通設定、単音・メロディ練習。
+  - `src/commonSettings.ts`: 共通設定の値・表示・変更通知、試聴、マイク選択。
+  - `src/practiceView.ts` / `src/melodyPracticeView.ts`: 単音・メロディ練習。
   - `src/gamePractice.ts` / `src/voiceRangeCheck.ts`: ゲームと自分の声域チェック。
   - `src/microphone.ts`: マイク入力の取得・波形の読み取り・解放。
   - `src/audioContext.ts`: AudioContext の生成と共有コンテキストの管理。

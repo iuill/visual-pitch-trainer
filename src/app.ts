@@ -1,9 +1,11 @@
-import { closeAudioContext } from "./audioContext";
+import { closeAudioContext, getAudioContext } from "./audioContext";
 import { setupAudioFileView } from "./audioFileView";
+import { type ReferencePlayback, setupCommonSettings } from "./commonSettings";
 import { queryElement } from "./dom";
 import { GamePractice } from "./gamePractice";
 import { setupPracticeView } from "./practiceView";
 import { setupPwa } from "./pwa";
+import { ReferencePlayer } from "./referencePlayer";
 import { VoiceRangeCheck } from "./voiceRangeCheck";
 import "../styles.css";
 
@@ -19,10 +21,24 @@ function init() {
   setupPwa();
   updateBuildInfo();
 
-  const practice = setupPracticeView(() => views[currentView].stop());
+  let referencePlayer: ReferencePlayer | null = null;
+  const playback: ReferencePlayback = {
+    getPlayer() {
+      if (!referencePlayer) {
+        referencePlayer = new ReferencePlayer(getAudioContext());
+        referencePlayer.setVolume(settings.getSettings().volume);
+      }
+      return referencePlayer;
+    },
+    getCurrentPlayer: () => referencePlayer,
+  };
+  const settings = setupCommonSettings(playback, () => {
+    views[currentView].stop();
+  });
+  const practice = setupPracticeView(settings, playback);
   const audio = setupAudioFileView();
-  const game = new GamePractice(practice.getSettings, practice.stopPreview);
-  const range = new VoiceRangeCheck(practice.getSettings, practice.stopPreview);
+  const game = new GamePractice(settings.getSettings, settings.stopPreview);
+  const range = new VoiceRangeCheck(settings.getSettings, settings.stopPreview);
   const gameRoot = queryElement<HTMLElement>("#gamePracticeView");
   const rangeRoot = queryElement<HTMLElement>("#voiceRangeView");
   const views = {
@@ -86,7 +102,7 @@ function init() {
     button.addEventListener("click", () => {
       const view = button.dataset.practiceView as ViewId;
       if (view === currentView || !Object.hasOwn(views, view)) return;
-      practice.stopPreview();
+      settings.stopPreview();
       const previous = views[currentView];
       previous.stop();
       previous.show(false);
@@ -94,13 +110,13 @@ function init() {
       showCurrentView();
     });
   }
-  practice.settingsDialog.addEventListener("change", () => {
+  settings.onCommit(() => {
     const current: View = views[currentView];
     current.settingsChanged?.();
   });
 
   const suspend = () => {
-    practice.stopPreview();
+    settings.stopPreview();
     views[currentView].stop();
   };
   document.addEventListener("visibilitychange", () => {
@@ -111,6 +127,8 @@ function init() {
     if (event.persisted) return;
     practice.dispose();
     for (const view of Object.values<View>(views)) view.dispose?.();
+    referencePlayer?.dispose();
+    referencePlayer = null;
     closeAudioContext();
   });
 
