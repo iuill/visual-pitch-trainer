@@ -37,13 +37,26 @@ export function pickToneScalePattern(
   tones: number,
   maxSteps: number,
   currentOffsets?: number[],
-  random = Math.random,
+  {
+    pending,
+    random = Math.random,
+  }: {
+    pending?: { degree: number; offsets: number[] | undefined };
+    random?: () => number;
+  } = {},
 ) {
   const candidates: { startDegree: number; offsets: number[] }[] = [];
   function addPatterns(degrees: number[]) {
     if (degrees.length === tones) {
       const startDegree = degrees[0];
       const offsets = degrees.map((degree) => degree - startDegree);
+      if (
+        pending?.degree === startDegree &&
+        offsets.every(
+          (offset, index) => offset === (pending.offsets?.[index] ?? index),
+        )
+      )
+        return;
       if (
         offsets.some(
           (offset, index) => offset !== (currentOffsets?.[index] ?? index),

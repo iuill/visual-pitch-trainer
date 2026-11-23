@@ -177,6 +177,7 @@ export function createMelodyPracticeView(
         getToneScaleSize(elements.melodyPatternSelect.value),
         toneScaleRandomSteps,
         toneScaleOffsets,
+        { pending: run?.pending ?? undefined },
       );
       if (!pattern) return;
       if (run) {
@@ -394,6 +395,13 @@ export function createMelodyPracticeView(
     }
   }
 
+  function formatToneScalePattern(notes: Note[], tones: number) {
+    return notes
+      .slice(0, tones)
+      .map((note) => `${note.solfege}（${note.name}）`)
+      .join(" → ");
+  }
+
   function updateToneScaleControls(start?: Note) {
     const tones = getToneScaleSize(elements.melodyPatternSelect.value);
     const random = toneScaleRandomSteps > 0;
@@ -427,10 +435,7 @@ export function createMelodyPracticeView(
       if (pending) {
         const next = pending.notes[0];
         const queued = random
-          ? pending.notes
-              .slice(0, tones)
-              .map((note) => note.name)
-              .join(" → ")
+          ? formatToneScalePattern(pending.notes, tones)
           : `${next.solfege}（${next.name}）`;
         label += ` · ${pending.lap + 1}周目から${queued}`;
       }
@@ -706,14 +711,14 @@ export function createMelodyPracticeView(
         elapsed,
       },
     ];
+    const tones = getToneScaleSize(elements.melodyPatternSelect.value);
     for (const section of sections) {
       const body = table.createTBody();
       if (sections.length > 1) {
         const label = document.createElement("th");
         label.scope = "rowgroup";
         label.colSpan = header.cells.length;
-        const start = section.notes[0];
-        label.textContent = `${section.firstLap + 1}周目から · 開始音 ${start.solfege} (${start.name})`;
+        label.textContent = `${section.firstLap + 1}周目から · ${formatToneScalePattern(section.notes, tones)}`;
         body.insertRow().append(label);
       }
       section.results.forEach((result, index) => {
