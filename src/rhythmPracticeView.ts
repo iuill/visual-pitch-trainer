@@ -31,6 +31,7 @@ import {
   type RhythmRestValue,
   type RhythmStep,
   rhythmBeatAccent,
+  rhythmPulseDynamics,
   rhythmPulseLevel,
   rhythmPulseUnits,
   rhythmSlotsPerBeat,
@@ -1346,7 +1347,7 @@ export function setupRhythmPractice(
       counts.push({
         timeMs,
         voiceIndex,
-        pulseLevel: rhythmPulseLevel(step, pulse),
+        dynamics: rhythmPulseDynamics(step, pulse),
       });
       if (
         beat >= countInBeats &&
@@ -1357,7 +1358,7 @@ export function setupRhythmPractice(
         counts.push({
           timeMs: timeMs + beatMs / 2,
           voiceIndex: 4,
-          pulseLevel: rhythmPulseLevel(step, pulse + 0.5),
+          dynamics: rhythmPulseDynamics(step, pulse + 0.5),
         });
     }
     audio.player.start(
@@ -1394,7 +1395,7 @@ export function setupRhythmPractice(
         audio.player.scheduleBassDrum(
           beat.timeMs / 1000,
           downbeat,
-          settings.volume * (0.26 + 0.4 * (beat.pulseLevel ?? 1)),
+          settings.volume * (0.26 + 0.4 * (beat.dynamics?.level ?? 1)),
         );
       }
     }

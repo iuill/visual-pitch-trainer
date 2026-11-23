@@ -2,6 +2,7 @@ import type { SongDrum } from "./rhythmArrangement";
 import {
   getRhythmNoteValue,
   type RhythmStep,
+  rhythmPulseDynamics,
   rhythmPulseLevel,
 } from "./rhythmCourse";
 import type { RhythmGrade } from "./rhythmJudge";
@@ -60,7 +61,7 @@ export interface RhythmCount {
   voiceIndex: number;
   sound?: RhythmSound;
   volume?: number;
-  pulseLevel?: number;
+  dynamics?: ReturnType<typeof rhythmPulseDynamics>;
 }
 
 export type RhythmCue =
@@ -164,7 +165,7 @@ export class RhythmScheduler {
           continue;
         }
         const pulseLevel =
-          count.pulseLevel ?? (count.voiceIndex === 0 ? 1 : 0.72);
+          count.dynamics?.level ?? (count.voiceIndex === 0 ? 1 : 0.72);
         const available =
           Math.min(counts[next]?.timeMs ?? endMs, endMs) / 1000 - when;
         const sample = cue === "voice" ? voices?.[count.voiceIndex] : undefined;
@@ -179,7 +180,7 @@ export class RhythmScheduler {
           source.buffer = sample.buffer;
           source.playbackRate.setValueAtTime(rate, when);
           const voiceLevel =
-            pulseLevel === 0.5 ? 0.32 : 0.34 + 0.66 * pulseLevel;
+            count.dynamics?.voiceLevel ?? 0.34 + 0.66 * pulseLevel;
           this.play(
             source,
             when,
@@ -229,13 +230,13 @@ export class RhythmScheduler {
         counts.push({
           timeMs,
           voiceIndex: pulse,
-          pulseLevel: rhythmPulseLevel(step, pulse),
+          dynamics: rhythmPulseDynamics(step, pulse),
         });
         if (speakOffbeats)
           counts.push({
             timeMs: timeMs + beatSeconds * 500,
             voiceIndex: 4,
-            pulseLevel: rhythmPulseLevel(step, pulse + 0.5),
+            dynamics: rhythmPulseDynamics(step, pulse + 0.5),
           });
       }
       this.start(

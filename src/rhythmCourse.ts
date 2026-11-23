@@ -35,11 +35,25 @@ export function rhythmBeatAccent(step: RhythmStep, pulse: number) {
   return pulse === 0 || step.beatGroups?.includes(pulse) === true;
 }
 
+const pulseDynamics = {
+  downbeat: { level: 1, voiceLevel: 1 },
+  groupStart: { level: 0.88, voiceLevel: 0.921 },
+  secondary: { level: 0.75, voiceLevel: 0.835 },
+  weak: { level: 0.5, voiceLevel: 0.32 },
+  subdivision: { level: 0.35, voiceLevel: 0.25 },
+} as const;
+
+export function rhythmPulseDynamics(step: RhythmStep, pulse: number) {
+  if (pulse === 0) return pulseDynamics.downbeat;
+  if (!Number.isInteger(pulse)) return pulseDynamics.subdivision;
+  if (rhythmBeatAccent(step, pulse)) return pulseDynamics.groupStart;
+  return (step.beatsPerBar ?? 4) === 4 && pulse === 2
+    ? pulseDynamics.secondary
+    : pulseDynamics.weak;
+}
+
 export function rhythmPulseLevel(step: RhythmStep, pulse: number) {
-  if (pulse === 0) return 1;
-  if (!Number.isInteger(pulse)) return 0.35;
-  if (rhythmBeatAccent(step, pulse)) return 0.88;
-  return (step.beatsPerBar ?? 4) === 4 && pulse === 2 ? 0.75 : 0.5;
+  return rhythmPulseDynamics(step, pulse).level;
 }
 
 export const RHYTHM_CHAPTERS = [
