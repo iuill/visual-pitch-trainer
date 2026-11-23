@@ -31,7 +31,6 @@ export class VoiceRangeCheck {
   private samples: VoiceRangeGraphSample[] = [];
   private readonly root: HTMLElement;
   private readonly stopObservingGraph: () => void;
-  private readonly actions: HTMLElement;
   private pendingMessage = "";
   private pendingMessageAt = 0;
 
@@ -42,7 +41,6 @@ export class VoiceRangeCheck {
     const root = document.querySelector<HTMLElement>("#voiceRangeView");
     if (!root) throw new Error("声域チェック画面がありません。");
     this.root = root;
-    this.actions = this.el("voiceRangeActions");
     this.el<HTMLProgressElement>("voiceRangeHold").max = RANGE_HOLD_MS;
     this.el<HTMLButtonElement>("voiceRangeStart").addEventListener(
       "click",
@@ -116,7 +114,7 @@ export class VoiceRangeCheck {
     this.range.previousAt = null;
     this.el<HTMLButtonElement>("voiceRangeStart").disabled = false;
     this.el<HTMLButtonElement>("voiceRangeStop").disabled = true;
-    this.actions.classList.remove("mobile-action-bar");
+    this.root.removeAttribute("data-running");
     this.el("voiceRangeCurrent").textContent = "—";
     this.el<HTMLProgressElement>("voiceRangeHold").value = 0;
     const last = this.samples.at(-1);
@@ -138,7 +136,7 @@ export class VoiceRangeCheck {
     this.render();
     this.el<HTMLButtonElement>("voiceRangeStart").disabled = true;
     this.el<HTMLButtonElement>("voiceRangeStop").disabled = false;
-    this.actions.classList.add("mobile-action-bar");
+    this.root.setAttribute("data-running", "");
     this.message("マイクの利用を許可してください。");
     let context: AudioContext | null = null;
     try {

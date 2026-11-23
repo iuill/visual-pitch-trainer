@@ -1,0 +1,178 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f7f8;
+  --panel: #ffffff;
+  --text: #172026;
+  --muted: #5c6870;
+  --line: #d7dee2;
+  --accent: #146c75;
+  --accent-strong: #0d4f56;
+  --ok: #2f855a;
+  --warn: #b7791f;
+  --danger: #c53030;
+  --blue: #2b6cb0;
+  --highlight: #f7d774;
+  --game-success-rgb: 21 128 109;
+  --game-success: rgb(var(--game-success-rgb));
+  --game-success-background: #e1f5e9;
+  --combo-tier-1: #15857d;
+  --combo-tier-2: #2f9e44;
+  --combo-tier-3: #e09f10;
+  --combo-tier-4: #e8590c;
+  --graph-background: #fbfcfc;
+  --graph-grid: #dce5e8;
+  --graph-octave: #c6d4d8;
+  --graph-trend: #1f5f93;
+  --panel-padding: 18px;
+  --panel-radius: 8px;
+  --control-height: 48px;
+  --control-disabled-background: #eef2f3;
+  --mobile-actions-space: calc(82px + env(safe-area-inset-bottom));
+  --shadow: 0 14px 40px rgba(23, 32, 38, 0.08);
+}
+
+[hidden] {
+  /* biome-ignore lint/complexity/noImportantStyles: Keep native hidden semantics above component display rules. */
+  display: none !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+:where(button, input, select, summary, [tabindex="0"]):focus-visible,
+:where(.game-choice-input:focus-visible + .game-option-face) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:where(details > summary) {
+  min-height: 44px;
+  padding: 8px 0;
+  color: var(--accent-strong);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+:where(select, input[type="text"], input[type="file"]) {
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--control-height);
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+input[type="file"] {
+  padding-block: 9px;
+}
+
+:where(
+  select:disabled,
+  input[type="text"]:disabled,
+  input[type="file"]:disabled
+) {
+  background: var(--control-disabled-background);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+h1 {
+  margin-bottom: 0;
+  color: var(--accent-strong);
+  font-family: "Yuji Syuku", "Noto Sans JP", serif;
+  font-size: clamp(2rem, 5.6vw, 4.6rem);
+  font-weight: 400;
+  line-height: 1.02;
+  max-width: 920px;
+  white-space: nowrap;
+  text-shadow: 0 2px 0 rgba(20, 108, 117, 0.1);
+}
+
+h2 {
+  margin-bottom: 4px;
+  color: var(--accent-strong);
+  font-family: "Yuji Syuku", "Noto Sans JP", serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 520px) {
+  :root {
+    --control-height: 54px;
+  }
+
+  body {
+    font-size: 16px;
+  }
+
+  h1 {
+    font-size: clamp(1.7rem, 7.6vw, 2.25rem);
+    white-space: normal;
+  }
+
+  h2 {
+    font-size: 1rem;
+  }
+
+  input[type="file"] {
+    min-height: 52px;
+    padding: 11px 12px;
+    font-size: 1rem;
+  }
+}

@@ -1,0 +1,428 @@
+.melody-practice {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.melody-practice p {
+  overflow-wrap: anywhere;
+}
+
+.tone-scale-controls {
+  display: grid;
+  gap: 8px;
+  margin-block: 12px;
+}
+
+.tone-scale-controls p {
+  margin: 0;
+}
+
+.tone-scale-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.melody-notes {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+}
+
+.melody-notes li {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.melody-notes li[aria-current="step"] {
+  outline: 3px solid var(--text);
+  font-weight: 800;
+}
+
+.melody-status {
+  font-weight: 700;
+  min-height: 2em;
+}
+
+.melody-movement {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid #39626d;
+  border-radius: 12px 12px 0 0;
+  background: #16303c;
+  color: #f4fcff;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.melody-next-label {
+  flex: 0 0 auto;
+  border-radius: 5px;
+  padding: 3px 6px;
+  background: var(--highlight);
+  color: #26313c;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.melody-movement-icon {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  padding: 4px;
+  border: 1px solid #ffe69b;
+  border-radius: 10px;
+  color: #ffdf7f;
+  background: linear-gradient(145deg, #6b5730, #334747);
+  box-shadow: 0 0 12px #f7d77425;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.melody-movement p:last-child {
+  margin: 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.melody-practice progress {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+}
+
+.melody-results {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+
+.melody-results table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.melody-results th,
+.melody-results td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+@media (max-width: 820px) {
+  .practice-layout[data-running] .melody-practice {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+  }
+}
+
+.practice-layout[data-practice-mode="melody"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.practice-layout[data-practice-mode="melody"] .graph-panel {
+  grid-column: 1;
+  grid-row: auto;
+}
+
+.practice-layout[data-practice-mode="melody"] .control-panel {
+  grid-column: 1;
+}
+
+.melody-sequence {
+  font-size: 0.85rem;
+}
+
+.melody-graph-scroll {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overscroll-behavior-x: contain;
+}
+
+.melody-movement:not([hidden]) + .melody-graph-scroll {
+  border-radius: 0 0 8px 8px;
+}
+
+#melodyGraphView {
+  position: relative;
+}
+
+.melody-graph-stage {
+  position: relative;
+}
+
+.melody-keyboard {
+  position: relative;
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px solid #b5c7ce;
+  border-radius: 12px;
+  background: #edf3f5;
+}
+
+.melody-keyboard-status {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.melody-keyboard-scroll {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  overscroll-behavior-x: contain;
+}
+
+.melody-keyboard-keys {
+  position: relative;
+  height: 90px;
+  min-width: 1040px;
+  border-radius: 5px;
+  box-shadow: 0 3px 0 #bac7ce;
+}
+
+.melody-piano-key {
+  position: absolute;
+  top: 0;
+  border: 1px solid #7e919b;
+  border-radius: 0 0 5px 5px;
+}
+
+.melody-piano-key.is-white {
+  height: 100%;
+  background: linear-gradient(#ffffff, #f5f7fa);
+  color: #293b46;
+}
+
+.melody-piano-key.is-black {
+  z-index: 1;
+  height: 64%;
+  border-color: #172f3a;
+  background: linear-gradient(#344b58, #142732);
+  color: #ffffff;
+  box-shadow: 0 3px 0 #10212d;
+}
+
+.melody-piano-key.is-current {
+  background: #b5ece6;
+  color: #12353e;
+  box-shadow: inset 0 -2px 0 #3bcbbb;
+}
+
+.melody-piano-key.is-next {
+  background: #fff9e7;
+  color: #3d310c;
+  border: 2px dashed #bba66e;
+  box-shadow: none;
+}
+
+.melody-piano-key.is-black.is-next {
+  background: linear-gradient(#5e5746, #343128);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.melody-piano-key.is-current.is-next {
+  background: linear-gradient(135deg, #b5ece6 50%, #fff9e7 50%);
+  box-shadow: inset 0 -2px 0 #3bcbbb;
+}
+
+.melody-keyboard-effects {
+  position: absolute;
+  z-index: 3;
+  top: -6px;
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.melody-keyboard-effects::before,
+.melody-keyboard-effects::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--key-x) - 26px);
+  width: 52px;
+  height: 3px;
+  border-radius: 50%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #7dece5,
+    #ffffff,
+    #7dece5,
+    transparent
+  );
+  box-shadow: 0 0 8px 2px #43d2ce70;
+  animation: melody-key-breathe 1.4s ease-in-out infinite;
+}
+
+.melody-keyboard-effects::before {
+  top: calc(var(--key-top) - 3px);
+}
+
+.melody-keyboard-effects::after {
+  top: calc(var(--key-bottom) + 1px);
+}
+
+.melody-key-spark {
+  position: absolute;
+  top: calc(var(--key-top) - 2px);
+  left: var(--key-x);
+  width: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: #f0fffe;
+  box-shadow: 0 0 5px 1px #2dc8c3;
+  opacity: 0;
+  animation: melody-key-spark 720ms ease-out both;
+}
+
+.melody-key-spark:nth-child(odd) {
+  width: 8px;
+  height: 1px;
+}
+
+.melody-key-spark.is-lower {
+  top: calc(var(--key-bottom) + 1px);
+}
+
+@keyframes melody-key-spark {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .melody-keyboard-effects {
+    opacity: 0;
+  }
+  .melody-keyboard-effects::before,
+  .melody-keyboard-effects::after,
+  .melody-key-spark {
+    animation: none;
+  }
+}
+
+.melody-piano-key.is-current::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #149e9d;
+  box-shadow: inset 0 0 8px 2px #84fff0;
+  pointer-events: none;
+  animation: melody-key-breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes melody-key-breathe {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 0.12;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .melody-piano-key.is-current::after {
+    animation: none;
+    opacity: 0.15;
+  }
+}
+
+.melody-key-name {
+  position: absolute;
+  right: 0;
+  bottom: 3px;
+  left: 0;
+  text-align: center;
+  z-index: 2;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.melody-key-octave {
+  display: block;
+  font-size: 8px;
+  font-weight: 400;
+}
+
+.is-black .melody-key-name {
+  display: none;
+}
+
+.melody-countdown {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(300px, 80%);
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 3px solid var(--accent);
+  border-radius: 16px;
+  background: #ffffffed;
+  color: var(--accent-strong);
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 8px 24px #17202622;
+}
+
+.melody-countdown strong {
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.melody-countdown progress {
+  width: 100%;
+}
+
+.melody-countdown-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.6;
+}
+
+#melodyCanvas {
+  display: block;
+  max-width: none;
+}
+
+.melody-settings-launcher {
+  margin: 16px 0;
+}
+
+.melody-settings {
+  width: min(640px, calc(100% - 32px));
+}

@@ -1,0 +1,402 @@
+.practice-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.control-panel {
+  grid-column: 1;
+}
+
+.summary-panel {
+  grid-column: 1 / -1;
+}
+
+.graph-panel {
+  grid-column: 2;
+  grid-row: 1;
+  scroll-margin-top: 12px;
+}
+
+.note-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.note-button {
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbfb;
+  color: var(--text);
+}
+
+.note-button strong {
+  display: block;
+  font-size: 1.2rem;
+}
+
+.note-button span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.note-button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #e7f3f4;
+  color: var(--accent-strong);
+}
+
+.graph-target-control {
+  display: none;
+}
+
+.target-note-strip {
+  min-width: 0;
+}
+
+.target-note-button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+
+.target-note-button strong,
+.target-note-button span {
+  display: block;
+}
+
+.target-note-button span {
+  color: var(--muted);
+}
+
+.target-note-button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #e7f3f4;
+  color: var(--accent-strong);
+}
+
+.action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.clear-graph-button {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+
+.clear-graph-button:not(:disabled) {
+  color: var(--muted);
+}
+
+.clear-graph-button:not(:disabled):hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.12);
+}
+
+.summary-grid > div {
+  min-height: 76px;
+}
+
+.summary-grid strong {
+  font-size: 1.35rem;
+}
+
+.graph-status {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--graph-background);
+  color: var(--muted);
+}
+
+.graph-status strong,
+.graph-status b {
+  color: var(--text);
+}
+
+.detection-readout,
+.combo-readout,
+.score-readout,
+.status-help {
+  display: inline-flex;
+  align-items: center;
+}
+
+.detection-readout,
+.combo-readout,
+.score-readout {
+  gap: 5px;
+}
+
+.combo-tier-badge {
+  margin-left: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.combo-tier-badge[data-tier="1"] {
+  background: var(--combo-tier-1);
+}
+
+.combo-tier-badge[data-tier="2"] {
+  background: var(--combo-tier-2);
+}
+
+.combo-tier-badge[data-tier="3"] {
+  background: var(--combo-tier-3);
+}
+
+.combo-tier-badge[data-tier="4"] {
+  background: var(--combo-tier-4);
+  animation: combo-tier-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes combo-tier-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.record-note {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.record-note.is-new-record {
+  color: #b7791f;
+  font-weight: 800;
+  animation: record-note-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes record-note-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .combo-tier-badge[data-tier="4"],
+  .record-note.is-new-record {
+    animation: none;
+  }
+}
+
+.status-help {
+  margin-left: -8px;
+}
+
+.tooltip {
+  position: absolute;
+  left: 12px;
+  top: calc(100% + 8px);
+  z-index: 2;
+  width: min(320px, calc(100% - 24px));
+  padding: 10px 12px 10px 16px;
+  border: 1px solid #b8d7f0;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #2f74b5 0 4px, #f2f8ff 4px);
+  box-shadow: 0 14px 32px rgba(17, 24, 39, 0.16);
+  color: #17324d;
+  line-height: 1.6;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.info-button:hover + .tooltip,
+.info-button:focus + .tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#pitchCanvas {
+  display: block;
+  width: 100%;
+  height: min(58vh, 500px);
+  min-height: 340px;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--graph-background);
+}
+
+@media (max-width: 820px) {
+  .practice-layout {
+    --practice-scroll-to-graph: 1;
+    grid-template-columns: 1fr;
+  }
+
+  .control-panel,
+  .graph-panel,
+  .summary-panel {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .graph-target-control {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+  }
+
+  .graph-target-control > span {
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .target-note-strip {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    padding-bottom: 2px;
+  }
+
+  .target-note-button {
+    flex: 0 0 58px;
+    min-height: 48px;
+    padding: 4px 6px;
+    scroll-snap-align: start;
+  }
+
+  .target-note-button strong {
+    font-size: 0.96rem;
+  }
+
+  .target-note-button span {
+    margin-top: 1px;
+    font-size: 0.68rem;
+  }
+
+  #pitchCanvas {
+    height: min(50svh, 420px);
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 520px) {
+  .note-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 14px 0;
+  }
+
+  .note-button {
+    min-height: 58px;
+    padding: 6px 4px;
+  }
+
+  .note-button strong {
+    font-size: 1.08rem;
+  }
+
+  .note-button span {
+    margin-top: 2px;
+    font-size: 0.74rem;
+  }
+
+  .graph-status {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
+    align-items: center;
+    font-size: 0.9rem;
+  }
+
+  .graph-status strong {
+    grid-column: 1 / -1;
+    font-size: 1.02rem;
+  }
+
+  .graph-target-control {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .target-note-button {
+    flex-basis: 52px;
+    min-height: 46px;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .summary-grid > div {
+    min-height: 68px;
+    padding: 10px;
+  }
+
+  .summary-grid strong {
+    font-size: 1.05rem;
+  }
+
+  #pitchCanvas {
+    height: min(48svh, 340px);
+    min-height: 280px;
+  }
+}
+
+.control-panel {
+  align-self: start;
+}
+
+.practice-advanced {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.single-note-panel .note-grid {
+  margin-bottom: 0;
+}

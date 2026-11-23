@@ -19,7 +19,7 @@
       content="お手本音に合わせて、声の高さをリアルタイムに見ながら稽古できるアプリ"
     />
   </head>
-  <body data-practice-view="single">
+  <body>
     <main class="app-shell">
       <section class="hero" aria-labelledby="app-title">
         <div>
@@ -163,7 +163,7 @@
         <button type="button" data-practice-view="audio" aria-pressed="false" aria-controls="audioFileView">音源の声域確認</button>
       </nav>
       <p id="practiceViewDescription" class="view-description">音をひとつ選び、お手本に合わせて声を伸ばします。</p>
-      <section id="practiceWorkspace" class="practice-layout" aria-label="音程トレーニング">
+      <section id="practiceWorkspace" class="practice-layout" aria-label="音程トレーニング" data-practice-mode="single">
         <div class="panel control-panel single-note-panel" data-single-only>
           <div class="panel-header">
             <div>
@@ -175,7 +175,7 @@
             </div>
           </div>
 
-          <fieldset data-single-only id="noteButtons" class="note-grid" aria-label="お手本の音を選択"></fieldset>
+          <fieldset id="noteButtons" class="note-grid" aria-label="お手本の音を選択"></fieldset>
         </div>
 
         <div class="panel graph-panel">
@@ -243,7 +243,7 @@
             </details>
             <p id="melodyStatus" class="melody-status" role="status">メロディを選んで始めてください。</p>
             <progress id="melodyProgress" max="1" value="0" aria-label="メロディ稽古の進み具合"></progress>
-            <div class="melody-actions">
+            <div class="mobile-action-bar">
               <button id="playScaleButton" class="primary-button" type="button">メロディ稽古を始める</button>
             </div>
 
@@ -288,14 +288,14 @@
             <span class="detection-readout">
               音程検出: <b id="graphClarity">--</b>
             </span>
-            <span class="combo-readout">
+            <span class="combo-readout" data-single-only>
               連続キープ: <b id="comboReadout">--</b>
               <span id="comboTierBadge" class="combo-tier-badge" hidden></span>
             </span>
-            <span class="score-readout">
+            <span class="score-readout" data-single-only>
               スコア: <b id="scoreReadout">--</b>
             </span>
-            <span class="status-help">
+            <span class="status-help" data-single-only>
               <button
                 class="info-button"
                 type="button"
@@ -567,7 +567,7 @@
         <div class="panel-header"><div><h2 id="voiceRangeTitle">自分の声域チェック</h2><p>楽な高さから始めて、低い声・高い声をゆっくり伸ばしてください。</p></div></div>
         <p>同じ音を約0.6秒保つと記録します。無理に声を張らず、つらくなったら停止してください。お手本音は鳴りません。</p>
         <p class="graph-hint">共通設定のマイクと「声の拾いやすさ」を使います。「声の高さ」の設定にかかわらず、低い音から高い音まで測れます。</p>
-        <div id="voiceRangeActions" class="voice-range-actions">
+        <div id="voiceRangeActions" class="voice-range-actions mobile-action-bar">
           <button id="voiceRangeStart" type="button" class="primary-button">声域チェックを開始・続ける</button>
           <button id="voiceRangeStop" type="button" class="secondary-button" disabled>停止</button>
         </div>

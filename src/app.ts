@@ -33,10 +33,13 @@ function init() {
   const settings = setupCommonSettings(playback, () => {
     views[currentView].view.stop();
   });
-  const practice = setupPracticeView(settings, playback);
-  const audio = setupAudioFileView();
-  const game = new GamePractice(settings.getSettings, settings.stopPreview);
-  const range = new VoiceRangeCheck(settings.getSettings, settings.stopPreview);
+  const instances = {
+    practice: setupPracticeView(settings, playback),
+    audio: setupAudioFileView(),
+    game: new GamePractice(settings.getSettings, settings.stopPreview),
+    range: new VoiceRangeCheck(settings.getSettings, settings.stopPreview),
+  };
+  const { practice, audio, game, range } = instances;
   const views = {
     single: {
       description: "音をひとつ選び、お手本に合わせて声を伸ばします。",
@@ -75,7 +78,6 @@ function init() {
     "button[data-practice-view]",
   );
   const showCurrentView = () => {
-    document.body.dataset.practiceView = currentView;
     for (const button of buttons)
       button.setAttribute(
         "aria-pressed",
@@ -111,7 +113,7 @@ function init() {
   window.addEventListener("pagehide", (event) => {
     suspend();
     if (event.persisted) return;
-    for (const view of [practice, game, range, audio]) view.dispose();
+    for (const instance of Object.values(instances)) instance.dispose();
     referencePlayer?.dispose();
     referencePlayer = null;
     closeAudioContext();

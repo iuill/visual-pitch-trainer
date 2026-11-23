@@ -63,7 +63,7 @@ export function createMelodyPracticeView(
 ) {
   const elements = {
     melodySection: queryElement<HTMLElement>(".melody-practice"),
-    actions: queryElement<HTMLElement>(".melody-actions"),
+    melodySequence: queryElement<HTMLElement>(".melody-sequence"),
     melodySetup: queryElement<HTMLDialogElement>("#melodySetup"),
     openMelodySettings: queryElement<HTMLButtonElement>("#openMelodySettings"),
     melodySettingsSummary: queryElement<HTMLElement>("#melodySettingsSummary"),
@@ -487,8 +487,7 @@ export function createMelodyPracticeView(
 
   function setMelodyControlsLocked(locked: boolean) {
     controls.setLocked(locked);
-    elements.melodySection.classList.toggle("is-running", locked);
-    elements.actions.classList.toggle("mobile-action-bar", locked);
+    elements.melodySequence.hidden = locked;
     elements.playScaleButton.classList.toggle("is-active", locked);
     for (const control of [
       elements.openMelodySettings,
