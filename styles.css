@@ -471,6 +471,24 @@ fieldset {
 .melody-practice [hidden] {
   display: none;
 }
+.tone-scale-controls {
+  display: grid;
+  gap: 8px;
+  margin-block: 12px;
+}
+.tone-scale-controls p {
+  margin: 0;
+}
+.tone-scale-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.tone-scale-actions select {
+  width: auto;
+  max-width: 100%;
+}
 .melody-notes {
   position: relative;
   display: flex;

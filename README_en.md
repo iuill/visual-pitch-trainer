@@ -145,7 +145,13 @@ Version run numbers are scoped to each workflow and may overlap or go backwards 
 
 The dedicated melody graph shows the whole reference as stepped bars before practice starts. Green bars/bands show the reference, a blue line shows microphone pitch, and a black dashed line marks the current position. Pitch bounds and timeline cover one lap. The voice trace resets each lap, retaining the whole current lap even beyond 12 seconds. Stopping preserves that lap for review. Long melodies scroll horizontally and follow playback; after finishing, scroll freely to review. A collapsible text list provides the note sequence.
 
-Melody Practice offers ascending/descending major scales, a five-note up-and-down pattern, do–mi–sol–mi–do, chromatic scales, and custom sequences. Enter 2–32 Japanese solfege tokens separated by spaces, including sharps such as ド# and upper do (高ド). Notes stay within the selected voice range and have equal durations; rests and per-note rhythms are not supported.
+Melody Practice defaults to a two-tone scale (do–re). Its settings also offer three-tone and five-tone scales, ascending and descending major scales, do–mi–sol–mi–do, chromatic scales, and custom sequences.
+
+The three-tone scale loops do–re–mi–re, and the five-tone scale loops do–re–mi–fa–sol–fa–mi–re. Both return to do at the start of the next lap.
+
+The two-, three-, and five-tone scales start on do. Move the starting note up or down by one scale step on the practice screen. Random mode is off by default. Turning it on returns the starting note to do. Press **Next pattern** to pick a different starting note up to one, two, or three scale steps away, keeping the whole pattern inside the selected voice range. Change the starting note before practice or after stopping.
+
+For a custom sequence, enter 2–32 Japanese solfege tokens separated by spaces, including sharps such as ド# and upper do (高ド). Notes stay within the selected voice range and have equal durations. Rests and per-note rhythms are unsupported.
 
 After microphone permission and instrument loading, prepare during a three-second visual countdown, then sing with reference audio and live pitch feedback. The melody loops until stopped, without further countdowns or breaks. Each note lasts 0.5 seconds or 1–5 seconds (default 2) for both playback and singing. Only the first 0.4 seconds of each lap are excluded from scoring. Later note changes are scored immediately. After stopping, per-note results aggregate all laps, including a partial final lap: in-tune time, percentage of practiced assessment time (including silence/undetected input), and detected-pitch time. Notes with no assessment time show “—”.
 

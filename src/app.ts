@@ -44,13 +44,16 @@ import { drawMelodyGraph, type MelodyGraphData } from "./melodyGraph";
 import { followMelodyKeyboard, renderMelodyKeyboard } from "./melodyKeyboard";
 import {
   buildMelody,
+  getLastToneScaleStart,
   getMelodyAssessedSeconds,
   getMelodyPosition,
+  getToneScaleSize,
   MELODY_COUNTDOWN_SECONDS,
   MELODY_GRACE_SECONDS,
   MELODY_PATTERNS,
   type MelodyNoteResult,
   type MelodyObservation,
+  pickToneScaleStart,
   recordMelodyObservation,
 } from "./melodyPractice";
 import { formatMicrophoneError } from "./microphone";
@@ -312,6 +315,13 @@ const elements = {
   playScaleButton: queryElement<HTMLButtonElement>("#playScaleButton"),
   melodyPatternSelect: queryElement<HTMLSelectElement>("#melodyPatternSelect"),
   melodySecondsSelect: queryElement<HTMLSelectElement>("#melodySecondsSelect"),
+  toneScaleControls: queryElement<HTMLDivElement>("#toneScaleControls"),
+  toneScaleStart: queryElement<HTMLParagraphElement>("#toneScaleStart"),
+  toneScaleManual: queryElement<HTMLDivElement>("#toneScaleManual"),
+  toneScaleDown: queryElement<HTMLButtonElement>("#toneScaleDown"),
+  toneScaleUp: queryElement<HTMLButtonElement>("#toneScaleUp"),
+  toneScaleRandom: queryElement<HTMLSelectElement>("#toneScaleRandom"),
+  toneScaleNext: queryElement<HTMLButtonElement>("#toneScaleNext"),
   customMelodyInput: queryElement<HTMLInputElement>("#customMelodyInput"),
   customMelodyRow: queryElement<HTMLDivElement>("#customMelodyRow"),
   customMelodyHelp: queryElement<HTMLParagraphElement>("#customMelodyHelp"),
@@ -675,7 +685,31 @@ function init() {
     ),
     createOption("custom", "自由メロディ（音名を入力）"),
   );
-  elements.melodyPatternSelect.addEventListener("change", renderMelodyPreview);
+  elements.melodyPatternSelect.addEventListener("change", () => {
+    toneScaleStartDegree = 0;
+    renderMelodyPreview();
+  });
+  elements.toneScaleDown.addEventListener("click", () =>
+    setToneScaleStart(toneScaleStartDegree - 1),
+  );
+  elements.toneScaleUp.addEventListener("click", () =>
+    setToneScaleStart(toneScaleStartDegree + 1),
+  );
+  elements.toneScaleRandom.addEventListener("change", () => {
+    const steps = Number(elements.toneScaleRandom.value);
+    if (steps > 0 && toneScaleRandomSteps === 0) setToneScaleStart(0);
+    toneScaleRandomSteps = steps;
+    updateToneScaleControls();
+  });
+  elements.toneScaleNext.addEventListener("click", () => {
+    setToneScaleStart(
+      pickToneScaleStart(
+        getToneScaleSize(elements.melodyPatternSelect.value),
+        toneScaleStartDegree,
+        toneScaleRandomSteps,
+      ),
+    );
+  });
   elements.customMelodyInput.addEventListener("input", renderMelodyPreview);
   elements.melodySecondsSelect.addEventListener("change", renderMelodyPreview);
   renderMelodyPreview();
@@ -2426,6 +2460,8 @@ function getAudioContext(): AudioContext {
 let referencePlaybackRequestId = 0;
 let scalePlaybackRequestId = 0;
 let microphoneRequestId = 0;
+let toneScaleStartDegree = 0;
+let toneScaleRandomSteps = 0;
 let melodyRun: {
   notes: Note[];
   seconds: number;
@@ -2441,7 +2477,30 @@ function selectedMelody(): Note[] {
     elements.melodyPatternSelect.value,
     elements.customMelodyInput.value,
     state.noteRangeStartMidi,
+    toneScaleStartDegree,
   );
+}
+
+function setToneScaleStart(degree: number) {
+  const tones = getToneScaleSize(elements.melodyPatternSelect.value);
+  const next = Math.max(0, Math.min(degree, getLastToneScaleStart(tones)));
+  if (state.isScalePlaying || !tones || next === toneScaleStartDegree) return;
+  toneScaleStartDegree = next;
+  renderMelodyPreview();
+}
+
+function updateToneScaleControls() {
+  const tones = getToneScaleSize(elements.melodyPatternSelect.value);
+  const random = toneScaleRandomSteps > 0;
+  const locked = state.isScalePlaying;
+  elements.toneScaleControls.hidden = !tones;
+  elements.toneScaleManual.hidden = random;
+  elements.toneScaleNext.hidden = !random;
+  elements.toneScaleRandom.disabled = locked;
+  elements.toneScaleDown.disabled = locked || toneScaleStartDegree === 0;
+  elements.toneScaleUp.disabled =
+    locked || toneScaleStartDegree === getLastToneScaleStart(tones);
+  elements.toneScaleNext.disabled = locked;
 }
 
 function updateMelodyMovement(notes: Note[], index: number, preparing = false) {
@@ -2477,11 +2536,16 @@ function renderMelodyPreview() {
   elements.melodySettingsSummary.textContent = `${elements.melodyPatternSelect.selectedOptions[0]?.textContent ?? ""} · 1音${elements.melodySecondsSelect.value}秒`;
   elements.customMelodyRow.hidden = !custom;
   elements.customMelodyHelp.hidden = !custom;
+  updateToneScaleControls();
   elements.melodyResults.hidden = true;
   elements.melodyResults.replaceChildren();
   elements.melodyProgress.value = 0;
   try {
     const notes = selectedMelody();
+    if (!elements.toneScaleControls.hidden) {
+      const start = notes[0];
+      elements.toneScaleStart.textContent = `開始音：${start.solfege}（${start.name}）`;
+    }
     updateMelodyMovement(notes, 0);
     melodyGraphData = {
       notes,
@@ -2541,6 +2605,7 @@ function setMelodyControlsLocked(locked: boolean) {
   ])
     control.disabled = locked;
   elements.clearGraphButton.disabled = locked;
+  updateToneScaleControls();
   if (locked) {
     elements.practiceSettings.close();
     elements.melodySetup.close();
