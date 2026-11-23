@@ -3,13 +3,12 @@ import { AnimationLoop } from "./animationLoop";
 import {
   analyzeTargetPitch,
   analyzeVoiceRangePitch,
+  PITCHY_CLARITY_THRESHOLD,
   type PitchFrame,
   type TargetPitchOptions,
 } from "./pitchDetection";
 
 export const PRACTICE_MIC_FFT_SIZE = 4096;
-export const PRACTICE_MIN_CLARITY = 0.52;
-const PITCHY_CLARITY_THRESHOLD = 0.93;
 
 export type MicrophoneCapture = {
   deviceLabel: string;
@@ -21,6 +20,7 @@ type MicrophoneOptions = {
   deviceId: string;
   fftSize: number;
   onEnded(): void;
+  onFrame(now: number, capture: MicrophoneCapture): void;
 };
 
 export class MicrophoneInput {
@@ -43,7 +43,7 @@ export class MicrophoneInput {
   }
 
   async start(
-    context: AudioContext | (() => AudioContext),
+    getContext: () => AudioContext,
     options: MicrophoneOptions,
   ): Promise<MicrophoneCapture | null> {
     this.stop();
@@ -57,13 +57,10 @@ export class MicrophoneInput {
 
     this.starting = true;
     try {
-      const capture = await this.acquire(
-        typeof context === "function" ? context() : context,
-        options,
-        generation,
-      );
-      if (generation !== this.generation) return null;
+      const capture = await this.acquire(getContext(), options, generation);
+      if (!capture || generation !== this.generation) return null;
       this.capture = capture;
+      this.loop.start((now) => options.onFrame(now, capture));
       return capture;
     } catch (error) {
       if (generation !== this.generation) return null;
@@ -132,11 +129,6 @@ export class MicrophoneInput {
         return analyzeVoiceRangePitch(readWaveform(), detectors, minRms);
       },
     };
-  }
-
-  startFrames(onFrame: (now: number, capture: MicrophoneCapture) => void) {
-    const capture = this.capture;
-    if (capture) this.loop.start((now) => onFrame(now, capture));
   }
 
   stop() {

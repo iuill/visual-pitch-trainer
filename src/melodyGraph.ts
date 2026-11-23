@@ -14,6 +14,20 @@ export type MelodyGraphData = {
   samples: MelodyTraceSample[];
 };
 
+const MELODY_COLORS = {
+  upcomingBorder: "#b5790b",
+  connector: "#9aafb7",
+  progress: "#35c2b3",
+  referenceBar: "#4a858a",
+  noteLabel: "#164f55",
+  badge: "#edf3f5",
+  badgeBorder: "#b5c7ce",
+  upcomingIcon: "#61420d",
+  badgeIcon: "#315e6b",
+  badgeText: "#26313c",
+  badgeDetail: "#53616b",
+};
+
 export function drawMelodyGraph(
   canvas: HTMLCanvasElement,
   scroll: HTMLElement,
@@ -32,10 +46,11 @@ export function drawMelodyGraph(
   );
   canvas.style.width = `${layout.width}px`;
   canvas.style.height = `${layout.height}px`;
+  const theme = getGraphTheme();
   const backing = resizeGraphCanvas(canvas, layout.width, layout.height);
   context.setTransform(backing.pixelRatio, 0, 0, backing.pixelRatio, 0, 0);
   context.clearRect(0, 0, layout.width, layout.height);
-  context.fillStyle = getGraphTheme().background;
+  context.fillStyle = theme.background;
   context.fillRect(0, 0, layout.width, layout.height);
   context.font = "12px system-ui, sans-serif";
   const playing = data.phase === "sing";
@@ -46,14 +61,14 @@ export function drawMelodyGraph(
   const nextIndex = data.phase === "stopped" ? -1 : currentIndex + 1;
   for (let midi = layout.minMidi; midi <= layout.maxMidi; midi++) {
     const y = layout.y(midi);
-    context.strokeStyle = getGraphTheme().grid;
+    context.strokeStyle = theme.grid;
     context.lineWidth = 1;
     context.beginPath();
     context.moveTo(layout.padding.left, y);
     context.lineTo(layout.width - layout.padding.right, y);
     context.stroke();
     if (midi % 2 === 0 || midi === layout.minMidi || midi === layout.maxMidi) {
-      context.fillStyle = getGraphTheme().label;
+      context.fillStyle = theme.label;
       context.fillText(midiToNoteName(midi), 5, y + 4);
     }
   }
@@ -63,7 +78,9 @@ export function drawMelodyGraph(
     const fromY = layout.y(layout.midis[index - 1]);
     const toY = layout.y(layout.midis[index]);
     const upcoming = index === nextIndex;
-    context.strokeStyle = upcoming ? "#b5790b" : "#9aafb7";
+    context.strokeStyle = upcoming
+      ? MELODY_COLORS.upcomingBorder
+      : MELODY_COLORS.connector;
     context.lineWidth = upcoming ? 2.5 : 1.5;
     context.setLineDash([4, 4]);
     context.beginPath();
@@ -82,27 +99,32 @@ export function drawMelodyGraph(
     const active = playing && index === currentIndex;
     const top = layout.y(midi + data.tolerance / 100);
     const bottom = layout.y(midi - data.tolerance / 100);
-    context.fillStyle = visited
-      ? "rgba(20,108,117,0.15)"
-      : "rgba(20,108,117,0.07)";
+    context.save();
+    context.fillStyle = theme.target;
+    context.globalAlpha = visited ? 0.15 : 0.07;
     context.fillRect(x, top, width, Math.max(4, bottom - top));
     if (active) {
-      context.fillStyle = "rgba(20,108,117,0.15)";
+      context.globalAlpha = 0.15;
       context.fillRect(x, top - 5, width, Math.max(14, bottom - top + 10));
-      context.fillStyle = "#35c2b3";
+    }
+    context.restore();
+    if (active) {
+      context.fillStyle = MELODY_COLORS.progress;
       const progress = Math.max(
         0,
         Math.min(1, (data.cursor - start) / data.seconds),
       );
       context.fillRect(x, bottom + 5, width * progress, 3);
     }
-    context.strokeStyle = active ? "#0d4f56" : "#4a858a";
+    context.strokeStyle = active
+      ? theme.targetStrong
+      : MELODY_COLORS.referenceBar;
     context.lineWidth = active ? 5 : 2;
     context.beginPath();
     context.moveTo(x, y);
     context.lineTo(x + width, y);
     context.stroke();
-    context.fillStyle = "#164f55";
+    context.fillStyle = MELODY_COLORS.noteLabel;
     context.textAlign = "center";
     context.font = active
       ? "700 12px system-ui, sans-serif"
@@ -127,8 +149,10 @@ export function drawMelodyGraph(
             : "下げる";
       const badgeHeight = detail ? 38 : 30;
       const badgeY = Math.max(5, y - badgeHeight - 14);
-      context.fillStyle = upcoming ? "#f7d774" : "#edf3f5";
-      context.strokeStyle = upcoming ? "#b5790b" : "#b5c7ce";
+      context.fillStyle = upcoming ? theme.highlight : MELODY_COLORS.badge;
+      context.strokeStyle = upcoming
+        ? MELODY_COLORS.upcomingBorder
+        : MELODY_COLORS.badgeBorder;
       context.lineWidth = upcoming ? 2 : 1;
       context.beginPath();
       context.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 9);
@@ -145,23 +169,25 @@ export function drawMelodyGraph(
         context.translate(0, 28);
         context.scale(1, -1);
       }
-      context.strokeStyle = upcoming ? "#61420d" : "#315e6b";
+      context.strokeStyle = upcoming
+        ? MELODY_COLORS.upcomingIcon
+        : MELODY_COLORS.badgeIcon;
       context.lineWidth = 2.4;
       context.lineCap = "round";
       context.lineJoin = "round";
       context.stroke(new Path2D(icon.path));
       context.restore();
-      context.fillStyle = "#26313c";
+      context.fillStyle = MELODY_COLORS.badgeText;
       context.textAlign = "left";
       context.fillText(label, badgeX + 30, badgeY + (detail ? 15 : 20));
       if (detail) {
         context.font = "11px system-ui, sans-serif";
-        context.fillStyle = "#53616b";
+        context.fillStyle = MELODY_COLORS.badgeDetail;
         context.fillText(detail, badgeX + 30, badgeY + 30);
       }
       context.textAlign = "center";
     }
-    context.fillStyle = getGraphTheme().label;
+    context.fillStyle = theme.label;
     context.fillText(String(index + 1), x + width / 2, layout.height - 12);
   });
   context.textAlign = "left";
@@ -174,7 +200,7 @@ export function drawMelodyGraph(
     layout.plotHeight,
   );
   context.clip();
-  context.strokeStyle = getGraphTheme().voice;
+  context.strokeStyle = theme.voice;
   context.lineWidth = 2.5;
   context.beginPath();
   let previous: MelodyTraceSample | null = null;
@@ -193,7 +219,7 @@ export function drawMelodyGraph(
   context.restore();
   if (data.phase !== "ready") {
     const x = layout.x(data.cursor);
-    context.strokeStyle = "#172026";
+    context.strokeStyle = theme.text;
     context.lineWidth = 2;
     context.setLineDash([5, 4]);
     context.beginPath();

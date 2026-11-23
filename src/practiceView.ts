@@ -154,9 +154,9 @@ export function setupPracticeView(
       deviceId: settings.getSettings().deviceId,
       fftSize: PRACTICE_MIC_FFT_SIZE,
       onEnded,
+      onFrame,
     });
-    if (!capture || !microphone.isCurrent(capture)) return null;
-    microphone.startFrames(onFrame);
+    if (!capture) return null;
     void settings
       .refreshAudioDevices(() => microphone.isActive)
       .then(() => {
@@ -177,7 +177,11 @@ export function setupPracticeView(
       if (!capture || !microphone.isCurrent(capture)) return;
       single.start();
       updateMicButton("active");
-      if (matchMedia("(max-width: 820px)").matches) {
+      if (
+        getComputedStyle(graphPanel)
+          .getPropertyValue("--practice-scroll-to-graph")
+          .trim() === "1"
+      ) {
         settings.close();
         requestAnimationFrame(() => {
           if (!microphone.isCurrent(capture)) return;

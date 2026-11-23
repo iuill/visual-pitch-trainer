@@ -21,11 +21,8 @@ import {
   pickToneScaleStart,
   recordMelodyObservation,
 } from "./melodyPractice";
-import {
-  formatMicrophoneError,
-  type MicrophoneCapture,
-  PRACTICE_MIN_CLARITY,
-} from "./microphone";
+import { formatMicrophoneError, type MicrophoneCapture } from "./microphone";
+import { PRACTICE_MIN_CLARITY } from "./pitchDetection";
 import { formatPitchMovement, type Note } from "./pitchMath";
 import { getPitchMovementIcon } from "./pitchMovementVisual";
 import type { PracticeReadout } from "./practiceReadout";

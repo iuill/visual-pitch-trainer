@@ -15,6 +15,9 @@ export type TargetPitchOptions = {
 
 export type PitchFrame = PitchDetection & { rms: number };
 
+export const PRACTICE_MIN_CLARITY = 0.52;
+export const VOICE_GAME_MIN_CLARITY = 0.9;
+export const PITCHY_CLARITY_THRESHOLD = 0.93;
 const VOICE_RANGE_MIN_CLARITY = 0.93;
 
 export function analyzeTargetPitch(

@@ -11,6 +11,7 @@ import {
   MicrophoneInput,
   PRACTICE_MIC_FFT_SIZE,
 } from "./microphone";
+import { VOICE_GAME_MIN_CLARITY } from "./pitchDetection";
 import {
   APPROACH_MS,
   awardGameRound,
@@ -48,6 +49,13 @@ type Phase =
   | "listen"
   | "question"
   | "feedback";
+
+const CELEBRATION_COLORS = [
+  "var(--game-success)",
+  "var(--combo-tier-3)",
+  "var(--blue)",
+  "#ce5591",
+];
 
 export class GamePractice {
   private readonly root: HTMLElement;
@@ -255,10 +263,11 @@ export class GamePractice {
       } else {
         startingMicrophone = true;
         this.message("マイクの使用を許可してください。");
-        const capture = await this.microphone.start(context, {
+        const capture = await this.microphone.start(() => context, {
           deviceId: this.settings.deviceId,
           fftSize: PRACTICE_MIC_FFT_SIZE,
           onEnded: () => this.stop("マイクが切断されました。"),
+          onFrame: (_, input) => this.tick(input),
         });
         if (!capture || generation !== this.generation) return;
         this.until = context.currentTime * 1000 + 3000;
@@ -271,7 +280,6 @@ export class GamePractice {
       if (generation !== this.generation) return;
       this.audioReady = true;
       if (this.mode === "ear") this.earLoop.start(() => this.tick());
-      else this.microphone.startFrames((_, capture) => this.tick(capture));
       this.el("gameFeedback").scrollIntoView({
         block: "start",
         behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -365,7 +373,7 @@ export class GamePractice {
     this.updateScore();
   }
   private tick(capture?: MicrophoneCapture) {
-    if (!this.active || !this.context) return;
+    if (!this.audioReady || !this.context) return;
     const now = this.context.currentTime * 1000;
     if (this.mode === "ear") {
       if (this.phase === "listen" && now >= this.until) {
@@ -390,7 +398,7 @@ export class GamePractice {
       ) {
         const detection = capture.sampleTarget({
           minRms: this.settings.minRms,
-          minClarity: 0.9,
+          minClarity: VOICE_GAME_MIN_CLARITY,
           targetFrequency: this.target.frequency,
         });
         const previous = this.challenge;
@@ -511,12 +519,8 @@ export class GamePractice {
         );
         particle.style.setProperty("--dy", `${Math.sin(angle) * 65 - 20}px`);
         particle.style.setProperty("--turn", `${i * 53}deg`);
-        particle.style.background = [
-          "#15806d",
-          "#e09f10",
-          "#2b6cb0",
-          "#ce5591",
-        ][i % 4];
+        particle.style.background =
+          CELEBRATION_COLORS[i % CELEBRATION_COLORS.length];
         elements.push(particle);
       }
     }
@@ -602,7 +606,7 @@ export class GamePractice {
       ctx.strokeStyle = theme.target;
       ctx.lineWidth = this.challenge?.phase === "hold" ? 8 : 6;
       if (this.challenge?.phase === "hold") {
-        ctx.shadowColor = "#15806d";
+        ctx.shadowColor = theme.gameSuccess;
         ctx.shadowBlur = 18;
       }
       ctx.beginPath();

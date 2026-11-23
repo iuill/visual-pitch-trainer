@@ -17,6 +17,7 @@ import {
 } from "./audioDownloads";
 import { audioRangeGraphWidth, renderAudioRangeGraph } from "./audioRangeGraph";
 import { queryElement } from "./dom";
+import { getGraphTheme } from "./graphCanvas";
 import {
   createMp3BlobFromDecodedAudio,
   type DecodedMediaAudio,
@@ -29,6 +30,8 @@ import {
   type VocalSeparationModelId,
 } from "./vocalSeparation";
 import "../styles.css";
+
+const COMPARISON_PNG_BACKGROUND = "#f7faf8";
 
 const elements = {
   controls: queryElement<HTMLFieldSetElement>("#comparisonControls"),
@@ -112,7 +115,7 @@ async function comparePitch(
     rowHeight * AUDIO_PITCH_ESTIMATORS.length,
   );
   const graph = createCanvas(width, graphHeight);
-  combined.fillStyle = "#f7faf8";
+  combined.fillStyle = COMPARISON_PNG_BACKGROUND;
   combined.fillRect(0, 0, combined.canvas.width, combined.canvas.height);
 
   for (const [index, estimator] of AUDIO_PITCH_ESTIMATORS.entries()) {
@@ -131,7 +134,7 @@ async function comparePitch(
       pixelRatio: 1,
     });
     const top = index * rowHeight;
-    combined.fillStyle = "#172026";
+    combined.fillStyle = getGraphTheme().text;
     combined.font = "18px system-ui, sans-serif";
     combined.fillText(label, 18, top + 32);
     combined.drawImage(graph.canvas, 0, top + titleHeight);

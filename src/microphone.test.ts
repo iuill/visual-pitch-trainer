@@ -40,9 +40,12 @@ test("stopping a pending microphone acquisition releases the late stream before 
   });
   try {
     const microphone = new MicrophoneInput();
-    const starting = microphone.start(context, {
+    const starting = microphone.start(() => context, {
       deviceId: "",
       fftSize: PRACTICE_MIC_FFT_SIZE,
+      onFrame() {
+        throw new Error("A cancelled acquisition must not sample audio.");
+      },
       onEnded() {
         throw new Error("A cancelled acquisition must not notify the view.");
       },
