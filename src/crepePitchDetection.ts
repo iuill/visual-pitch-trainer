@@ -16,6 +16,7 @@ import {
   type PitchModelSession,
 } from "./onnxRuntime";
 import { getRms, hzToMidi } from "./pitchMath";
+import { decodePitchModelFrame } from "./pitchModelDecoding";
 
 export type CrepeAnalysisProgress = {
   phase: "loading-runtime" | "loading-model" | "analyzing";
@@ -37,15 +38,11 @@ export type AnalyzeAudioDataWithCrepeOptions = {
 const CREPE_SAMPLE_RATE = 16_000;
 const CREPE_FRAME_SIZE = 1024;
 const CREPE_HOP_SIZE = 160;
-const CREPE_BIN_COUNT = 360;
-const CREPE_FIRST_BIN_CENTS = 1997.3794084376191;
-const CREPE_CENTS_PER_BIN = 20;
 const DEFAULT_MIN_RMS = 0.004;
 const DEFAULT_MIN_CONFIDENCE = 0.45;
 const DEFAULT_MIN_FREQUENCY = 82;
 const DEFAULT_MAX_FREQUENCY = 1047;
 const DEFAULT_BATCH_SIZE = 256;
-const WEIGHTED_ARGMAX_RADIUS = 4;
 const LOW_PASS_TAP_COUNT = 31;
 const CREPE_MODEL_PATHS = {
   small: "models/crepe-small.onnx",
@@ -246,46 +243,11 @@ export async function resampleAudioForPitchModel(
 export function decodeCrepeFrame(
   probabilities: Float32Array,
   frameIndex: number,
-): {
-  frequency: number;
-  confidence: number;
-} {
-  const offset = frameIndex * CREPE_BIN_COUNT;
-  let maxIndex = 0;
-  let confidence = Number.NEGATIVE_INFINITY;
-
-  for (let index = 0; index < CREPE_BIN_COUNT; index += 1) {
-    const value = probabilities[offset + index] ?? 0;
-
-    if (value > confidence) {
-      confidence = value;
-      maxIndex = index;
-    }
-  }
-
-  const start = Math.max(0, maxIndex - WEIGHTED_ARGMAX_RADIUS);
-  const end = Math.min(CREPE_BIN_COUNT - 1, maxIndex + WEIGHTED_ARGMAX_RADIUS);
-  let weightedSum = 0;
-  let weightTotal = 0;
-
-  for (let index = start; index <= end; index += 1) {
-    const value = Math.max(0, probabilities[offset + index] ?? 0);
-    weightedSum += index * value;
-    weightTotal += value;
-  }
-
-  const bin = weightTotal > 0 ? weightedSum / weightTotal : maxIndex;
-
-  return {
-    frequency: crepeBinToFrequency(bin),
-    confidence: Math.max(0, confidence),
-  };
+) {
+  return decodePitchModelFrame(probabilities, frameIndex, "bins");
 }
 
-export function crepeBinToFrequency(bin: number): number {
-  const cents = CREPE_FIRST_BIN_CENTS + CREPE_CENTS_PER_BIN * bin;
-  return 10 * 2 ** (cents / 1200);
-}
+export { pitchBinToFrequency as crepeBinToFrequency } from "./pitchModelDecoding";
 
 export function getCrepeModelUrl(modelSize: CrepeModelSize): string {
   const envModelUrl = import.meta.env.VITE_CREPE_MODEL_URL;

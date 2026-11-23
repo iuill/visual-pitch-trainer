@@ -2,11 +2,11 @@ import { closeAudioContext, getAudioContext } from "./audioContext";
 import { setupAudioFileView } from "./audioFileView";
 import { type ReferencePlayback, setupCommonSettings } from "./commonSettings";
 import { queryElement } from "./dom";
-import { GamePractice } from "./gamePractice";
+import { setupGamePractice } from "./gamePractice";
 import { setupPracticeView } from "./practiceView";
 import { setupPwa } from "./pwa";
 import { ReferencePlayer } from "./referencePlayer";
-import { VoiceRangeCheck } from "./voiceRangeCheck";
+import { setupVoiceRangeCheck } from "./voiceRangeCheck";
 import "../styles.css";
 
 type View = {
@@ -36,8 +36,8 @@ function init() {
   const instances = {
     practice: setupPracticeView(settings, playback),
     audio: setupAudioFileView(),
-    game: new GamePractice(settings.getSettings, settings.stopPreview),
-    range: new VoiceRangeCheck(settings.getSettings, settings.stopPreview),
+    game: setupGamePractice(settings.getSettings, settings.stopPreview),
+    range: setupVoiceRangeCheck(settings.getSettings, settings.stopPreview),
   };
   const { practice, audio, game, range } = instances;
   const views = {
