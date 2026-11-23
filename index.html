@@ -740,14 +740,14 @@
             <ol id="rhythmScoreBars" class="rhythm-score-bars"></ol>
             <p class="rhythm-score-key">◎ ぴったり　○ ずれ　× ミス</p>
           </section>
-          <div id="rhythmLanes" class="rhythm-lanes" aria-hidden="true">
-            <div class="rhythm-lane-labels"><span>手</span><span>足</span></div>
+          <div id="rhythmLanes" class="rhythm-lanes">
+            <div class="rhythm-lane-labels" aria-hidden="true"><span>手</span><span>足</span></div>
             <div class="rhythm-track">
-              <div class="rhythm-judge-line"></div>
-              <div id="rhythmMarkers"></div>
+              <div class="rhythm-judge-line" aria-hidden="true"></div>
+              <div id="rhythmMarkers" aria-hidden="true"></div>
+              <div id="rhythmHitFeedback" class="rhythm-hit-feedback"></div>
             </div>
           </div>
-          <p id="rhythmHitFeedback" hidden></p>
           <p id="rhythmInputHelp" class="graph-hint"></p>
           <button id="rhythmTap" type="button" class="primary-button rhythm-tap" aria-describedby="rhythmInputHelp">
             <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

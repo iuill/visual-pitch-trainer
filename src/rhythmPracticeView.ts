@@ -700,6 +700,7 @@ export function setupRhythmPractice(
     acceptTap = null;
     preparedBars = null;
     markers.replaceChildren();
+    hitFeedback.replaceChildren();
     showSetup();
   }
 
@@ -728,9 +729,6 @@ export function setupRhythmPractice(
     count.style.removeProperty("--rhythm-ready-remaining");
     count.dataset.accent = "false";
     count.textContent = "—";
-    hitFeedback.hidden = mode !== null;
-    hitFeedback.textContent = "";
-    hitFeedback.removeAttribute("data-grade");
     const step = currentStep();
     activeStep.hidden = mode !== null;
     activeStepLabel.textContent = `第${step.chapter}章 ${RHYTHM_CHAPTERS[step.chapter - 1]} ／ ステップ ${step.id}`;
@@ -1099,8 +1097,10 @@ export function setupRhythmPractice(
     const presentHit = (hit: RhythmHit) => {
       hits.push(hit);
       const label = hitLabel(hit);
-      hitFeedback.textContent = label;
-      hitFeedback.dataset.grade = hit.grade;
+      const badge = document.createElement("span");
+      badge.dataset.grade = hit.grade;
+      badge.textContent = gradeLabels[hit.grade];
+      hitFeedback.replaceChildren(badge);
       if (hit.reason === "extra") {
         scoreExtras.hidden = false;
         scoreExtras.textContent = `余分なタップ ${++extras}回`;
