@@ -479,22 +479,21 @@
 .rhythm-judge-line::after {
   position: absolute;
   left: 50%;
-  width: 7px;
-  height: 50%;
+  width: 5px;
+  height: 12px;
   translate: -50% 0;
   background: #087982;
-  box-shadow: 0 0 12px #08798280;
-  border-radius: 3px;
+  border-radius: 2px;
   content: "";
   visibility: hidden;
 }
 
 .rhythm-judge-line::before {
-  top: 0;
+  top: 6px;
 }
 
 .rhythm-judge-line::after {
-  bottom: 0;
+  bottom: 6px;
 }
 
 .rhythm-lanes[data-note-pulse] .rhythm-judge-line::before,
@@ -504,7 +503,6 @@
 
 .rhythm-lanes[data-count-in] .rhythm-judge-line::after {
   background: var(--rhythm-count-in-ink);
-  box-shadow: 0 0 10px #59636c80;
 }
 
 .rhythm-mark {
@@ -553,10 +551,8 @@
   color: #087982;
   background: #edf6fa;
   border-radius: 50%;
-  box-shadow:
-    0 0 0 3px #a5e2df,
-    0 0 10px 4px #08798266;
-  scale: 1.17;
+  outline: 2px solid #087982;
+  scale: 1.1;
 }
 
 .rhythm-rest {
@@ -592,78 +588,39 @@
   outline: 2px solid currentColor;
   border-radius: 5px;
   background: #f3f7f8;
-  box-shadow: 0 0 9px #08798266;
-  translate: 0 4px;
+  translate: 0 2px;
 }
 
 .rhythm-beat[data-count-in][data-active="true"] .rhythm-footprint {
   background: #e4e7ea;
-  box-shadow: 0 0 9px #59636c66;
 }
 
-.rhythm-hit {
-  display: grid;
-  place-items: center;
-  top: 50%;
-  z-index: 3;
-  width: 2.15rem;
-  height: 2.15rem;
-  border: 2px solid currentColor;
-  border-radius: 50%;
-  background: #fff;
-  font-size: 1.45rem;
-  pointer-events: none;
-  animation: rhythm-hit-pop 550ms ease-out both;
-}
-
-:is(.rhythm-hit, #rhythmHitFeedback)[data-grade="perfect"] {
-  color: #126748;
-}
-
-.rhythm-hit[data-grade="perfect"] {
-  box-shadow:
-    0 0 0 4px #75c9a5,
-    0 0 12px #14694770;
-}
-
-:is(.rhythm-hit, #rhythmHitFeedback)[data-grade="close"] {
-  color: #875318;
-}
-
-.rhythm-hit[data-grade="close"] {
-  border-style: dashed;
-  box-shadow: 0 0 0 3px #f1d9a9;
-}
-
-:is(.rhythm-hit, #rhythmHitFeedback)[data-grade="miss"] {
-  color: var(--danger);
-}
-
-.rhythm-hit[data-grade="miss"] {
+#rhythmHitFeedback {
+  align-content: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 2rem;
+  margin: 4px auto 0;
+  padding: 2px 10px;
   border-radius: 6px;
-  box-shadow: 0 0 0 3px #efb8b8;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 800;
 }
 
-@keyframes rhythm-hit-pop {
-  0% {
-    scale: 0.82;
-  }
+#rhythmHitFeedback[data-grade="perfect"] {
+  color: #126748;
+  background: #e0f3e8;
+}
 
-  17% {
-    scale: 1.12;
-  }
+#rhythmHitFeedback[data-grade="close"] {
+  color: #875318;
+  background: #fbefd7;
+}
 
-  34% {
-    scale: 1;
-  }
-
-  72% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-  }
+#rhythmHitFeedback[data-grade="miss"] {
+  color: var(--danger);
+  background: #fbe9e9;
 }
 
 .rhythm-tap {
@@ -713,9 +670,5 @@
 
   .rhythm-note[data-active] .rhythm-note-icon {
     scale: none;
-  }
-
-  .rhythm-hit {
-    animation: none;
   }
 }

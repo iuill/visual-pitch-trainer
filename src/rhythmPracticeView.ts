@@ -70,7 +70,6 @@ const restNotation: Record<RhythmRestValue, string> = {
 const linePercent = 18;
 const beatPercent = 30;
 const timingPulseMs = 100;
-const hitStampMs = 550;
 const countdownSeconds = CALIBRATION_COUNTDOWN_MS / 1000;
 const practiceReadyMs = 3000;
 const practiceCountInBars = 2;
@@ -194,8 +193,8 @@ function calibrationLabel(offset: number | null | undefined, date?: string) {
 }
 
 function hitLabel(hit: RhythmHit) {
-  if (hit.reason === "extra") return "× ミス（余分なタップ）";
-  if (hit.reason === "omitted") return "× ミス（叩き忘れ）";
+  if (hit.reason === "extra") return `${gradeLabels.miss}（余分なタップ）`;
+  if (hit.reason === "omitted") return `${gradeLabels.miss}（叩き忘れ）`;
   return hit.offsetMs
     ? `${gradeLabels[hit.grade]}（${offsetLabel(hit.offsetMs)}）`
     : gradeLabels[hit.grade];
@@ -724,6 +723,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
     count.style.removeProperty("--rhythm-ready-remaining");
     count.dataset.accent = "false";
     count.textContent = "—";
+    hitFeedback.hidden = mode !== null;
     hitFeedback.textContent = "";
     hitFeedback.removeAttribute("data-grade");
     const step = currentStep();
@@ -903,10 +903,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
     });
   }
 
-  function makeMarker(
-    kind: "note" | "rest" | "beat" | "hit",
-    content?: Node | string,
-  ) {
+  function makeMarker(kind: "note" | "rest" | "beat", content?: Node | string) {
     const marker = document.createElement("span");
     marker.className = `rhythm-mark rhythm-${kind}`;
     if (kind === "beat") marker.append(createFootprint());
@@ -1107,7 +1104,6 @@ export function setupRhythmPractice(stopPreview: () => void) {
     const scoreNotes = scoreBars.querySelectorAll<HTMLElement>("[data-note]");
     const hits: RhythmHit[] = [];
     let extras = 0;
-    let stamp: { created: number; marker: HTMLElement } | undefined;
 
     const presentHit = (hit: RhythmHit) => {
       hits.push(hit);
@@ -1129,12 +1125,6 @@ export function setupRhythmPractice(stopPreview: () => void) {
         note.setAttribute("aria-label", note.title);
       }
       if (settings.effects) audio.player.feedback(hit.grade);
-      stamp?.marker.remove();
-      const marker = makeMarker("hit", gradeSymbols[hit.grade]);
-      marker.dataset.grade = hit.grade;
-      const left = trackPercent(-(hit.offsetMs ?? 0));
-      marker.style.left = `clamp(1.3rem, ${left}%, 100% - 1.3rem)`;
-      stamp = { created: audio.now(), marker };
     };
 
     acceptTap = (timestamp) => {
@@ -1220,10 +1210,6 @@ export function setupRhythmPractice(stopPreview: () => void) {
       }
       if (scoring && inputHelp.textContent !== tapHelp)
         inputHelp.textContent = tapHelp;
-      if (stamp && now - stamp.created > hitStampMs) {
-        stamp.marker.remove();
-        stamp = undefined;
-      }
       const judgeNow = visibleMs - correction;
       for (const hit of collectOmittedRhythmNotes(targets, judgeNow))
         presentHit(hit);
