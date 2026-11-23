@@ -1,92 +1,49 @@
 {
   "generator": "eSpeak NG 1.51 (Debian 1.51+dfsg-10+deb12u2)",
   "source": "https://github.com/espeak-ng/espeak-ng/tree/1.51",
-  "command": "espeak-ng -v en-us -s 240 -z -w <word>.wav <word>",
-  "processing": "Trim silence around samples of at least 50 PCM units, with 1ms padding, normalize peaks to 26000, and apply 5ms fades.",
+  "command": "espeak-ng -v en-us -s 175 -z -w <word>.wav <word>",
+  "processing": "Trim silence around samples of at least 30 PCM units, with 1ms padding, normalize peaks to 26000, and apply a 2ms fade-in and 12ms fade-out.",
   "files": {
     "one.wav": {
       "text": "one",
-      "sha256": "823cca90453094ba44bcdf1a319c7572a6fcad34c5ab036a02a0237c7b7e3333"
+      "sha256": "4404302bd823d606d3b4ec9e9a88313ac0f11979be0df92229d8982ddafb3097"
     },
     "two.wav": {
       "text": "two",
-      "sha256": "7eb6db1b845b0718e15cf728cff2c8d15c9c7988e2502bb3cb17806cd4e6fcc7"
+      "sha256": "2969d1cf048f70dd61bd885b4cd83da564582c06fbeac151c379eaff9b2dc9e4"
     },
     "three.wav": {
       "text": "three",
-      "sha256": "cb484a9b3b590991a1a278ef5c96dd945c06c327670c57453655a2294f554b5f"
+      "sha256": "72efee412561bbdb5f8a0098a7659c68d0f15e143a7e4ec39684fe81cdd0657f"
     },
     "four.wav": {
       "text": "four",
-      "sha256": "8e34caab1c19005b1910159fe870ab617d157e55896ed38cc7ce63922a1060a4"
+      "sha256": "568571b7dd0ca5ef67cee41050af67c00bfbd5f346ee82b95d5795b6b53207b2"
     },
     "and.wav": {
       "text": "and",
-      "sha256": "43f64b7afb87bfd8002c0c549877fb56f8bee695a370af2e045fe1e8afe2b43d"
+      "sha256": "d40b8bcd339d021b22305dc852390b3f41999870da20d3e3045d59f1d9ebc8a5"
     },
     "female/one.wav": {
       "text": "one",
-      "sha256": "45812f64550c9d5d5027d33402468516f584a200f32ffb347ffa53056af3ef17"
+      "sha256": "f1664e1a01533f40e3d4bdf99c96941c8dab5d8e1004b308a6b3b38a583290cd"
     },
     "female/two.wav": {
       "text": "two",
-      "sha256": "58a03c11c716c6f5016c93ee7faf26fe3cda5e75ef4abdc875bb24bf88d69d95"
+      "sha256": "cfc68c4f1238a578fd8314fa25caa5e00f24716c124301daf81195eed4c98a93"
     },
     "female/three.wav": {
       "text": "three",
-      "sha256": "1eadc0a69c14ba874f0134682bccafef869d9294f3c1092bc30c8757d4b15877"
+      "sha256": "1b0a85f7097effbb0f3e75330adc23db23467037e4a22edc84b40475db2964b2"
     },
     "female/four.wav": {
       "text": "four",
-      "sha256": "a603dc69f19dca79ed7e0bcc3dedd5a24a64d5981eab9631749c8be48eebd213"
-    },
-    "female/and.wav": {
-      "text": "and",
-      "sha256": "7259bb00dafa3a4643238e7075e8087c1cd49d33224f6009905a47498a66e242"
-    },
-    "long/one.wav": {
-      "text": "one",
-      "sha256": "4404302bd823d606d3b4ec9e9a88313ac0f11979be0df92229d8982ddafb3097"
-    },
-    "long/two.wav": {
-      "text": "two",
-      "sha256": "2969d1cf048f70dd61bd885b4cd83da564582c06fbeac151c379eaff9b2dc9e4"
-    },
-    "long/three.wav": {
-      "text": "three",
-      "sha256": "72efee412561bbdb5f8a0098a7659c68d0f15e143a7e4ec39684fe81cdd0657f"
-    },
-    "long/four.wav": {
-      "text": "four",
-      "sha256": "568571b7dd0ca5ef67cee41050af67c00bfbd5f346ee82b95d5795b6b53207b2"
-    },
-    "long/and.wav": {
-      "text": "and",
-      "sha256": "d40b8bcd339d021b22305dc852390b3f41999870da20d3e3045d59f1d9ebc8a5"
-    },
-    "female/long/one.wav": {
-      "text": "one",
-      "sha256": "f1664e1a01533f40e3d4bdf99c96941c8dab5d8e1004b308a6b3b38a583290cd"
-    },
-    "female/long/two.wav": {
-      "text": "two",
-      "sha256": "cfc68c4f1238a578fd8314fa25caa5e00f24716c124301daf81195eed4c98a93"
-    },
-    "female/long/three.wav": {
-      "text": "three",
-      "sha256": "1b0a85f7097effbb0f3e75330adc23db23467037e4a22edc84b40475db2964b2"
-    },
-    "female/long/four.wav": {
-      "text": "four",
       "sha256": "a547bc60a95fd8dc6654c84adf6853b784b6535c526ccf1d66e52a4f0f6ac745"
     },
-    "female/long/and.wav": {
+    "female/and.wav": {
       "text": "and",
       "sha256": "20e5ca2b1accdc45f5f4a19459090a4fc8927d1d8b5bedb4e23754f777221e1b"
     }
   },
-  "femaleCommand": "espeak-ng -v en-us+f3 -p 62 -s 285 -z -w <word>.wav <word>",
-  "longCommand": "espeak-ng -v en-us -s 175 -z -w <word>.wav <word>",
-  "femaleLongCommand": "espeak-ng -v en-us+f3 -p 62 -s 185 -z -w <word>.wav <word>",
-  "longProcessing": "Trim silence around samples of at least 30 PCM units, with 1ms padding, normalize peaks to 26000, and apply a 2ms fade-in and 12ms fade-out."
+  "femaleCommand": "espeak-ng -v en-us+f3 -p 62 -s 185 -z -w <word>.wav <word>"
 }

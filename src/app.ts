@@ -39,7 +39,7 @@ function init() {
     audio: setupAudioFileView(),
     game: setupGamePractice(settings.getSettings, settings.stopPreview),
     range: setupVoiceRangeCheck(settings.getSettings, settings.stopPreview),
-    rhythm: setupRhythmPractice(settings.stopPreview),
+    rhythm: setupRhythmPractice(settings.stopPreview, playback.getPlayer),
   };
   const { practice, audio, game, range, rhythm } = instances;
   const views = {

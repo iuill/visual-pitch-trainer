@@ -34,15 +34,27 @@ export function measureRhythmOffset(
 }
 
 export function rhythmEventTimeMs(
-  audioNowSeconds: number,
+  context: Pick<AudioContext, "currentTime"> &
+    Partial<
+      Pick<AudioContext, "outputLatency" | "baseLatency" | "getOutputTimestamp">
+    >,
   eventTimestamp: number,
+  guide: RhythmGuide,
   performanceTimeMs: number,
-  outputLatencyMs: number,
 ): number {
-  return (
-    audioNowSeconds * 1000 +
-    eventTimestamp -
-    performanceTimeMs -
-    outputLatencyMs
-  );
+  let seconds = context.currentTime;
+  if (guide === "audio") {
+    const stamp = context.getOutputTimestamp?.();
+    if (
+      stamp?.contextTime !== undefined &&
+      stamp.performanceTime !== undefined &&
+      Number.isFinite(stamp.contextTime) &&
+      Number.isFinite(stamp.performanceTime) &&
+      stamp.contextTime >= 0 &&
+      stamp.performanceTime > 0
+    )
+      return stamp.contextTime * 1000 + eventTimestamp - stamp.performanceTime;
+    seconds -= context.outputLatency ?? context.baseLatency ?? 0;
+  }
+  return seconds * 1000 + eventTimestamp - performanceTimeMs;
 }

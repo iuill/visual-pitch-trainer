@@ -31,7 +31,10 @@ class FakeParam {
 
 class FakeNode {
   disconnected = false;
-  connect() {}
+  connectedTo: FakeNode | null = null;
+  connect(node: FakeNode) {
+    this.connectedTo = node;
+  }
   disconnect() {
     this.disconnected = true;
   }
@@ -400,6 +403,19 @@ describe("reference player", () => {
     h.context.currentTime = 4.5;
     h.player.stopScale();
     expect(h.oscillators[2].stops.at(-1)).toBeCloseTo(4.56);
+  });
+
+  test("keeps an explicit phrase volume independent of the common volume", () => {
+    const h = createHarness();
+    const notes = [{ frequency: 440, seconds: 0.5 }];
+    h.player.setVolume(0.8);
+    h.player.playPhrase("sine", notes, 1, 0.36);
+    expect(h.gains[1].connectedTo).toBe(h.context.destination);
+    expect(h.gains[1].gain.events[1].value).toBe(0.18);
+    expect(h.gains[0].gain.value).toBe(0.4);
+    h.player.playPhrase("sine", notes, 2);
+    expect(h.gains[2].connectedTo).toBe(h.gains[0]);
+    expect(h.gains[2].gain.events[1].value).toBe(1);
   });
   test("counts down only once and skips missed loop notes without replaying a backlog", () => {
     const h = createHarness();

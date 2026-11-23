@@ -2,7 +2,7 @@ import { AnimationLoop } from "./animationLoop";
 import { getAudioContext } from "./audioContext";
 import { queryElement } from "./dom";
 import { midiToFrequency } from "./pitchMath";
-import { ReferencePlayer } from "./referencePlayer";
+import type { ReferencePlayer } from "./referencePlayer";
 import {
   CALIBRATION_BEAT_MS,
   CALIBRATION_COUNTDOWN_MS,
@@ -28,6 +28,8 @@ import {
   collectOmittedRhythmNotes,
   createRhythmTargets,
   judgeRhythmTap,
+  RHYTHM_ADVANCED_MISS_RATE,
+  RHYTHM_ADVANCED_PERFECT_RATE,
   RHYTHM_BEGINNER_PASS_RATE,
   RHYTHM_HISTOGRAM_LABELS,
   RHYTHM_MATCH_MS,
@@ -184,12 +186,8 @@ function offsetLabel(offset: number) {
   return `${Math.abs(Math.round(offset))}ms ${offset < 0 ? "早い" : "遅い"}`;
 }
 
-function calibrationLabel(offset: number | null | undefined, date?: string) {
-  if (offset == null) return "未測定";
-  const measured = `${Math.round(offset)}ms`;
-  return date
-    ? `${measured}（${new Date(date).toLocaleDateString("ja-JP")}）`
-    : measured;
+function calibrationLabel(offset: number | null | undefined) {
+  return offset == null ? "未測定" : `${Math.round(offset)}ms`;
 }
 
 function hitLabel(hit: RhythmHit) {
@@ -206,7 +204,10 @@ function remainingPassLabel(remaining: number, opensNext: boolean) {
   return `${passes}すると、${opensNext ? "次のステップに進めます" : "このステップをクリアできます"}。`;
 }
 
-export function setupRhythmPractice(stopPreview: () => void) {
+export function setupRhythmPractice(
+  stopPreview: () => void,
+  getReferencePlayer: () => ReferencePlayer,
+) {
   const root = queryElement<HTMLElement>("#rhythmPracticeView");
   const setup = queryElement<HTMLElement>("#rhythmSetup");
   const stepSelect = queryElement<HTMLSelectElement>("#rhythmStep");
@@ -237,6 +238,9 @@ export function setupRhythmPractice(stopPreview: () => void) {
   );
   const audioCalibration = queryElement<HTMLButtonElement>(
     "#rhythmAudioCalibration",
+  );
+  const clearAudioCalibration = queryElement<HTMLButtonElement>(
+    "#rhythmClearAudioCalibration",
   );
   const calibrationInfo = queryElement<HTMLElement>("#rhythmCalibrationInfo");
   const sound = queryElement<HTMLSelectElement>("#rhythmSound");
@@ -326,8 +330,9 @@ export function setupRhythmPractice(stopPreview: () => void) {
     effects.checked = settings.effects;
     freePlay.checked = settings.freePlay;
     exampleVoice.checked = settings.exampleVoice;
-    calibrationInfo.textContent = `視覚 ${calibrationLabel(calibration?.visualOffsetMs, calibration?.measuredAt)} ／ 音 ${calibrationLabel(calibration?.audioOffsetMs, calibration?.audioMeasuredAt)}`;
+    calibrationInfo.textContent = `視覚 ${calibrationLabel(calibration?.visualOffsetMs)} ／ 音 ${calibrationLabel(calibration?.audioOffsetMs)}`;
     clearVisualCalibration.disabled = calibration?.visualOffsetMs == null;
+    clearAudioCalibration.disabled = calibration?.audioOffsetMs == null;
 
     if (!stepSelectable(currentStep())) {
       const firstUncleared =
@@ -556,11 +561,16 @@ export function setupRhythmPractice(stopPreview: () => void) {
     );
   }
 
+  function stopMelody() {
+    melodyPlayer?.stopScale();
+    melodyPlayer = null;
+  }
+
   function stopExample() {
     if (!activeExample) return;
     loop.stop();
     scheduler?.stop();
-    melodyPlayer?.stopScale();
+    stopMelody();
     const { cards, button, label } = activeExample;
     activeExample = null;
     button.textContent = label;
@@ -607,16 +617,11 @@ export function setupRhythmPractice(stopPreview: () => void) {
       const eighths = step.countSubdivision === "eighth";
       const spokenEighths = eighths && !melody;
       const voice = settings.exampleVoice ? settings.countVoice : null;
-      if (melody) melodyPlayer ??= new ReferencePlayer(context);
+      const pianoPlayer = melody ? getReferencePlayer() : null;
       const [percussion, spoken, piano] = await Promise.allSettled([
         player.loadPercussion(feetOnly),
-        voice
-          ? player.loadVoices(
-              voice,
-              (spokenEighths ? 30_000 : 60_000) / step.bpm,
-            )
-          : Promise.resolve(),
-        melody ? melodyPlayer?.prepare("piano") : undefined,
+        voice ? player.loadVoices(voice) : undefined,
+        pianoPlayer?.prepare("piano"),
       ]);
       if (activeExample !== example) return;
       const messages = [];
@@ -637,18 +642,19 @@ export function setupRhythmPractice(stopPreview: () => void) {
         eighths: spokenEighths,
         voice: spoken.status === "fulfilled" ? voice : null,
       });
-      if (melody && melodyPlayer) {
+      if (melody && pianoPlayer) {
         const notes = melodyNotes(
           melody,
           createRhythmTargets(patterns, step.bpm, 0, slotsPerBeat),
           step.bpm,
           0,
         );
-        melodyPlayer.setVolume(0.36);
-        melodyPlayer.playPhrase(
+        melodyPlayer = pianoPlayer;
+        pianoPlayer.playPhrase(
           piano.status === "fulfilled" ? "piano" : "sine",
           notes,
           startAt,
+          0.36,
         );
       }
       const slotSeconds = 60 / (step.bpm * slotsPerBeat);
@@ -658,10 +664,9 @@ export function setupRhythmPractice(stopPreview: () => void) {
       );
       let highlighted = -1;
       loop.start(() => {
-        const latency = context.outputLatency ?? context.baseLatency ?? 0;
-        const slot = Math.floor(
-          (context.currentTime - latency - startAt) / slotSeconds,
-        );
+        const now = performance.now();
+        const outputTime = rhythmEventTimeMs(context, now, "audio", now) / 1000;
+        const slot = Math.floor((outputTime - startAt) / slotSeconds);
         if (slot >= patterns.length * slotsPerBar) {
           stopExample();
           return;
@@ -691,7 +696,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
     loading.hidden = true;
     loop.stop();
     scheduler?.stop();
-    melodyPlayer?.stopScale();
+    stopMelody();
     acceptTap = null;
     preparedBars = null;
     markers.replaceChildren();
@@ -751,10 +756,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
     if (mode !== null) stage.scrollIntoView({ block: "nearest" });
   }
 
-  async function prepareAudio(
-    shortestVoiceIntervalMs?: number,
-    needsMelody = false,
-  ) {
+  async function prepareAudio(needsCount = false, needsMelody = false) {
     const token = ++generation;
     let cue = settings.sound;
     try {
@@ -764,13 +766,9 @@ export function setupRhythmPractice(stopPreview: () => void) {
       scheduler ??= new RhythmScheduler(context);
       const player = scheduler;
       let instrument: "piano" | "sine" | null = null;
-      if (
-        shortestVoiceIntervalMs !== undefined &&
-        cue === "voice" &&
-        settings.volume > 0
-      ) {
+      if (needsCount && cue === "voice" && settings.volume > 0) {
         try {
-          await player.loadVoices(settings.countVoice, shortestVoiceIntervalMs);
+          await player.loadVoices(settings.countVoice);
         } catch {
           if (token !== generation) return null;
           cue = "click";
@@ -780,9 +778,8 @@ export function setupRhythmPractice(stopPreview: () => void) {
       }
       if (token !== generation) return null;
       if (needsMelody && settings.volume > 0) {
-        melodyPlayer ??= new ReferencePlayer(context);
         const [piano, drums] = await Promise.allSettled([
-          melodyPlayer.prepare("piano"),
+          getReferencePlayer().prepare("piano"),
           player.loadPercussion(true),
         ]);
         if (token !== generation) return null;
@@ -799,20 +796,13 @@ export function setupRhythmPractice(stopPreview: () => void) {
         feedback.textContent = messages.filter(Boolean).join(" ");
       }
       if (token !== generation) return null;
-      // Output latency may still change after the context starts rendering.
-      const latencyMs = (guide: RhythmGuide) =>
-        guide === "audio"
-          ? (context.outputLatency ?? context.baseLatency ?? 0) * 1000
-          : 0;
-      const now = () => context.currentTime * 1000;
+      const now = (guide: RhythmGuide = "visual") => {
+        const time = performance.now();
+        return rhythmEventTimeMs(context, time, guide, time);
+      };
       const eventTime = (timestamp: number, guide: RhythmGuide) =>
-        rhythmEventTimeMs(
-          context.currentTime,
-          timestamp,
-          performance.now(),
-          latencyMs(guide),
-        );
-      return { player, now, eventTime, cue, latencyMs, instrument };
+        rhythmEventTimeMs(context, timestamp, guide, performance.now());
+      return { player, now, eventTime, cue, instrument };
     } catch {
       if (token !== generation) return null;
       end();
@@ -821,6 +811,27 @@ export function setupRhythmPractice(stopPreview: () => void) {
       start.focus();
       return null;
     }
+  }
+
+  function setCalibration(mode: RhythmGuide, offset: number | null) {
+    const visualOffsetMs =
+      mode === "visual" ? offset : (calibration?.visualOffsetMs ?? null);
+    const audioOffsetMs =
+      mode === "audio" ? offset : (calibration?.audioOffsetMs ?? null);
+    calibration =
+      visualOffsetMs === null && audioOffsetMs === null
+        ? null
+        : { version: 1, visualOffsetMs, audioOffsetMs };
+    store.saveCalibration(calibration);
+  }
+
+  function clearCalibration(mode: RhythmGuide) {
+    const previousGuide = settings.guide;
+    setCalibration(mode, null);
+    showSetup();
+    if (settings.guide !== previousGuide) store.saveSettings(settings);
+    (mode === "visual" ? visualCalibration : audioCalibration).focus();
+    feedback.textContent = `${mode === "visual" ? "視覚" : "音"}の補正を解除しました。`;
   }
 
   async function calibrate(mode: RhythmGuide) {
@@ -854,7 +865,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
       phase.textContent = `${++received} / ${CALIBRATION_TAPS}回`;
     };
     loop.start(() => {
-      const elapsed = audio.now() - audio.latencyMs(mode) - startMs;
+      const elapsed = audio.now(mode) - startMs;
       if (elapsed < 0) {
         count.textContent = countdownText(elapsed);
         return;
@@ -871,27 +882,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
       }
       if (elapsed < (CALIBRATION_TAPS - 0.5) * CALIBRATION_BEAT_MS) return;
       const measured = measureRhythmOffset(offsets);
-      if (measured !== null) {
-        const date = new Date().toISOString();
-        if (mode === "visual") {
-          calibration = {
-            version: 1,
-            visualOffsetMs: measured,
-            measuredAt: date,
-            audioOffsetMs: calibration?.audioOffsetMs ?? null,
-            audioMeasuredAt: calibration?.audioMeasuredAt,
-          };
-        } else {
-          calibration = {
-            version: 1,
-            visualOffsetMs: calibration?.visualOffsetMs ?? null,
-            measuredAt: calibration?.measuredAt,
-            audioOffsetMs: measured,
-            audioMeasuredAt: date,
-          };
-        }
-        store.saveCalibration(calibration);
-      }
+      if (measured !== null) setCalibration(mode, measured);
       end();
       feedback.textContent =
         measured === null
@@ -1011,7 +1002,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
         : "");
     inputHelp.textContent = `準備の${practiceCountInBars}小節は足で拍を刻みます。タップは「本番」の表示からです。`;
     const beatMs = 60_000 / step.bpm;
-    const audio = await prepareAudio(beatMs, Boolean(step.melody));
+    const audio = await prepareAudio(true, Boolean(step.melody));
     if (!audio) return;
     loading.hidden = true;
     phase.textContent = "準備まで";
@@ -1025,8 +1016,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
       guideMode === "audio"
         ? (calibration?.audioOffsetMs ?? 0)
         : (calibration?.visualOffsetMs ?? 0);
-    const firstBeatMs =
-      audio.now() - audio.latencyMs(clockGuide) + practiceReadyMs;
+    const firstBeatMs = audio.now(clockGuide) + practiceReadyMs;
     const startMs = firstBeatMs + beatMs * countInBeats;
     const endMs = startMs + bars.length * beatsPerBar * beatMs;
     const targets = createRhythmTargets(bars, step.bpm, startMs, slotsPerBeat);
@@ -1050,12 +1040,13 @@ export function setupRhythmPractice(stopPreview: () => void) {
       settings.countVoice,
       step.melody ? startMs : endMs,
     );
-    if (step.melody && melodyPlayer && audio.instrument) {
-      melodyPlayer.setVolume(settings.volume);
+    if (step.melody && audio.instrument) {
+      melodyPlayer = getReferencePlayer();
       melodyPlayer.playPhrase(
         audio.instrument,
         melodyNotes(step.melody.flat(), targets, step.bpm, startMs),
         startMs / 1000,
+        settings.volume,
       );
       for (const beat of counts.slice(countInBeats)) {
         const downbeat = beat.voiceIndex === 0;
@@ -1144,8 +1135,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
     }
 
     loop.start(() => {
-      const now = audio.now();
-      const visibleMs = now - audio.latencyMs(clockGuide);
+      const visibleMs = audio.now(clockGuide);
       const elapsed = visibleMs - firstBeatMs;
       const countInWidth = Math.min(
         100,
@@ -1261,7 +1251,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
         return cell;
       }),
     );
-    passRate.hidden = chapter !== 1;
+    passRate.hidden = false;
     const percent = new Intl.NumberFormat("ja-JP", {
       style: "percent",
       maximumFractionDigits: 1,
@@ -1269,7 +1259,7 @@ export function setupRhythmPractice(stopPreview: () => void) {
     passRate.textContent =
       chapter === 1
         ? `ぴったり＋ちょっとずれ ${percent.format(result.onBeatRate)}（合格ライン ${percent.format(RHYTHM_BEGINNER_PASS_RATE)}）`
-        : "";
+        : `ぴったり ${percent.format(result.perfectRate)}（${percent.format(RHYTHM_ADVANCED_PERFECT_RATE)}以上）・ミス ${percent.format(result.missRate)}（${percent.format(RHYTHM_ADVANCED_MISS_RATE)}以下）`;
     const offset = result.meanOffsetMs;
     average.textContent =
       offset === null
@@ -1382,18 +1372,12 @@ export function setupRhythmPractice(stopPreview: () => void) {
     exampleVoice,
   ])
     control.addEventListener("change", updateSettings);
-  clearVisualCalibration.addEventListener("click", () => {
-    if (calibration?.visualOffsetMs == null) return;
-    const { audioOffsetMs, audioMeasuredAt } = calibration;
-    calibration =
-      audioOffsetMs === null
-        ? null
-        : { version: 1, visualOffsetMs: null, audioOffsetMs, audioMeasuredAt };
-    store.saveCalibration(calibration);
-    showSetup();
-    visualCalibration.focus();
-    feedback.textContent = "視覚の補正を解除しました。";
-  });
+  clearVisualCalibration.addEventListener("click", () =>
+    clearCalibration("visual"),
+  );
+  clearAudioCalibration.addEventListener("click", () =>
+    clearCalibration("audio"),
+  );
   next.addEventListener("click", () => {
     const step = RHYTHM_STEPS[RHYTHM_STEPS.indexOf(currentStep()) + 1];
     if (step) selectStep(step.id);
@@ -1420,7 +1404,6 @@ export function setupRhythmPractice(stopPreview: () => void) {
     stop,
     dispose() {
       stop();
-      melodyPlayer?.dispose();
       document.removeEventListener("keydown", handleKey);
       document.removeEventListener("keyup", handleKeyUp);
     },

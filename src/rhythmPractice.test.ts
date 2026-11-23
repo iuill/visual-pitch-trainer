@@ -29,8 +29,8 @@ import {
 describe("rhythm course", () => {
   test("uses 27 ordered steps, in 4 chapters", () => {
     expect(RHYTHM_STEPS.map((step) => step.bpm)).toEqual([
-      60, 60, 60, 60, 60, 60, 70, 70, 80, 90, 100, 110, 60, 60, 80, 100, 76, 80,
-      96, 100, 92, 88, 60, 76, 52, 52, 72,
+      60, 60, 60, 60, 60, 60, 70, 70, 80, 90, 100, 110, 60, 60, 80, 100, 76,
+      100, 80, 76, 72, 88, 92, 96, 52, 60, 52,
     ]);
     expect(new Set(RHYTHM_STEPS.map((step) => step.id)).size).toBe(27);
     for (const step of RHYTHM_STEPS) {
@@ -86,7 +86,7 @@ describe("rhythm course", () => {
   });
 
   test("keeps the song's pitches, offbeat and rest aligned in 3/4", () => {
-    const step = RHYTHM_STEPS[17];
+    const step = RHYTHM_STEPS[18];
     const bars = createRhythmBars(step);
     expect(
       createRhythmTargets(bars.slice(0, 4), step.bpm, 1000).map(
@@ -184,6 +184,7 @@ describe("rhythm judging", () => {
     expect(summarizeRhythm(hits, 2)).toEqual({
       counts: { perfect: 6, close: 3, miss: 1 },
       perfectRate: 0.6,
+      missRate: 0.1,
       onBeatRate: 0.9,
       passed: true,
       histogram: [0, 1, 6, 2, 0],
@@ -211,6 +212,25 @@ describe("rhythm judging", () => {
     hits.push({ grade: "miss", reason: "extra", offsetMs: null });
     expect(summarizeRhythm(hits, 1).passed).toBe(false);
   });
+
+  test("applies the same advanced miss rate to short and long phrases", () => {
+    const perfect: RhythmHit = { grade: "perfect", offsetMs: 0 };
+    const miss: RhythmHit = {
+      grade: "miss",
+      offsetMs: null,
+      reason: "omitted",
+    };
+    for (const length of [20, 40, 96]) {
+      const allowed = Math.floor(length * 0.1);
+      const hits = Array.from({ length }, (_, index) =>
+        index < allowed ? miss : perfect,
+      );
+      expect(summarizeRhythm(hits, 4).passed).toBe(true);
+      hits[allowed] = miss;
+      expect(summarizeRhythm(hits, 4).passed).toBe(false);
+    }
+    expect(summarizeRhythm([], 4).passed).toBe(false);
+  });
 });
 
 describe("rhythm calibration", () => {
@@ -222,13 +242,42 @@ describe("rhythm calibration", () => {
     expect(measureRhythmOffset(Array(CALIBRATION_TAPS).fill(null))).toBeNull();
   });
 
-  test("assigns a calibration tap to the nearest flash and translates an event timestamp", () => {
+  test("assigns a calibration tap to the nearest flash", () => {
     expect(calibrationTapIndex(749, 750)).toBe(-1);
     expect(calibrationTapIndex(750, 750)).toBe(0);
     expect(calibrationTapIndex(750 + 374, 750)).toBe(0);
     expect(calibrationTapIndex(750 + 375, 750)).toBe(1);
     expect(calibrationTapIndex(750 + 12 * 750, 750)).toBe(-1);
-    expect(rhythmEventTimeMs(4, 1000, 1012, 50)).toBe(3938);
+  });
+
+  test("converts audio-guide taps with the output clock and falls back to latency", () => {
+    const context = { currentTime: 4, baseLatency: 0.02, outputLatency: 0.05 };
+    const output = {
+      ...context,
+      getOutputTimestamp: () => ({ contextTime: 3.87, performanceTime: 990 }),
+    };
+    expect(rhythmEventTimeMs(output, 1000, "audio", 1012)).toBe(3880);
+    expect(rhythmEventTimeMs(output, 1000, "visual", 1012)).toBe(3988);
+    expect(rhythmEventTimeMs(context, 1000, "audio", 1012)).toBe(3938);
+    expect(
+      rhythmEventTimeMs(
+        {
+          ...context,
+          getOutputTimestamp: () => ({ contextTime: 0, performanceTime: 0 }),
+        },
+        1000,
+        "audio",
+        1012,
+      ),
+    ).toBe(3938);
+    expect(
+      rhythmEventTimeMs(
+        { currentTime: 4, baseLatency: 0.02 },
+        1000,
+        "audio",
+        1012,
+      ),
+    ).toBe(3968);
   });
 });
 
@@ -296,40 +345,43 @@ describe("rhythm progress", () => {
       });
       expect(store.loadProgress()).toEqual(newRhythmProgress());
       expect(failures).toBe(0);
-      data = '{"version":0,"currentStepId":"3-4"}';
+      data = '{"version":1,"currentStepId":"3-4"}';
       expect(store.loadProgress()).toEqual(newRhythmProgress());
       expect(store.loadCalibration()).toBeNull();
       const date = "2026-11-23T00:00:00.000Z";
       const record = {
         cleared: true,
-        streak: 3,
+        streak: 2,
         bestPerfectRate: 0.9,
         attempts: 4,
         lastPlayedAt: date,
       };
       data = JSON.stringify({
-        version: 1,
+        version: 2,
         currentStepId: "3-3",
         steps: {
-          "1-1": { ...record, streak: 2 },
+          "1-1": record,
           "1-2": record,
-          "1-3": { ...record, cleared: false, streak: 2 },
-          "3-2": { ...record, streak: 2 },
-          "4-3": record,
+          "1-3": { ...record, cleared: false, streak: 1 },
+          "3-2": record,
           "4-4": record,
         },
       });
       const restored = store.loadProgress();
       expect(restored.currentStepId).toBe("3-3");
-      expect(restored.steps["1-2"]).toEqual({ ...record, streak: 2 });
-      expect(restored.steps["1-3"]).toMatchObject({ cleared: true, streak: 2 });
+      expect(restored.steps["1-2"]).toEqual(record);
+      expect(restored.steps["1-3"]).toMatchObject({
+        cleared: false,
+        streak: 1,
+      });
       expect(restored.steps["3-2"]).toMatchObject({ cleared: true, streak: 2 });
       expect(restored.steps["4-3"]).toBeUndefined();
       expect(restored.steps["4-4"]).toMatchObject({ cleared: true, streak: 2 });
-      const elise = RHYTHM_STEPS[18];
+      const furusato = RHYTHM_STEPS.find((step) => step.id === "4-3");
+      if (!furusato) throw new Error("Step 4-3 is missing.");
       recordRhythmAttempt(
         restored,
-        elise,
+        furusato,
         { perfectRate: 0.9, passed: true },
         date,
       );
@@ -338,7 +390,8 @@ describe("rhythm progress", () => {
         attempts: 1,
         streak: 1,
       });
-      expect(rhythmStepUnlocked(restored, RHYTHM_STEPS[3])).toBe(true);
+      expect(rhythmStepUnlocked(restored, RHYTHM_STEPS[2])).toBe(true);
+      expect(rhythmStepUnlocked(restored, RHYTHM_STEPS[3])).toBe(false);
       expect(rhythmStepUnlocked(restored, RHYTHM_STEPS[14])).toBe(false);
       data = '{"freePlay":true}';
       expect(store.loadSettings().freePlay).toBe(true);
@@ -348,23 +401,19 @@ describe("rhythm progress", () => {
         version: 1,
         visualOffsetMs: null,
         audioOffsetMs: 24,
-        audioMeasuredAt: date,
       });
       expect(store.loadCalibration()).toMatchObject({
         visualOffsetMs: null,
         audioOffsetMs: 24,
-        audioMeasuredAt: date,
       });
       data = JSON.stringify({
         version: 1,
         visualOffsetMs: 15,
         audioOffsetMs: null,
-        measuredAt: date,
       });
       expect(store.loadCalibration()).toMatchObject({
         visualOffsetMs: 15,
         audioOffsetMs: null,
-        measuredAt: date,
       });
       store.saveProgress(newRhythmProgress());
       blocked = true;

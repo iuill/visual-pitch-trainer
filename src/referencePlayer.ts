@@ -243,6 +243,7 @@ export class ReferencePlayer {
       offsetSeconds?: number;
     }[],
     startAt = this.context.currentTime + 0.01,
+    volume?: number,
   ) {
     this.stopScale();
     let offset = 0;
@@ -253,6 +254,7 @@ export class ReferencePlayer {
         startAt + offsetSeconds,
         seconds - 0.08,
         this.scaleVoices,
+        volume,
       );
       offset = offsetSeconds + seconds;
     }
@@ -265,6 +267,7 @@ export class ReferencePlayer {
     at: number,
     duration: number | null,
     group: Set<Voice>,
+    volume?: number,
   ) {
     if (this.disposed) throw new Error("Reference player is closed.");
     const definition = REFERENCE_INSTRUMENTS[instrument];
@@ -289,20 +292,23 @@ export class ReferencePlayer {
       source = sampler;
     }
     const gain = this.context.createGain();
+    const level =
+      volume === undefined ? 1 : Math.max(0, Math.min(1, volume)) * 0.5;
     gain.gain.setValueAtTime(0, at);
     gain.gain.linearRampToValueAtTime(
-      1,
+      level,
       at +
         (definition.kind === "samples" && definition.playback === "loop"
           ? 0.05
           : 0.01),
     );
     if (duration !== null) {
-      gain.gain.setValueAtTime(1, at + duration - 0.06);
+      gain.gain.setValueAtTime(level, at + duration - 0.06);
       gain.gain.linearRampToValueAtTime(0, at + duration);
     }
     source.connect(gain);
-    gain.connect(this.output);
+    // An explicit phrase volume is independent of the common playback volume.
+    gain.connect(volume === undefined ? this.output : this.context.destination);
     const voice = { source, gain, at };
     group.add(voice);
     source.onended = () => {

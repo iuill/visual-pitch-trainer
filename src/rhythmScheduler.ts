@@ -5,10 +5,6 @@ import type { RhythmCountVoice, RhythmSound } from "./rhythmProgressStore";
 const countFiles = ["one", "two", "three", "four", "and"];
 type RhythmPercussion = "kick" | "high-tom";
 
-function countDirectory(voice: RhythmCountVoice, length: "long" | "short") {
-  return `./audio/count/${voice === "female" ? "female/" : ""}${length === "long" ? "long/" : ""}`;
-}
-
 export interface RhythmCount {
   timeMs: number;
   voiceIndex: number;
@@ -26,19 +22,12 @@ export type RhythmCue =
     };
 
 export class RhythmScheduler {
-  private voices = new Map<string, AudioBuffer[]>();
+  private voices = new Map<RhythmCountVoice, AudioBuffer[]>();
   private percussion = new Map<RhythmPercussion, AudioBuffer>();
   private timer: number | null = null;
   private nodes = new Set<AudioScheduledSourceNode>();
 
   constructor(private readonly context: AudioContext) {}
-
-  async loadVoices(voice: RhythmCountVoice, shortestIntervalMs: number) {
-    const long = await this.loadVoiceDirectory(countDirectory(voice, "long"));
-    if (long.some((buffer) => buffer.duration * 1000 > shortestIntervalMs)) {
-      await this.loadVoiceDirectory(countDirectory(voice, "short"));
-    }
-  }
 
   async loadPercussion(feetOnly: boolean) {
     const samples: RhythmPercussion[] = feetOnly
@@ -72,9 +61,10 @@ export class RhythmScheduler {
     return this.context.decodeAudioData(await response.arrayBuffer());
   }
 
-  private async loadVoiceDirectory(directory: string) {
-    const cached = this.voices.get(directory);
-    if (cached) return cached;
+  async loadVoices(voice: RhythmCountVoice) {
+    if (this.voices.has(voice)) return;
+    const directory =
+      voice === "female" ? "./audio/count/female/" : "./audio/count/";
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 4000);
     try {
@@ -83,8 +73,7 @@ export class RhythmScheduler {
           this.loadSample(`${directory}${count}.wav`, controller.signal),
         ),
       );
-      this.voices.set(directory, buffers);
-      return buffers;
+      this.voices.set(voice, buffers);
     } finally {
       window.clearTimeout(timeout);
       controller.abort();
@@ -106,8 +95,7 @@ export class RhythmScheduler {
       )
     )
       return;
-    const long = this.voices.get(countDirectory(voice, "long"));
-    const short = this.voices.get(countDirectory(voice, "short"));
+    const voices = this.voices.get(voice);
     let next = 0;
     const schedule = () => {
       const now = this.context.currentTime * 1000;
@@ -126,18 +114,13 @@ export class RhythmScheduler {
         const accent = count.voiceIndex === 0;
         const available =
           Math.min(counts[next]?.timeMs ?? endMs, endMs) / 1000 - when;
-        const preferred = long?.[count.voiceIndex];
-        const compact = short?.[count.voiceIndex];
-        const buffer =
-          cue === "voice"
-            ? [preferred, compact].find(
-                (sample) => sample && sample.duration <= available,
-              )
-            : undefined;
-        if (buffer) {
+        const buffer = cue === "voice" ? voices?.[count.voiceIndex] : undefined;
+        if (buffer && available > 0) {
           const source = this.context.createBufferSource();
           source.buffer = buffer;
-          this.play(source, when, buffer.duration, level * (accent ? 1 : 0.72));
+          const duration = Math.min(buffer.duration, available);
+          source.playbackRate.value = buffer.duration / duration;
+          this.play(source, when, duration, level * (accent ? 1 : 0.72));
         } else {
           this.tone(
             "sine",

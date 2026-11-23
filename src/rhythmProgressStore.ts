@@ -10,7 +10,7 @@ export interface RhythmStepProgress {
 }
 
 export interface RhythmProgress {
-  version: 1;
+  version: 2;
   steps: Record<string, RhythmStepProgress>;
   currentStepId: string;
 }
@@ -19,8 +19,6 @@ export interface RhythmCalibration {
   version: 1;
   visualOffsetMs: number | null;
   audioOffsetMs: number | null;
-  measuredAt?: string;
-  audioMeasuredAt?: string;
 }
 
 export type RhythmSound = "voice" | "click" | "none";
@@ -48,7 +46,7 @@ const defaultSettings: RhythmSettings = {
 };
 
 export function newRhythmProgress(): RhythmProgress {
-  return { version: 1, steps: {}, currentStepId: RHYTHM_STEPS[0].id };
+  return { version: 2, steps: {}, currentStepId: RHYTHM_STEPS[0].id };
 }
 
 export function rhythmStepUnlocked(
@@ -144,16 +142,17 @@ export function createRhythmProgressStore(onUnavailable: () => void) {
     loadProgress(): RhythmProgress {
       const progress = newRhythmProgress();
       const data = read("progress");
-      if (data.version !== 1) return progress;
+      if (data.version !== progress.version) return progress;
       const records = asRecord(data.steps);
       for (const step of RHYTHM_STEPS) {
-        const record = asRecord(records[step.progressKey ?? step.id]);
+        const record = asRecord(records[step.id]);
         const { cleared, streak, bestPerfectRate, attempts, lastPlayedAt } =
           record;
         if (
           typeof cleared !== "boolean" ||
-          !inRange(streak, 0, Number.MAX_SAFE_INTEGER) ||
+          !inRange(streak, 0, step.requiredStreak) ||
           !Number.isInteger(streak) ||
+          (!cleared && streak === step.requiredStreak) ||
           !inRange(bestPerfectRate, 0, 1) ||
           !inRange(attempts, 1, Number.MAX_SAFE_INTEGER) ||
           !Number.isInteger(attempts) ||
@@ -161,8 +160,8 @@ export function createRhythmProgressStore(onUnavailable: () => void) {
         )
           continue;
         progress.steps[step.id] = {
-          cleared: cleared || streak >= step.requiredStreak,
-          streak: Math.min(streak, step.requiredStreak),
+          cleared,
+          streak,
           bestPerfectRate,
           attempts,
           lastPlayedAt,
@@ -181,22 +180,14 @@ export function createRhythmProgressStore(onUnavailable: () => void) {
       return progress;
     },
     loadCalibration(): RhythmCalibration | null {
-      const {
-        version,
-        visualOffsetMs,
-        audioOffsetMs,
-        measuredAt,
-        audioMeasuredAt,
-      } = read("calibration");
-      const visual = inRange(visualOffsetMs, -375, 375) && isDate(measuredAt);
+      const { version, visualOffsetMs, audioOffsetMs } = read("calibration");
+      const visual = inRange(visualOffsetMs, -375, 375);
       const audio = inRange(audioOffsetMs, -375, 375);
       if (version !== 1 || (!visual && !audio)) return null;
       return {
         version,
         visualOffsetMs: visual ? visualOffsetMs : null,
-        measuredAt: visual ? measuredAt : undefined,
         audioOffsetMs: audio ? audioOffsetMs : null,
-        audioMeasuredAt: isDate(audioMeasuredAt) ? audioMeasuredAt : undefined,
       };
     },
     loadSettings(): RhythmSettings {
@@ -224,14 +215,7 @@ export function createRhythmProgressStore(onUnavailable: () => void) {
         exampleVoice: exampleVoice === true,
       };
     },
-    saveProgress(value: RhythmProgress) {
-      const steps: RhythmProgress["steps"] = {};
-      for (const step of RHYTHM_STEPS) {
-        const record = value.steps[step.id];
-        if (record) steps[step.progressKey ?? step.id] = record;
-      }
-      write("progress", { ...value, steps });
-    },
+    saveProgress: (value: RhythmProgress) => write("progress", value),
     saveCalibration: (value: RhythmCalibration | null) =>
       write("calibration", value),
     saveSettings: (value: RhythmSettings) => write("settings", value),

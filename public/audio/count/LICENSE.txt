@@ -1,4 +1,4 @@
-Count audio (male and female voices, long and short versions)
+Count audio (male and female voices)
 
 These files contain single English counting words synthesized using the stock
 eSpeak NG en-us and en-us+f3 formant voices. eSpeak's maintainer states that

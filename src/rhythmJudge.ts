@@ -2,6 +2,8 @@ import { getRhythmNoteValue, type RhythmNoteValue } from "./rhythmCourse";
 
 export const RHYTHM_MATCH_MS = 150;
 export const RHYTHM_BEGINNER_PASS_RATE = 0.85;
+export const RHYTHM_ADVANCED_PERFECT_RATE = 0.6;
+export const RHYTHM_ADVANCED_MISS_RATE = 0.1;
 
 export type RhythmGrade = "perfect" | "close" | "miss";
 
@@ -104,18 +106,21 @@ export function summarizeRhythm(hits: RhythmHit[], chapter: number) {
     histogram[bin]++;
   }
   const perfectRate = hits.length ? counts.perfect / hits.length : 0;
+  const missRate = hits.length ? counts.miss / hits.length : 0;
   const onBeatRate = hits.length
     ? (counts.perfect + counts.close) / hits.length
     : 0;
   return {
     counts,
     perfectRate,
+    missRate,
     onBeatRate,
     meanOffsetMs: matched ? offsetSum / matched : null,
     histogram,
     passed:
       chapter === 1
         ? onBeatRate >= RHYTHM_BEGINNER_PASS_RATE
-        : counts.miss <= 1 && perfectRate >= 0.6,
+        : perfectRate >= RHYTHM_ADVANCED_PERFECT_RATE &&
+          missRate <= RHYTHM_ADVANCED_MISS_RATE,
   };
 }
