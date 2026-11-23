@@ -17,6 +17,7 @@
   - `src/app.ts`: 画面の初期化・切り替えとページのライフサイクル。
   - `src/commonSettings.ts`: 共通設定の値・表示・変更通知、試聴、マイク選択。
   - `src/practiceView.ts` / `src/melodyPracticeView.ts`: 単音・メロディ練習。
+  - `src/rhythmPracticeView.ts` / `src/rhythmCourse.ts` / `src/rhythmJudge.ts`: リズム練習の画面、コース、タップ判定。
   - `src/gamePractice.ts` / `src/voiceRangeCheck.ts`: ゲームと自分の声域チェック。
   - `src/microphone.ts`: マイク入力の取得・解放と、フレームごとの音量・音程の読み取り。
   - `src/audioContext.ts`: AudioContext の生成と共有コンテキストの管理。

@@ -381,6 +381,26 @@ describe("reference player", () => {
     expect(h.gains[0].disconnected).toBe(true);
     await expect(h.player.prepare("piano")).rejects.toThrow("closed");
   });
+
+  test("schedules a phrase against a supplied clock with gaps between notes", () => {
+    const h = createHarness();
+    const length = h.player.playPhrase(
+      "sine",
+      [
+        { frequency: 220, seconds: 0.5, offsetSeconds: 0.25 },
+        { frequency: 330, seconds: 0.5, offsetSeconds: 1.5 },
+        { frequency: 440, seconds: 0.5 },
+      ],
+      4,
+    );
+    expect(length).toBe(2.5);
+    expect(h.oscillators.map((voice) => voice.startedAt)).toEqual([
+      4.25, 5.5, 6,
+    ]);
+    h.context.currentTime = 4.5;
+    h.player.stopScale();
+    expect(h.oscillators[2].stops.at(-1)).toBeCloseTo(4.56);
+  });
   test("counts down only once and skips missed loop notes without replaying a backlog", () => {
     const h = createHarness();
     h.player.playScale("sine", [261.63, 293.66], {

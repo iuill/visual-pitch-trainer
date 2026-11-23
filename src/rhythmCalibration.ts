@@ -29,7 +29,8 @@ export function measureRhythmOffset(
   );
   if (spread > 60) return null;
   samples.sort((a, b) => a - b);
-  return (samples[3] + samples[4]) / 2;
+  const middle = samples.length / 2;
+  return (samples[Math.ceil(middle) - 1] + samples[Math.floor(middle)]) / 2;
 }
 
 export function rhythmEventTimeMs(

@@ -6,6 +6,7 @@ export interface RhythmStep {
   bpm: number;
   beatsPerBar?: 2 | 3 | 4;
   patterns: readonly string[];
+  feetOnly?: boolean;
   melody?: readonly (readonly number[])[];
   progressKey?: string;
   requiredStreak: number;
@@ -81,8 +82,8 @@ const halves = ["h---h---"];
 const wholes = ["w-------", "h---x-x-"];
 const eighths = ["eeeeeeee", "x-x-eeee"];
 const rests = ["x-x-r-x-", "r-x-x-x-"];
-const offbeats = ["-e-e-e-e"];
-const alternating = ["x-x--e-e", "-e-ex-x-"];
+const offbeats = ["sesesese"];
+const alternating = ["x-x-sese", "sesex-x-"];
 const longerNotes = [...quarters, ...halves, ...wholes];
 const shortNotesAndRests = [...eighths, ...rests];
 const basics = [...longerNotes, ...shortNotesAndRests];
@@ -96,6 +97,7 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
     hint: "足で拍を刻み、下段の足あとの中心の点線が判定ラインに重なるたびにタップします。",
     bpm: 60,
     patterns: quarters,
+    feetOnly: true,
     requiredStreak: 2,
   },
   {

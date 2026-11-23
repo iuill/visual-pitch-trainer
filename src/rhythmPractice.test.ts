@@ -107,6 +107,18 @@ describe("rhythm course", () => {
     expect(targets.filter((target) => target.downbeat)).toHaveLength(2);
   });
 
+  test("shows eighth rests at the untapped beats in the offbeat chapter", () => {
+    const patterns = new Set(
+      RHYTHM_STEPS.filter((step) => step.chapter === 3).flatMap(
+        (step) => step.patterns,
+      ),
+    );
+    expect([...patterns]).toEqual(["sesesese", "x-x-sese", "sesex-x-"]);
+    expect(
+      createRhythmTargets(["sesesese"], 60, 0).map((target) => target.timeMs),
+    ).toEqual([500, 1500, 2500, 3500]);
+  });
+
   test("maps eighth slots and bar boundaries to the common time axis", () => {
     expect(
       createRhythmTargets(["-e---e--", "w-------", "h---x-x-"], 60, 1000),
