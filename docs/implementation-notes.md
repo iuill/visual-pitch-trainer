@@ -108,10 +108,10 @@ bun run build
 画面フッターには、ビルド時点のバージョン情報を表示する。
 
 - 表示バージョンはビルド時に自動生成し、手動でインクリメントしない
-- 通常ビルドでは `0.1.<build>` の SemVer 形式を使う
+- 通常ビルドでは `0.2.<build>` の SemVer 形式を使う
 - GitHub Actions では `<build>` に `GITHUB_RUN_NUMBER` を使う。これは workflow の実行番号であり、Pull Request や手動実行による欠番を含むことがある
 - ローカルビルドでは `<build>` に `git rev-list --count HEAD` を使う
-- major / minor を変えたい場合は、リポジトリ変数 `APP_VERSION_BASE` に `1.0` など `major.minor` 形式の値を指定する。未設定時は `0.1` を使う
+- major / minor を変えたい場合は、リポジトリ変数 `APP_VERSION_BASE` に `1.0` など `major.minor` 形式の値を指定する。未設定時は `0.2` を使う
 - `APP_VERSION_BASE` は `major.minor` 形式、タグ名は `v1.2.3` などの SemVer 形式のみ許可する
 - SemVer タグからビルドされた場合は `GITHUB_REF_NAME` の `v` を除いた値を優先して使う
 - コミット識別子は GitHub Actions では workflow から渡す `APP_COMMIT_HASH`、ローカルビルドでは `git rev-parse --short=12 HEAD` から取得する
@@ -121,7 +121,7 @@ bun run build
 例:
 
 ```text
-Version v0.1.123 (c8c76eaffa70)
+Version v0.2.123 (c8c76eaffa70)
 Version v1.0.0 (c8c76eaffa70)
 ```
 

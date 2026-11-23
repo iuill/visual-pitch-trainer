@@ -63,7 +63,7 @@ jobs:
       - name: Build
         env:
           APP_COMMIT_HASH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          APP_VERSION_BASE: ${{ vars.APP_VERSION_BASE || '0.1' }}
+          APP_VERSION_BASE: ${{ vars.APP_VERSION_BASE || '0.2' }}
         run: bun run build
 
       - name: Upload GitHub Pages artifact

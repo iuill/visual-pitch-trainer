@@ -70,7 +70,7 @@ function readVersion(): string {
     return tagName.replace(/^v/, "");
   }
 
-  const versionBase = process.env.APP_VERSION_BASE ?? "0.1";
+  const versionBase = process.env.APP_VERSION_BASE ?? "0.2";
   if (!VERSION_BASE_PATTERN.test(versionBase)) {
     throw new Error(
       `APP_VERSION_BASE must use the major.minor format, but got "${versionBase}".`,
