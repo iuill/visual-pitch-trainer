@@ -2,6 +2,17 @@ import flute from "../public/audio/flute/sources.json";
 import harmonium from "../public/audio/harmonium/sources.json";
 import organ from "../public/audio/organ/sources.json";
 import violin from "../public/audio/violin/sources.json";
+import { midiToFrequency } from "./pitchMath";
+
+// Opening of the traditional French tune “Ah ! vous dirai-je, maman”.
+export function buildInstrumentPreview(startMidi: number) {
+  const quarterSeconds = 0.625;
+  const phrase = [...[0, 0, 7, 7, 9, 9].map((offset) => [offset, 1]), [7, 2]];
+  return phrase.map(([offset, beats]) => ({
+    frequency: midiToFrequency(startMidi + offset),
+    seconds: beats * quarterSeconds,
+  }));
+}
 
 export type ReferenceSample = {
   file: string;

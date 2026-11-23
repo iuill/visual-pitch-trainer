@@ -204,6 +204,26 @@ export class ReferencePlayer {
     );
   }
 
+  playPhrase(
+    instrument: ReferenceInstrumentId,
+    notes: readonly { frequency: number; seconds: number }[],
+  ) {
+    this.stopScale();
+    const start = this.context.currentTime + 0.01;
+    let at = start;
+    for (const { frequency, seconds } of notes) {
+      this.createVoice(
+        instrument,
+        frequency,
+        at,
+        seconds - 0.08,
+        this.scaleVoices,
+      );
+      at += seconds;
+    }
+    return at - start;
+  }
+
   private createVoice(
     instrument: ReferenceInstrumentId,
     frequency: number,

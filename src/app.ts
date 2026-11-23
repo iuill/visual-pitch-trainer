@@ -72,6 +72,7 @@ import {
 import { getPitchMovementIcon } from "./pitchMovementVisual";
 import { setupPwa } from "./pwa";
 import {
+  buildInstrumentPreview,
   isReferenceInstrumentId,
   REFERENCE_INSTRUMENTS,
   type ReferenceInstrumentId,
@@ -354,6 +355,9 @@ const elements = {
   referenceInstrumentSelect: queryElement<HTMLSelectElement>(
     "#referenceInstrumentSelect",
   ),
+  previewInstrumentButton: queryElement<HTMLButtonElement>(
+    "#previewInstrumentButton",
+  ),
   referenceInstrumentStatus: queryElement<HTMLParagraphElement>(
     "#referenceInstrumentStatus",
   ),
@@ -514,6 +518,7 @@ const voiceRangeCheck = new VoiceRangeCheck(
 
 function setupPracticeNavigation() {
   setupSettingsDialog(elements.practiceSettings, elements.openPracticeSettings);
+  elements.practiceSettings.addEventListener("close", stopInstrumentPreview);
   setupSettingsDialog(elements.melodySetup, elements.openMelodySettings);
   const buttons = document.querySelectorAll<HTMLButtonElement>(
     "button[data-practice-view]",
@@ -677,7 +682,9 @@ function init() {
   );
   window.addEventListener("pagehide", handlePageHide);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden && state.isScalePlaying) stopScalePlayback();
+    if (!document.hidden) return;
+    if (state.isScalePlaying) stopScalePlayback();
+    else stopInstrumentPreview();
   });
   elements.melodyPatternSelect.replaceChildren(
     ...MELODY_PATTERNS.map((pattern) =>
@@ -737,6 +744,10 @@ function init() {
   elements.micSelect.addEventListener("change", handleMicSelection);
 
   if (isAudioContextSupported()) {
+    elements.previewInstrumentButton.addEventListener(
+      "click",
+      () => void previewReferenceInstrument(),
+    );
     elements.playToneButton.addEventListener(
       "click",
       () => void toggleReferenceTone(),
@@ -766,6 +777,7 @@ function isAudioContextSupported(): boolean {
 
 function disableAudioControls() {
   elements.referenceInstrumentSelect.disabled = true;
+  elements.previewInstrumentButton.disabled = true;
   elements.playToneButton.disabled = true;
   elements.playScaleButton.disabled = true;
   elements.micButton.disabled = true;
@@ -2419,6 +2431,7 @@ function updateNoteButtonStates() {
 
 function handleNoteRangeChange() {
   if (state.isScalePlaying) stopScalePlayback();
+  else stopInstrumentPreview();
   const previousIndex = getCurrentNotes().findIndex(
     (note) => note.name === state.target.name,
   );
@@ -2459,6 +2472,8 @@ function getAudioContext(): AudioContext {
 
 let referencePlaybackRequestId = 0;
 let scalePlaybackRequestId = 0;
+let instrumentPreviewRequest: symbol | null = null;
+let instrumentPreviewTimer: number | undefined;
 let microphoneRequestId = 0;
 let toneScaleStartDegree = 0;
 let toneScaleRandomSteps = 0;
@@ -2789,6 +2804,56 @@ function showReferenceAudioError(error: unknown) {
     "お手本音を再生できませんでした。もう一度再生するか、正弦波を選んでください。";
 }
 
+async function previewReferenceInstrument() {
+  if (instrumentPreviewRequest !== null) {
+    stopInstrumentPreview();
+    return;
+  }
+  stopScalePlayback();
+  stopReferenceTone();
+  gamePractice.stop();
+  voiceRangeCheck.stop();
+  if (state.isMicActive || state.isMicStarting) stopMicrophone();
+  pauseAudioFilePlayback();
+
+  const request = Symbol();
+  instrumentPreviewRequest = request;
+  const instrument = state.referenceInstrument;
+  elements.previewInstrumentButton.textContent = "試聴を停止";
+  elements.referenceInstrumentStatus.textContent = "試聴音を準備しています…";
+  try {
+    const context = getAudioContext();
+    const player = getReferencePlayer();
+    await Promise.all([player.prepare(instrument), context.resume()]);
+    if (instrumentPreviewRequest !== request || !elements.practiceSettings.open)
+      return;
+    const seconds = player.playPhrase(
+      instrument,
+      buildInstrumentPreview(state.noteRangeStartMidi),
+    );
+    elements.referenceInstrumentStatus.textContent = "「きらきら星」を試聴中…";
+    instrumentPreviewTimer = window.setTimeout(
+      stopInstrumentPreview,
+      seconds * 1000,
+    );
+  } catch (error) {
+    if (instrumentPreviewRequest !== request || !elements.practiceSettings.open)
+      return;
+    stopInstrumentPreview();
+    showReferenceAudioError(error);
+  }
+}
+
+function stopInstrumentPreview() {
+  if (instrumentPreviewRequest === null) return;
+  instrumentPreviewRequest = null;
+  window.clearTimeout(instrumentPreviewTimer);
+  instrumentPreviewTimer = undefined;
+  state.referencePlayer?.stopScale();
+  elements.previewInstrumentButton.textContent = "試聴";
+  updateReferenceInstrumentDescription();
+}
+
 async function toggleReferenceTone() {
   if (state.isReferencePlaying) {
     stopReferenceTone();
@@ -2864,6 +2929,7 @@ async function playScale() {
     return;
   }
   stopMicrophone();
+  stopInstrumentPreview();
   stopReferenceTone();
   stopAudioFilePlayback();
   state.isScalePlaying = true;
@@ -2950,7 +3016,8 @@ function stopScalePlayback() {
       : 0;
   elements.melodyCountdown.hidden = true;
   scalePlaybackRequestId++;
-  state.referencePlayer?.stopScale();
+  if (state.isScalePlaying) state.referencePlayer?.stopScale();
+  else stopInstrumentPreview();
   if (state.scalePlaybackTimerId !== null) {
     window.clearTimeout(state.scalePlaybackTimerId);
     state.scalePlaybackTimerId = null;
@@ -3116,6 +3183,7 @@ function stopMicrophone() {
 }
 
 function handlePageHide(event: PageTransitionEvent) {
+  stopInstrumentPreview();
   if (event.persisted) {
     return;
   }

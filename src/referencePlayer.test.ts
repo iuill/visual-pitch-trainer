@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
+import { hzToMidi } from "./pitchMath";
 import {
+  buildInstrumentPreview,
   findNearestSample,
   isReferenceInstrumentId,
   PIANO_SAMPLES,
@@ -306,6 +308,20 @@ describe("reference player", () => {
     h.context.currentTime = 100;
     h.tick();
     expect(h.oscillators).toHaveLength(4);
+  });
+
+  test("plays the preview in the selected range with its original rhythm and cancels future notes", () => {
+    const h = createHarness();
+    const seconds = h.player.playPhrase("sine", buildInstrumentPreview(60));
+    expect(seconds).toBeCloseTo(5);
+    expect(
+      h.oscillators.map((voice) => Math.round(hzToMidi(voice.frequency.value))),
+    ).toEqual([60, 60, 67, 67, 69, 69, 67]);
+    expect(h.oscillators[6].startedAt).toBeCloseTo(3.76);
+    expect(h.oscillators[6].stops[0]).toBeCloseTo(4.95);
+    h.context.currentTime = 0.1;
+    h.player.stopScale();
+    expect(h.oscillators[6].stops.at(-1)).toBeCloseTo(0.16);
   });
 
   test("cancels future scale notes as well as sounding voices on stop and dispose", async () => {

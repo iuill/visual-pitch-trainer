@@ -310,6 +310,17 @@ fieldset {
   line-height: 1.6;
 }
 
+.reference-instrument-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.reference-instrument-picker select {
+  min-width: 0;
+}
+
 .reference-instrument-status {
   margin: 8px 0 12px;
   color: var(--muted);
