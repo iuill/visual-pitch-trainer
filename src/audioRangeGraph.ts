@@ -438,7 +438,7 @@ function drawAudioPitchTrend(
   let startsLine = true;
 
   context.save();
-  context.strokeStyle = getGraphTheme().voice;
+  context.strokeStyle = getGraphTheme().trend;
   context.lineWidth = 2.5;
   context.lineJoin = "round";
   context.lineCap = "round";

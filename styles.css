@@ -14,6 +14,7 @@
   --graph-background: #fbfcfc;
   --graph-grid: #dce5e8;
   --graph-octave: #c6d4d8;
+  --graph-trend: #1f5f93;
   --panel-padding: 18px;
   --panel-radius: 8px;
   --mobile-actions-space: calc(82px + env(safe-area-inset-bottom));

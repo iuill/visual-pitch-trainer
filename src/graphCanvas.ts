@@ -24,13 +24,16 @@ export function observeGraphResize(elements: Element[], redraw: () => void) {
 
 function readGraphTheme() {
   const style = getComputedStyle(document.documentElement);
+  const color = (property: string, fallback: string) =>
+    style.getPropertyValue(property).trim() || fallback;
   return {
-    background: style.getPropertyValue("--graph-background").trim(),
-    grid: style.getPropertyValue("--graph-grid").trim(),
-    octave: style.getPropertyValue("--graph-octave").trim(),
-    label: style.getPropertyValue("--muted").trim(),
-    target: style.getPropertyValue("--accent").trim(),
-    voice: style.getPropertyValue("--blue").trim(),
+    background: color("--graph-background", "#fbfcfc"),
+    grid: color("--graph-grid", "#dce5e8"),
+    octave: color("--graph-octave", "#c6d4d8"),
+    label: color("--muted", "#5c6870"),
+    target: color("--accent", "#146c75"),
+    voice: color("--blue", "#2b6cb0"),
+    trend: color("--graph-trend", "#1f5f93"),
   };
 }
 
