@@ -108,6 +108,7 @@ export function buildSongEvents(
 ): SongEvent[] {
   const slotsPerPulse = rhythmSlotsPerBeat(step);
   const slotMs = 60_000 / (step.bpm * slotsPerPulse);
+  const groupStarts = step.beatGroups?.map((pulse) => pulse * slotsPerPulse);
   const events: SongEvent[] = [];
   const { arrangement, melody } = step;
   if (!arrangement || !melody || from >= to) return events;
@@ -151,7 +152,7 @@ export function buildSongEvents(
       level: number,
     ) {
       const scale = length / 8;
-      note(instrument, midi, slot * scale, duration * scale, level);
+      note(instrument, midi, Math.round(slot * scale), duration * scale, level);
     }
     function drum(id: SongDrum, slot: number, level: number) {
       events.push({ timeMs: barStart + slot * slotMs, drum: id, level });
@@ -248,9 +249,9 @@ export function buildSongEvents(
     } else {
       const pitches = [bass, fifth, bass + 12, third];
       const levels = [0.34, 0.23, 0.26, 0.19];
-      const starts = step.beatGroups
-        ? [0, ...step.beatGroups].map((pulse) => pulse * slotsPerPulse)
-        : [0, 2, 4, 6].map((slot) => (slot * length) / 8);
+      const starts = groupStarts
+        ? [0, ...groupStarts]
+        : [0, 2, 4, 6].map((slot) => Math.round((slot * length) / 8));
       for (const [index, slot] of starts.entries())
         note(
           "piano",
@@ -263,7 +264,16 @@ export function buildSongEvents(
     if (part.support) {
       if (part.support === "violin" || ending)
         note(part.support, third + 12, 0, length, 0.23);
-      else {
+      else if (groupStarts) {
+        for (const [index, slot] of groupStarts.entries())
+          note(
+            "flute",
+            (index % 2 ? third : fifth) + 12,
+            slot,
+            (index % 2 ? 2 : 1) * slotsPerPulse,
+            0.2,
+          );
+      } else {
         accompaniment("flute", fifth + 12, 3, 1, 0.21);
         accompaniment("flute", third + 12, 5, 2, 0.2);
       }

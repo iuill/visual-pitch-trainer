@@ -657,7 +657,8 @@ export function setupRhythmPractice(
 
   async function prepareMelody(
     player: ReferencePlayer,
-    events?: readonly SongEvent[],
+    events: readonly SongEvent[] | undefined,
+    isCurrent: () => boolean,
   ) {
     const requested = songSampleInstruments(events);
     const prepared = await Promise.allSettled(
@@ -666,14 +667,21 @@ export function setupRhythmPractice(
     const instruments = new Set(
       requested.filter((_, index) => prepared[index].status === "fulfilled"),
     );
+    let deadline = performance.now() + 8;
     for (const event of events ?? []) {
-      if ("instrument" in event && isGeneratedInstrument(event.instrument))
-        player.prepareGeneratedNote(
-          event.instrument,
-          midiToFrequency(event.midi),
-          event.seconds,
-          event.bendSemitones,
-        );
+      if (!("instrument" in event) || !isGeneratedInstrument(event.instrument))
+        continue;
+      if (performance.now() >= deadline) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+        deadline = performance.now() + 8;
+      }
+      if (!isCurrent()) break;
+      player.prepareGeneratedNote(
+        event.instrument,
+        midiToFrequency(event.midi),
+        event.seconds,
+        event.bendSemitones,
+      );
     }
     return {
       instruments,
@@ -798,7 +806,9 @@ export function setupRhythmPractice(
               () => false,
             )
           : true,
-        reference ? prepareMelody(reference, events) : null,
+        reference
+          ? prepareMelody(reference, events, () => activeExample === example)
+          : null,
       ]);
       if (activeExample !== example) return;
       const messages = [];
@@ -954,7 +964,11 @@ export function setupRhythmPractice(
       if (token !== generation) return null;
       if (step?.melody && settings.volume > 0) {
         const [melody, drums] = await Promise.all([
-          prepareMelody(getReferencePlayer(), events),
+          prepareMelody(
+            getReferencePlayer(),
+            events,
+            () => token === generation,
+          ),
           player
             .loadPercussion(events ? songDrumsForEvents(events) : ["kick"])
             .then(

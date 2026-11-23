@@ -201,6 +201,26 @@ describe("rhythm course", () => {
     ]);
   });
 
+  test("keeps every 7/8 event on the eighth-note grid, including the flute answers", () => {
+    const step = RHYTHM_STEPS.find(({ id }) => id === "5-3");
+    if (!step) throw new Error("Missing 7/8 song");
+    const pulseMs = 60_000 / step.bpm;
+    const events = buildSongEvents(step, 0, step.patterns.length, 0, true);
+    for (const { timeMs } of events) {
+      const slot = timeMs / pulseMs;
+      expect(slot).toBeCloseTo(Math.round(slot), 8);
+    }
+    const fluteSlots = events.flatMap((event) =>
+      "instrument" in event && event.instrument === "flute" && event.level < 0.5
+        ? [Math.round(event.timeMs / pulseMs) % 7]
+        : [],
+    );
+    expect(fluteSlots).toEqual([
+      ...Array.from({ length: 15 }, () => [2, 4]).flat(),
+      0,
+    ]);
+  });
+
   test("records guitar bends at the solo's tap times", () => {
     const step = RHYTHM_STEPS.find(({ id }) => id === "5-5");
     const solo = step?.sections?.find(({ title }) => title === "ギターソロ");
