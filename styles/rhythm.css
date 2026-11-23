@@ -589,7 +589,18 @@
 
 .rhythm-rest {
   top: 25%;
-  font-size: 1.65rem;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.rhythm-rest-label {
+  padding-inline: 2px;
+  background: #edf6fa;
+  font-size: 0.78rem;
 }
 
 .rhythm-beat {

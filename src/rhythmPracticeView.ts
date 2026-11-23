@@ -909,12 +909,21 @@ export function setupRhythmPractice(
     });
   }
 
-  function makeMarker(kind: "note" | "rest" | "beat", content?: Node | string) {
+  function makeMarker(kind: "note" | "rest" | "beat", content?: Node) {
     const marker = document.createElement("span");
     marker.className = `rhythm-mark rhythm-${kind}`;
     if (kind === "beat") marker.append(createFootprint());
     else if (content !== undefined) marker.append(content);
     markers.append(marker);
+    return marker;
+  }
+
+  function makeRestMarker(rest: RhythmRestValue) {
+    const marker = makeMarker("rest", createRestIcon(rest));
+    const label = document.createElement("span");
+    label.className = "rhythm-rest-label";
+    label.textContent = "休";
+    marker.append(label);
     return marker;
   }
 
@@ -986,7 +995,7 @@ export function setupRhythmPractice(
         const rest = getRhythmRestValue(symbol);
         const marker = value
           ? makeMarker("note", createNoteIcon(value))
-          : rest && makeMarker("rest", createRestIcon(rest));
+          : rest && makeRestMarker(rest);
         if (!marker) return;
         if (value) marker.dataset.accent = String(slot === 0);
         marker.style.left = `${linePercent + (22 * slot) / slotsPerBeat}%`;
@@ -1013,7 +1022,7 @@ export function setupRhythmPractice(
         ? "足あとの中心の点線が判定ラインに重なった瞬間にタップします。"
         : "上段の音符の点線が判定ラインに重なった瞬間にタップします。足は下段の足あとに合わせます。") +
       (bars.some((pattern) => Array.from(pattern).some(getRhythmRestValue))
-        ? "休符の位置ではタップを休みます。"
+        ? "「休」では手のタップを休み、足の拍は続けます。"
         : "");
     inputHelp.textContent = `準備の${practiceCountInBars}小節は足で拍を刻みます。タップは「本番」の表示からです。`;
     const beatMs = 60_000 / step.bpm;
@@ -1099,7 +1108,7 @@ export function setupRhythmPractice(
                 timeMs:
                   startMs +
                   ((bar * pattern.length + slot) * beatMs) / slotsPerBeat,
-                marker: makeMarker("rest", createRestIcon(rest)),
+                marker: makeRestMarker(rest),
               },
             ]
           : [];
