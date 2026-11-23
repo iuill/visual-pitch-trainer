@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildSongEvents,
+  songDrumsForStep,
+  songSampleInstruments,
+} from "./rhythmArrangement";
+import {
   CALIBRATION_TAPS,
   calibrationTapIndex,
   measureRhythmOffset,
@@ -10,6 +15,8 @@ import {
   getRhythmNoteValue,
   RHYTHM_NOTE_BEATS,
   RHYTHM_STEPS,
+  rhythmBeatAccent,
+  rhythmPulseUnits,
   rhythmSlotsPerBeat,
 } from "./rhythmCourse";
 import {
@@ -27,14 +34,14 @@ import {
 } from "./rhythmProgressStore";
 
 describe("rhythm course", () => {
-  test("uses 27 ordered steps, in 4 chapters", () => {
+  test("uses 32 ordered steps, in 5 chapters", () => {
     expect(RHYTHM_STEPS.map((step) => step.bpm)).toEqual([
       60, 60, 60, 60, 60, 60, 70, 70, 80, 90, 100, 110, 60, 60, 80, 100, 76,
-      100, 80, 76, 72, 88, 92, 96, 52, 60, 52,
+      100, 80, 76, 72, 88, 92, 96, 52, 60, 52, 72, 116, 144, 128, 180,
     ]);
-    expect(new Set(RHYTHM_STEPS.map((step) => step.id)).size).toBe(27);
+    expect(new Set(RHYTHM_STEPS.map((step) => step.id)).size).toBe(32);
     for (const step of RHYTHM_STEPS) {
-      expect(step.requiredStreak).toBe(2);
+      expect(step.requiredStreak).toBe(step.chapter === 5 ? 1 : 2);
       const bars = createRhythmBars(step, () => 0);
       const slotsPerBeat = rhythmSlotsPerBeat(step);
       if (step.melody) {
@@ -48,7 +55,9 @@ describe("rhythm course", () => {
         for (const [slot, symbol] of Array.from(bar).entries()) {
           const value = getRhythmNoteValue(symbol);
           if (value) {
-            const duration = RHYTHM_NOTE_BEATS[value] * slotsPerBeat;
+            const duration =
+              RHYTHM_NOTE_BEATS[value] * slotsPerBeat * rhythmPulseUnits(step);
+            expect(slot + duration).toBeLessThanOrEqual(bar.length);
             expect(bar.slice(slot + 1, slot + duration)).toBe(
               "-".repeat(duration - 1),
             );
@@ -67,6 +76,160 @@ describe("rhythm course", () => {
             createRhythmTargets([bar], step.bpm, 0, slotsPerBeat),
           ).toHaveLength(step.melody[index].length);
       }
+    }
+  });
+
+  test("partitions the original songs into sections with complete rhythm and harmony data", () => {
+    const originals = RHYTHM_STEPS.filter((step) => step.chapter === 5);
+    expect(originals).toHaveLength(5);
+    for (const step of originals) {
+      const beats = step.beatsPerBar ?? 4;
+      const seconds = (step.patterns.length * beats * 60) / step.bpm;
+      expect(seconds).toBeGreaterThanOrEqual(180);
+      expect(seconds).toBeLessThanOrEqual(240);
+      expect(step.arrangement).toHaveLength(step.patterns.length);
+      expect(step.arrangement?.filter((bar) => bar.ending)).toHaveLength(1);
+      expect(step.arrangement?.at(-1)?.ending).toBe(true);
+      let end = 0;
+      for (const section of step.sections ?? []) {
+        expect(section.startBar).toBe(end);
+        expect(section.endBar).toBeGreaterThan(section.startBar);
+        end = section.endBar;
+      }
+      expect(end).toBe(step.patterns.length);
+    }
+    const odd = originals[2];
+    expect(
+      Array.from({ length: 7 }, (_, pulse) => rhythmBeatAccent(odd, pulse)),
+    ).toEqual([true, false, true, false, true, false, false]);
+    expect(
+      createRhythmTargets(
+        odd.patterns.slice(0, 2),
+        odd.bpm,
+        0,
+        rhythmSlotsPerBeat(odd),
+      )
+        .slice(0, 4)
+        .map(({ timeMs }) => Math.round(timeMs)),
+    ).toEqual([0, 833, 1667, 2917]);
+  });
+
+  test("keeps the score aligned across instruments and adds only kick cues in practice", () => {
+    for (const step of RHYTHM_STEPS.filter((item) => item.arrangement)) {
+      const startMs = 3000;
+      const pulseMs = 60_000 / step.bpm;
+      const fullLength = step.patterns.length;
+      const barMs = (step.beatsPerBar ?? 4) * pulseMs;
+      const events = buildSongEvents(step, 0, fullLength, startMs, false);
+      const pitched = events.filter((event) => "instrument" in event);
+      const rock = step.id === "5-4";
+      const symphonic = step.id === "5-5";
+      expect(new Set(pitched.map(({ instrument }) => instrument))).toEqual(
+        new Set(
+          rock
+            ? ["electric-guitar", "electric-bass"]
+            : symphonic
+              ? [
+                  "piano",
+                  "violin",
+                  "electric-guitar",
+                  "electric-bass",
+                  "mellotron",
+                  "synth-lead",
+                ]
+              : ["piano", "violin", "flute"],
+        ),
+      );
+      expect(songSampleInstruments(step)).toEqual(
+        rock
+          ? []
+          : symphonic
+            ? ["piano", "violin"]
+            : ["piano", "violin", "flute"],
+      );
+      expect(
+        new Set(
+          events.flatMap((event) => ("drum" in event ? [event.drum] : [])),
+        ),
+      ).toEqual(new Set(songDrumsForStep(step)));
+      if (rock)
+        expect(songDrumsForStep(step)).toEqual([
+          "kick",
+          "snare",
+          "hi-hat",
+          "high-tom",
+          "low-tom",
+          "crash",
+          "ride",
+        ]);
+      for (const section of step.sections ?? []) {
+        const from = section.startBar;
+        const to = section.endBar;
+        const score = step.patterns.slice(from, to);
+        const targets = createRhythmTargets(
+          score,
+          step.bpm,
+          startMs,
+          rhythmSlotsPerBeat(step),
+        );
+        const sectionEvents = buildSongEvents(step, from, to, startMs, false);
+        const practice = buildSongEvents(step, from, to, startMs, true);
+        expect(
+          practice.filter(
+            (event) => !("drum" in event) || event.drum !== "kick",
+          ),
+        ).toEqual(
+          sectionEvents.filter(
+            (event) => !("drum" in event) || event.drum !== "kick",
+          ),
+        );
+        const pitches = step.melody?.slice(from, to).flat() ?? [];
+        expect(pitches).toHaveLength(targets.length);
+        for (const [index, target] of targets.entries()) {
+          const bar = Math.floor((target.timeMs - startMs + 0.001) / barMs);
+          expect(
+            sectionEvents.some(
+              (event) =>
+                "instrument" in event &&
+                event.instrument === step.arrangement?.[from + bar].part.lead &&
+                event.midi === pitches[index] &&
+                Math.abs(event.timeMs - target.timeMs) < 0.001,
+            ),
+          ).toBe(true);
+        }
+        for (const event of sectionEvents) {
+          expect(event.timeMs).toBeGreaterThanOrEqual(startMs);
+          expect(
+            event.timeMs + ("seconds" in event ? event.seconds * 1000 : 0),
+          ).toBeLessThanOrEqual(startMs + (to - from) * barMs + 0.001);
+        }
+      }
+    }
+  });
+
+  test("records guitar bends at the solo's tap times", () => {
+    const step = RHYTHM_STEPS.find(({ id }) => id === "5-5");
+    const solo = step?.sections?.find(({ title }) => title === "ギターソロ");
+    if (!step || !solo) throw new Error("Missing symphonic rock solo");
+    const events = buildSongEvents(step, solo.startBar, solo.endBar, 0, false);
+    const bends = events
+      .filter((event) => "instrument" in event)
+      .filter((event) => event.bendSemitones !== undefined);
+    const targets = createRhythmTargets(
+      step.patterns.slice(solo.startBar, solo.endBar),
+      step.bpm,
+      0,
+      rhythmSlotsPerBeat(step),
+    );
+    expect(bends).toHaveLength(16);
+    expect(new Set(bends.map(({ bendSemitones }) => bendSemitones))).toEqual(
+      new Set([1, 2]),
+    );
+    for (const bend of bends) {
+      expect(bend.instrument).toBe("electric-guitar");
+      expect(
+        targets.some(({ timeMs }) => Math.abs(timeMs - bend.timeMs) < 0.001),
+      ).toBe(true);
     }
   });
 

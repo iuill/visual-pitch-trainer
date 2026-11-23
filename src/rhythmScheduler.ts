@@ -1,9 +1,9 @@
+import type { SongDrum } from "./rhythmArrangement";
 import { getRhythmNoteValue } from "./rhythmCourse";
 import type { RhythmGrade } from "./rhythmJudge";
 import type { RhythmCountVoice, RhythmSound } from "./rhythmProgressStore";
 
 const countFiles = ["one", "two", "three", "four", "and"];
-type RhythmPercussion = "kick" | "high-tom";
 
 export interface RhythmCount {
   timeMs: number;
@@ -23,16 +23,14 @@ export type RhythmCue =
 
 export class RhythmScheduler {
   private voices = new Map<RhythmCountVoice, AudioBuffer[]>();
-  private percussion = new Map<RhythmPercussion, AudioBuffer>();
+  private percussion = new Map<SongDrum, AudioBuffer>();
   private timer: number | null = null;
+  private trackTimer: number | null = null;
   private nodes = new Set<AudioScheduledSourceNode>();
 
   constructor(private readonly context: AudioContext) {}
 
-  async loadPercussion(feetOnly: boolean) {
-    const samples: RhythmPercussion[] = feetOnly
-      ? ["kick"]
-      : ["kick", "high-tom"];
+  async loadPercussion(samples: readonly SongDrum[]) {
     const missing = samples.filter((sample) => !this.percussion.has(sample));
     if (missing.length === 0) return;
     const controller = new AbortController();
@@ -115,10 +113,18 @@ export class RhythmScheduler {
         const available =
           Math.min(counts[next]?.timeMs ?? endMs, endMs) / 1000 - when;
         const buffer = cue === "voice" ? voices?.[count.voiceIndex] : undefined;
-        if (buffer && buffer.duration <= available) {
+        if (buffer && available > 0) {
           const source = this.context.createBufferSource();
           source.buffer = buffer;
-          this.play(source, when, buffer.duration, level * (accent ? 1 : 0.72));
+          // Leave a short gap before the next beat or the start of the song.
+          const rate = Math.max(1, buffer.duration / (available * 0.97));
+          source.playbackRate.setValueAtTime(rate, when);
+          this.play(
+            source,
+            when,
+            buffer.duration / rate,
+            level * (accent ? 1 : 0.72),
+          );
         } else {
           this.tone(
             "sine",
@@ -143,6 +149,7 @@ export class RhythmScheduler {
       feetOnly: boolean;
       eighths: boolean;
       voice: RhythmCountVoice | null;
+      scheduleDrums?: boolean;
     },
   ) {
     const beatSeconds = 60 / bpm;
@@ -172,10 +179,12 @@ export class RhythmScheduler {
     } else {
       this.stop();
     }
-    for (let beat = 0; beat < beatCount; beat++) {
-      const downbeat = beat % beatsPerBar === 0;
-      const when = startAt + beat * beatSeconds;
-      this.scheduleBassDrum(when, downbeat, downbeat ? 0.29 : 0.21);
+    if (options.scheduleDrums !== false) {
+      for (let beat = 0; beat < beatCount; beat++) {
+        const downbeat = beat % beatsPerBar === 0;
+        const when = startAt + beat * beatSeconds;
+        this.scheduleBassDrum(when, downbeat, downbeat ? 0.29 : 0.21);
+      }
     }
     if (options.feetOnly) return startAt;
     const highTom = this.percussion.get("high-tom");
@@ -195,14 +204,45 @@ export class RhythmScheduler {
   }
 
   scheduleBassDrum(when: number, downbeat: boolean, volume: number) {
-    const kick = this.percussion.get("kick");
-    if (kick) {
+    this.scheduleDrum("kick", when, volume, downbeat);
+  }
+
+  scheduleDrum(drum: SongDrum, when: number, volume: number, downbeat = false) {
+    const sample = this.percussion.get(drum);
+    if (sample) {
       const source = this.context.createBufferSource();
-      source.buffer = kick;
-      this.play(source, when, kick.duration, volume);
+      source.buffer = sample;
+      this.play(source, when, sample.duration, volume);
     } else {
-      this.tone("triangle", downbeat ? 235 : 175, when, 0.06, volume * 0.65);
+      const frequency = {
+        kick: downbeat ? 235 : 175,
+        snare: 430,
+        "hi-hat": 1290,
+        "high-tom": 660,
+        "low-tom": 345,
+        crash: 1710,
+        ride: 1530,
+      }[drum];
+      this.tone("triangle", frequency, when, 0.06, volume * 0.65);
     }
+  }
+
+  scheduleTrack<T extends { timeMs: number }>(
+    events: readonly T[],
+    play: (event: T) => void,
+  ) {
+    if (this.trackTimer !== null) window.clearTimeout(this.trackTimer);
+    let next = 0;
+    const schedule = () => {
+      const now = this.context.currentTime * 1000;
+      while (next < events.length && events[next].timeMs <= now + 200) {
+        const event = events[next++];
+        if (event.timeMs >= now) play(event);
+      }
+      this.trackTimer =
+        next < events.length ? window.setTimeout(schedule, 50) : null;
+    };
+    schedule();
   }
 
   feedback(grade: RhythmGrade) {
@@ -220,6 +260,8 @@ export class RhythmScheduler {
   stop() {
     if (this.timer !== null) window.clearTimeout(this.timer);
     this.timer = null;
+    if (this.trackTimer !== null) window.clearTimeout(this.trackTimer);
+    this.trackTimer = null;
     for (const node of this.nodes) node.stop();
     this.nodes.clear();
   }
