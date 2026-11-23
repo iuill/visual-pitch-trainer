@@ -1,7 +1,11 @@
 import { createAudioContext } from "./audioContext";
 import { observeGraphResize } from "./graphCanvas";
 import { VOICE_RANGE_GRAPH_MS, type VoiceRangeGraphSample } from "./graphModel";
-import { formatMicrophoneError, MicrophoneInput } from "./microphone";
+import {
+  formatMicrophoneError,
+  type MicrophoneCapture,
+  MicrophoneInput,
+} from "./microphone";
 import {
   hzToMidi,
   midiToKaraokeName,
@@ -129,12 +133,12 @@ export class VoiceRangeCheck {
     this.message("マイクの利用を許可してください。");
     let context: AudioContext | null = null;
     try {
-      context = createAudioContext();
-      this.context = context;
-      await context.resume();
+      const audioContext = createAudioContext();
+      this.context = context = audioContext;
+      await audioContext.resume();
       if (this.context !== context) return;
       const { deviceId, minRms } = this.settings();
-      const capture = await this.microphone.start(context, {
+      await this.microphone.start(() => audioContext, {
         deviceId,
         fftSize: 8192,
         onEnded: () => {
@@ -143,49 +147,48 @@ export class VoiceRangeCheck {
             "マイクが切断されました。接続を確認して、再開してください。",
           );
         },
-      });
-      if (!capture || this.context !== context) return;
-      this.microphone.startFrames((now, capture) => {
-        const detection = capture.sampleVoiceRange(minRms);
-        const before = this.range.notes.length;
-        observeVoiceRange(this.range, detection.frequency, now);
-        if (now - (this.samples.at(-1)?.timeMs ?? -Infinity) >= 40) {
-          this.samples.push({
-            timeMs: now,
-            midi:
-              detection.frequency === null
-                ? null
-                : hzToMidi(detection.frequency),
-          });
-          this.samples = this.samples.filter(
-            (sample) => sample.timeMs >= now - VOICE_RANGE_GRAPH_MS,
-          );
-          this.drawGraph();
-        }
-        const note = this.range.candidate;
-        this.el("voiceRangeCurrent").textContent =
-          note === null
-            ? "—"
-            : `${midiToSolfegeWithOctave(note)} / ${midiToNoteName(note)} / ${midiToKaraokeName(note)}`;
-        this.el<HTMLProgressElement>("voiceRangeHold").value = Math.min(
-          RANGE_HOLD_MS,
-          this.range.heldMs,
-        );
-        this.message(
-          note === null
-            ? "声が小さいか、音程を確認できません。同じ高さでゆっくり伸ばしてください。"
-            : this.range.heldMs >= RANGE_HOLD_MS
-              ? "この音を記録しました。無理のない範囲で低い音・高い音も試せます。"
-              : "その高さを少し保ってください…",
-          now,
-        );
-        if (before !== this.range.notes.length) this.render();
+        onFrame: (now, capture) => this.onFrame(now, capture, minRms),
       });
     } catch (error) {
       if (this.context !== context) return;
       this.stop();
       this.message(formatMicrophoneError(error));
     }
+  }
+
+  private onFrame(now: number, capture: MicrophoneCapture, minRms: number) {
+    const detection = capture.sampleVoiceRange(minRms);
+    const before = this.range.notes.length;
+    observeVoiceRange(this.range, detection.frequency, now);
+    if (now - (this.samples.at(-1)?.timeMs ?? -Infinity) >= 40) {
+      this.samples.push({
+        timeMs: now,
+        midi:
+          detection.frequency === null ? null : hzToMidi(detection.frequency),
+      });
+      this.samples = this.samples.filter(
+        (sample) => sample.timeMs >= now - VOICE_RANGE_GRAPH_MS,
+      );
+      this.drawGraph();
+    }
+    const note = this.range.candidate;
+    this.el("voiceRangeCurrent").textContent =
+      note === null
+        ? "—"
+        : `${midiToSolfegeWithOctave(note)} / ${midiToNoteName(note)} / ${midiToKaraokeName(note)}`;
+    this.el<HTMLProgressElement>("voiceRangeHold").value = Math.min(
+      RANGE_HOLD_MS,
+      this.range.heldMs,
+    );
+    this.message(
+      note === null
+        ? "声が小さいか、音程を確認できません。同じ高さでゆっくり伸ばしてください。"
+        : this.range.heldMs >= RANGE_HOLD_MS
+          ? "この音を記録しました。無理のない範囲で低い音・高い音も試せます。"
+          : "その高さを少し保ってください…",
+      now,
+    );
+    if (before !== this.range.notes.length) this.render();
   }
 
   private render() {

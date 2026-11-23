@@ -5,7 +5,8 @@ import {
   getComboTier,
   updateGameEffectState,
 } from "./gameEffects";
-import { type MicrophoneCapture, PRACTICE_MIN_CLARITY } from "./microphone";
+import type { MicrophoneCapture } from "./microphone";
+import { PRACTICE_MIN_CLARITY } from "./pitchDetection";
 import { buildNoteRange, type Note } from "./pitchMath";
 import type { PracticeReadout } from "./practiceReadout";
 import {

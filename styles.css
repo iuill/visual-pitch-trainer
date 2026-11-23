@@ -11,6 +11,14 @@
   --warn: #b7791f;
   --danger: #c53030;
   --blue: #2b6cb0;
+  --highlight: #f7d774;
+  --game-success-rgb: 21 128 109;
+  --game-success: rgb(var(--game-success-rgb));
+  --game-success-background: #e1f5e9;
+  --combo-tier-1: #15857d;
+  --combo-tier-2: #2f9e44;
+  --combo-tier-3: #e09f10;
+  --combo-tier-4: #e8590c;
   --graph-background: #fbfcfc;
   --graph-grid: #dce5e8;
   --graph-octave: #c6d4d8;
@@ -53,7 +61,8 @@ button {
   touch-action: manipulation;
 }
 
-:where(button, input, select, summary, [tabindex="0"]):focus-visible {
+:where(button, input, select, summary, [tabindex="0"]):focus-visible,
+:where(.game-choice-input:focus-visible + .game-option-face) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -426,12 +435,9 @@ fieldset {
 }
 
 .secondary-button:not(:disabled):hover,
-.secondary-button:not(:disabled):focus-visible,
-.icon-button:not(:disabled):hover,
-.icon-button:not(:disabled):focus-visible {
+.icon-button:not(:disabled):hover {
   border-color: var(--accent);
   color: var(--accent-strong);
-  outline: none;
   box-shadow: 0 0 0 3px rgba(20, 108, 117, 0.12);
 }
 
@@ -442,11 +448,9 @@ fieldset {
   color: var(--muted);
 }
 
-.clear-graph-button:hover,
-.clear-graph-button:focus-visible {
+.clear-graph-button:hover {
   border-color: var(--danger);
   color: var(--danger);
-  outline: none;
   box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.12);
 }
 
@@ -567,7 +571,7 @@ fieldset {
   flex: 0 0 auto;
   border-radius: 5px;
   padding: 3px 6px;
-  background: #f7d774;
+  background: var(--highlight);
   color: #26313c;
   font-size: 0.7rem;
   font-weight: 900;
@@ -1070,19 +1074,19 @@ input[type="range"] {
 }
 
 .combo-tier-badge[data-tier="1"] {
-  background: #15857d;
+  background: var(--combo-tier-1);
 }
 
 .combo-tier-badge[data-tier="2"] {
-  background: #2f9e44;
+  background: var(--combo-tier-2);
 }
 
 .combo-tier-badge[data-tier="3"] {
-  background: #e09f10;
+  background: var(--combo-tier-3);
 }
 
 .combo-tier-badge[data-tier="4"] {
-  background: #e8590c;
+  background: var(--combo-tier-4);
   animation: combo-tier-pulse 0.9s ease-in-out infinite;
 }
 
@@ -1227,6 +1231,7 @@ input[type="range"] {
   }
 
   .practice-layout {
+    --practice-scroll-to-graph: 1;
     grid-template-columns: 1fr;
   }
 
@@ -1962,10 +1967,6 @@ body[data-practice-view="melody"] .control-panel {
   font-size: 0.8rem;
   font-weight: 900;
 }
-.game-choice-input:focus-visible + .game-option-face {
-  outline: 3px solid #2563a9;
-  outline-offset: 3px;
-}
 .game-choice-input:not(:disabled) + .game-option-face:hover {
   transform: translateY(-2px);
 }
@@ -2027,7 +2028,7 @@ body[data-practice-view="melody"] .control-panel {
   right: 8px;
   padding: 2px 7px;
   border-radius: 6px;
-  background: #f7d774;
+  background: var(--highlight);
   color: #40330f;
   font-size: 0.6rem;
 }
@@ -2085,9 +2086,9 @@ body[data-practice-view="melody"] .control-panel {
   min-height: 64px;
 }
 .game-success .game-feedback {
-  background: #e1f5e9;
-  border-color: #15806d;
-  box-shadow: 0 0 18px #15806d44;
+  background: var(--game-success-background);
+  border-color: var(--game-success);
+  box-shadow: 0 0 18px rgb(var(--game-success-rgb) / 26.6667%);
 }
 .game-countdown {
   text-align: center;
@@ -2126,8 +2127,8 @@ body[data-practice-view="melody"] .control-panel {
   color: var(--text);
 }
 .game-choices button[data-result="correct"] {
-  border-color: #15806d;
-  background: #e1f5e9;
+  border-color: var(--game-success);
+  background: var(--game-success-background);
   opacity: 1;
 }
 .game-choices button[data-result="incorrect"] {
@@ -2209,7 +2210,7 @@ body[data-practice-view="melody"] .control-panel {
   text-shadow: 2px 2px #fff;
 }
 .game-holding #gameHoldProgress {
-  filter: drop-shadow(0 0 4px #15806d88);
+  filter: drop-shadow(0 0 4px rgb(var(--game-success-rgb) / 53.3333%));
 }
 @keyframes game-pop {
   from {
@@ -2337,13 +2338,8 @@ body[data-practice-view="melody"] .status-help {
   color: var(--accent-strong);
   box-shadow: 0 2px 0 rgba(20, 108, 117, 0.16);
 }
-.settings-button:not(:disabled):hover {
+.settings-button:not(:disabled):is(:hover, :focus-visible) {
   background: #c2e3df;
-}
-.settings-button:not(:disabled):focus-visible {
-  background: #c2e3df;
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
 }
 .settings-button svg {
   width: 22px;

@@ -221,7 +221,7 @@ function drawAudioTimeGrid(
   const intervalSec = getAudioTimeGridInterval(durationSec);
   const safeDurationSec = Math.max(1, durationSec);
 
-  context.strokeStyle = "#d7dee2";
+  context.strokeStyle = getGraphTheme().border;
   context.fillStyle = getGraphTheme().label;
   context.textAlign = "center";
 
@@ -362,21 +362,26 @@ function drawVoiceRangeBand(
     plotHeight,
   );
 
-  context.fillStyle = "rgba(20, 108, 117, 0.1)";
+  const theme = getGraphTheme();
+  context.save();
+  context.fillStyle = theme.target;
+  context.globalAlpha = 0.1;
   context.fillRect(
     padding.left,
     robustTop,
     plotWidth,
     robustBottom - robustTop,
   );
-  context.fillStyle = "rgba(47, 133, 90, 0.16)";
+  context.fillStyle = theme.inTune;
+  context.globalAlpha = 0.16;
   context.fillRect(
     padding.left,
     commonTop,
     plotWidth,
     commonBottom - commonTop,
   );
-  context.strokeStyle = "#0d4f56";
+  context.restore();
+  context.strokeStyle = theme.targetStrong;
   context.lineWidth = 2.5;
   context.beginPath();
   context.moveTo(padding.left, medianY);

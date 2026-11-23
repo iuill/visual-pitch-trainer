@@ -19,7 +19,12 @@ export const GRAPH_SECONDS = 12;
 const GRAPH_RANGE_SEMITONES = 6;
 export const LANDING_RIPPLE_DURATION_MS = 850;
 export const COMBO_MILESTONE_DURATION_MS = 1600;
-const COMBO_TIER_COLORS = ["#15857d", "#2f9e44", "#e09f10", "#e8590c"];
+const EFFECT_COLORS = {
+  meterLabel: "#41505a",
+  // Keep RGB channels so each gradient stop can have its own opacity.
+  glowGreenRgb: "28, 148, 119",
+  glowGoldRgb: "247, 201, 72",
+};
 
 export function drawSinglePracticeGraph(
   canvas: HTMLCanvasElement,
@@ -61,13 +66,16 @@ export function drawSinglePracticeGraph(
   context.fillStyle = getGraphTheme().background;
   context.fillRect(0, 0, width, height);
 
-  context.fillStyle = "rgba(47, 133, 90, 0.12)";
+  context.save();
+  context.fillStyle = getGraphTheme().inTune;
+  context.globalAlpha = 0.12;
   context.fillRect(
     viewport.padding.left,
     viewport.toleranceTop,
     viewport.plotWidth,
     viewport.toleranceBottom - viewport.toleranceTop,
   );
+  context.restore();
 
   drawGrid(context, viewport);
   drawTargetGlow(context, width, viewport, latestSample, tolerance);
@@ -79,13 +87,13 @@ export function drawSinglePracticeGraph(
   context.lineTo(width - viewport.padding.right, viewport.zeroY);
   context.stroke();
 
-  context.fillStyle = "#172026";
+  context.fillStyle = getGraphTheme().text;
   context.font = "22px system-ui, sans-serif";
   context.fillText(target.name, viewport.padding.left + 8, viewport.zeroY - 10);
 
   const comboTier = getComboTier(effects.stableComboMs);
   const trailColor =
-    COMBO_TIER_COLORS[comboTier.level - 1] ?? getGraphTheme().voice;
+    getGraphTheme().comboTiers[comboTier.level - 1] ?? getGraphTheme().voice;
 
   context.save();
 
@@ -132,7 +140,7 @@ function drawComboMilestones(
     const progress = clamp(age / COMBO_MILESTONE_DURATION_MS, 0, 1);
     const alpha = 1 - progress;
     const color =
-      COMBO_TIER_COLORS[milestone.level - 1] ?? getGraphTheme().voice;
+      getGraphTheme().comboTiers[milestone.level - 1] ?? getGraphTheme().voice;
     const x = clamp(
       viewport.padding.left +
         ((milestone.timeMs - viewport.startTime) / (GRAPH_SECONDS * 1000)) *
@@ -183,8 +191,10 @@ function drawComboMilestones(
     context.textBaseline = "middle";
     context.font = "800 26px system-ui, sans-serif";
     context.lineWidth = 8;
-    context.strokeStyle = "rgba(255, 255, 255, 0.96)";
+    context.strokeStyle = getGraphTheme().panel;
+    context.globalAlpha = alpha * 0.96;
     context.strokeText(label, x, textY);
+    context.globalAlpha = alpha;
     context.fillStyle = color;
     context.fillText(label, x, textY);
     context.restore();
@@ -203,7 +213,8 @@ function drawComboMeter(
 
   const tierProgress = getComboTierProgress(stableComboMs);
   const color =
-    COMBO_TIER_COLORS[tierProgress.current.level - 1] ?? getGraphTheme().voice;
+    getGraphTheme().comboTiers[tierProgress.current.level - 1] ??
+    getGraphTheme().voice;
   const meterWidth = 180;
   const meterHeight = 10;
   const x = width - viewport.padding.right - meterWidth;
@@ -217,13 +228,17 @@ function drawComboMeter(
   context.textAlign = "right";
   context.textBaseline = "alphabetic";
   context.lineWidth = 5;
-  context.strokeStyle = "rgba(255, 255, 255, 0.9)";
+  context.strokeStyle = getGraphTheme().panel;
+  context.globalAlpha = 0.9;
   context.strokeText(text, x + meterWidth, y - 6);
-  context.fillStyle = "#41505a";
+  context.globalAlpha = 1;
+  context.fillStyle = EFFECT_COLORS.meterLabel;
   context.fillText(text, x + meterWidth, y - 6);
 
-  context.fillStyle = "rgba(23, 32, 38, 0.1)";
+  context.fillStyle = getGraphTheme().text;
+  context.globalAlpha = 0.1;
   context.fillRect(x, y, meterWidth, meterHeight);
+  context.globalAlpha = 1;
   context.fillStyle = color;
   context.fillRect(x, y, meterWidth * tierProgress.progress, meterHeight);
   context.restore();
@@ -259,9 +274,15 @@ function drawTargetGlow(
     glowWidth / 2,
   );
 
-  gradient.addColorStop(0, `rgba(28, 148, 119, ${0.34 * glowStrength})`);
-  gradient.addColorStop(0.55, `rgba(247, 201, 72, ${0.2 * glowStrength})`);
-  gradient.addColorStop(1, "rgba(247, 201, 72, 0)");
+  gradient.addColorStop(
+    0,
+    `rgba(${EFFECT_COLORS.glowGreenRgb}, ${0.34 * glowStrength})`,
+  );
+  gradient.addColorStop(
+    0.55,
+    `rgba(${EFFECT_COLORS.glowGoldRgb}, ${0.2 * glowStrength})`,
+  );
+  gradient.addColorStop(1, `rgba(${EFFECT_COLORS.glowGoldRgb}, 0)`);
 
   context.save();
   context.globalCompositeOperation = "source-over";
@@ -304,13 +325,13 @@ function drawLandingRipples(
     );
 
     context.save();
-    context.strokeStyle = `rgba(247, 201, 72, ${alpha})`;
+    context.strokeStyle = `rgba(${EFFECT_COLORS.glowGoldRgb}, ${alpha})`;
     context.lineWidth = 2 + ripple.intensity * 2;
     context.beginPath();
     context.arc(x, y, radius, 0, Math.PI * 2);
     context.stroke();
 
-    context.fillStyle = `rgba(28, 148, 119, ${alpha * 0.72})`;
+    context.fillStyle = `rgba(${EFFECT_COLORS.glowGreenRgb}, ${alpha * 0.72})`;
     context.beginPath();
     context.arc(x, y, 4 + ripple.intensity * 3, 0, Math.PI * 2);
     context.fill();
@@ -322,7 +343,7 @@ function drawGrid(
   context: CanvasRenderingContext2D,
   viewport: ReturnType<typeof createGraphViewport>,
 ) {
-  context.strokeStyle = "#d7dee2";
+  context.strokeStyle = getGraphTheme().border;
   context.lineWidth = 1;
   context.font = "16px system-ui, sans-serif";
   context.fillStyle = getGraphTheme().label;
@@ -351,12 +372,14 @@ function drawGrid(
     context.stroke();
 
     if (isOctave || isTarget || midi % 2 === 0) {
-      context.fillStyle = isTarget ? "#172026" : getGraphTheme().label;
+      context.fillStyle = isTarget
+        ? getGraphTheme().text
+        : getGraphTheme().label;
       context.fillText(midiToNoteName(midi), 8, y + 5);
     }
   }
 
-  context.strokeStyle = "#d7dee2";
+  context.strokeStyle = getGraphTheme().border;
   context.lineWidth = 1;
 
   for (let second = 0; second <= GRAPH_SECONDS; second += 3) {
@@ -413,9 +436,11 @@ function drawCurrentPitchLabel(
   const labelY = Math.max(viewport.padding.top + 18, y);
 
   context.lineWidth = 10;
-  context.strokeStyle = "rgba(255, 255, 255, 0.96)";
+  context.strokeStyle = getGraphTheme().panel;
+  context.globalAlpha = 0.96;
   context.strokeText(label, labelX, labelY);
-  context.fillStyle = "#0d4f56";
+  context.globalAlpha = 1;
+  context.fillStyle = getGraphTheme().targetStrong;
   context.fillText(label, labelX, labelY);
   context.restore();
 }

@@ -15,6 +15,11 @@ export type TargetPitchOptions = {
 
 export type PitchFrame = PitchDetection & { rms: number };
 
+export const PRACTICE_MIN_CLARITY = 0.52;
+export const VOICE_GAME_MIN_CLARITY = 0.9;
+// Pitchy uses this threshold to select a candidate from the waveform.
+export const PITCHY_CLARITY_THRESHOLD = 0.93;
+// The voice range check uses this minimum to accept the returned pitch.
 const VOICE_RANGE_MIN_CLARITY = 0.93;
 
 export function analyzeTargetPitch(
