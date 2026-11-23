@@ -590,14 +590,19 @@
 .rhythm-rest {
   top: 25%;
   z-index: 2;
-  display: grid;
-  justify-items: center;
-  gap: 2px;
   color: var(--muted);
-  font-size: 1rem;
+  font-size: 1.65rem;
+}
+
+.rhythm-rest .rhythm-rest-icon {
+  color: #77838c;
 }
 
 .rhythm-rest-label {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: 50%;
+  translate: -50% 0;
   padding-inline: 2px;
   background: #edf6fa;
   font-size: 0.78rem;
