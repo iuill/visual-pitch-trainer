@@ -1,4 +1,5 @@
 import type { AudioFileAnalysis, AudioPitchPoint } from "./audioFileAnalysis";
+import { getGraphTheme } from "./graphCanvas";
 import { type GraphPadding, midiToY } from "./graphModel";
 import { midiToNoteName, midiToSolfegeName } from "./pitchMath";
 
@@ -45,7 +46,7 @@ export function renderAudioRangeGraph(
 
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   context.clearRect(0, 0, width, height);
-  context.fillStyle = "#fbfcfc";
+  context.fillStyle = getGraphTheme().background;
   context.fillRect(0, 0, width, height);
 
   const summary = analysis?.summary;
@@ -72,7 +73,7 @@ export function renderAudioRangeGraph(
     });
 
   if (!analysis || analysis.summary.validFrames === 0) {
-    context.fillStyle = "#5c6870";
+    context.fillStyle = getGraphTheme().label;
     context.font = "16px system-ui, sans-serif";
     context.textAlign = "center";
     context.fillText(
@@ -134,7 +135,7 @@ function drawAudioRangeGrid(
     height,
   } = options;
 
-  context.strokeStyle = "#e8edf0";
+  context.strokeStyle = getGraphTheme().grid;
   context.lineWidth = 1;
   context.font = "14px system-ui, sans-serif";
 
@@ -142,14 +143,16 @@ function drawAudioRangeGrid(
     const y = midiToY(midi, minMidi, maxMidi, padding, plotHeight);
     const isOctave = midi % 12 === 0;
 
-    context.strokeStyle = isOctave ? "#c6d4d8" : "#e8edf0";
+    context.strokeStyle = isOctave
+      ? getGraphTheme().octave
+      : getGraphTheme().grid;
     context.beginPath();
     context.moveTo(padding.left, y);
     context.lineTo(padding.left + plotWidth, y);
     context.stroke();
 
     if (isOctave || midi % 2 === 0) {
-      context.fillStyle = "#73808a";
+      context.fillStyle = getGraphTheme().label;
       context.fillText(midiToNoteName(midi), 8, y + 5);
     }
   }
@@ -162,7 +165,7 @@ function drawAudioRangeGrid(
     height,
   });
 
-  context.fillStyle = "#5c6870";
+  context.fillStyle = getGraphTheme().label;
   context.fillText("音名", 8, 20);
   context.fillText("開始", padding.left, height - 10);
   context.fillText("終わり", width - padding.right - 44, height - 10);
@@ -185,7 +188,7 @@ function drawAudioRangeAxis(
 
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   context.clearRect(0, 0, width, height);
-  context.fillStyle = "#fbfcfc";
+  context.fillStyle = getGraphTheme().background;
   context.fillRect(0, 0, width, height);
 
   context.font = "14px system-ui, sans-serif";
@@ -195,12 +198,12 @@ function drawAudioRangeAxis(
     const isOctave = midi % 12 === 0;
 
     if (isOctave || midi % 2 === 0) {
-      context.fillStyle = "#73808a";
+      context.fillStyle = getGraphTheme().label;
       context.fillText(midiToNoteName(midi), 8, y + 5);
     }
   }
 
-  context.fillStyle = "#5c6870";
+  context.fillStyle = getGraphTheme().label;
   context.fillText("音名", 8, 20);
 }
 
@@ -219,7 +222,7 @@ function drawAudioTimeGrid(
   const safeDurationSec = Math.max(1, durationSec);
 
   context.strokeStyle = "#d7dee2";
-  context.fillStyle = "#73808a";
+  context.fillStyle = getGraphTheme().label;
   context.textAlign = "center";
 
   if (durationSec <= 0) {
@@ -397,6 +400,7 @@ function drawAudioPitchCloud(
     options;
 
   context.save();
+  context.fillStyle = getGraphTheme().voice;
 
   points.forEach((point) => {
     if (point.midi === null) {
@@ -409,7 +413,7 @@ function drawAudioPitchCloud(
     const y = midiToY(point.midi, minMidi, maxMidi, padding, plotHeight);
     const alpha = 0.18 + 0.5 * Math.max(0, Math.min(1, point.clarity ?? 0));
 
-    context.fillStyle = `rgba(43, 108, 176, ${alpha})`;
+    context.globalAlpha = alpha;
     context.fillRect(x - 1.3, y - 1.3, 2.6, 2.6);
   });
 
@@ -434,7 +438,7 @@ function drawAudioPitchTrend(
   let startsLine = true;
 
   context.save();
-  context.strokeStyle = "#1f5f93";
+  context.strokeStyle = getGraphTheme().trend;
   context.lineWidth = 2.5;
   context.lineJoin = "round";
   context.lineCap = "round";

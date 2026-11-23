@@ -1,4 +1,5 @@
 import { createAudioContext } from "./audioContext";
+import { observeGraphResize } from "./graphCanvas";
 import { VOICE_RANGE_GRAPH_MS, type VoiceRangeGraphSample } from "./graphModel";
 import { formatMicrophoneError, MicrophoneInput } from "./microphone";
 import {
@@ -22,12 +23,11 @@ export class VoiceRangeCheck {
   private range = createVoiceRange();
   private context: AudioContext | null = null;
   private readonly microphone = new MicrophoneInput();
-  private frame: number | null = null;
-  private generation = 0;
   private active = false;
   private samples: VoiceRangeGraphSample[] = [];
   private readonly root: HTMLElement;
-  private readonly resizeObserver: ResizeObserver | undefined;
+  private readonly stopObservingGraph: () => void;
+  private readonly actions: HTMLElement;
   private pendingMessage = "";
   private pendingMessageAt = 0;
 
@@ -38,6 +38,7 @@ export class VoiceRangeCheck {
     const root = document.querySelector<HTMLElement>("#voiceRangeView");
     if (!root) throw new Error("声域チェック画面がありません。");
     this.root = root;
+    this.actions = this.el("voiceRangeActions");
     this.el<HTMLProgressElement>("voiceRangeHold").max = RANGE_HOLD_MS;
     this.el<HTMLButtonElement>("voiceRangeStart").addEventListener(
       "click",
@@ -60,10 +61,10 @@ export class VoiceRangeCheck {
       "change",
       () => this.drawGraph(),
     );
-    if (typeof ResizeObserver !== "undefined") {
-      this.resizeObserver = new ResizeObserver(() => this.drawGraph());
-      this.resizeObserver.observe(this.el("voiceRangeCanvas"));
-    }
+    this.stopObservingGraph = observeGraphResize(
+      [this.el("voiceRangeCanvas")],
+      () => this.drawGraph(),
+    );
     this.render();
   }
 
@@ -87,15 +88,12 @@ export class VoiceRangeCheck {
 
   dispose() {
     this.stop();
-    this.resizeObserver?.disconnect();
+    this.stopObservingGraph();
   }
 
   stop() {
     const wasActive = this.active;
     this.active = false;
-    this.generation++;
-    if (this.frame !== null) cancelAnimationFrame(this.frame);
-    this.frame = null;
     this.microphone.stop();
     if (this.context && this.context.state !== "closed")
       void this.context.close().catch(() => {});
@@ -105,6 +103,7 @@ export class VoiceRangeCheck {
     this.range.previousAt = null;
     this.el<HTMLButtonElement>("voiceRangeStart").disabled = false;
     this.el<HTMLButtonElement>("voiceRangeStop").disabled = true;
+    this.actions.classList.remove("mobile-action-bar");
     this.el("voiceRangeCurrent").textContent = "—";
     this.el<HTMLProgressElement>("voiceRangeHold").value = 0;
     const last = this.samples.at(-1);
@@ -122,28 +121,31 @@ export class VoiceRangeCheck {
   private async start() {
     this.stop();
     this.beforeStart();
-    const generation = this.generation;
     this.active = true;
     this.render();
     this.el<HTMLButtonElement>("voiceRangeStart").disabled = true;
     this.el<HTMLButtonElement>("voiceRangeStop").disabled = false;
+    this.actions.classList.add("mobile-action-bar");
     this.message("マイクの利用を許可してください。");
+    let context: AudioContext | null = null;
     try {
-      if (!navigator.mediaDevices?.getUserMedia)
-        throw new DOMException("microphone unavailable", "SecurityError");
-      const context = createAudioContext();
+      context = createAudioContext();
       this.context = context;
       await context.resume();
-      if (generation !== this.generation) return;
+      if (this.context !== context) return;
       const { deviceId, minRms } = this.settings();
       const capture = await this.microphone.start(context, {
         deviceId,
         fftSize: 8192,
-        onEnded: () => this.stop(),
+        onEnded: () => {
+          this.stop();
+          this.message(
+            "マイクが切断されました。接続を確認して、再開してください。",
+          );
+        },
       });
-      if (!capture || generation !== this.generation) return;
-      const tick = (now: number) => {
-        if (generation !== this.generation) return;
+      if (!capture || this.context !== context) return;
+      this.microphone.startFrames((now, capture) => {
         const detection = capture.sampleVoiceRange(minRms);
         const before = this.range.notes.length;
         observeVoiceRange(this.range, detection.frequency, now);
@@ -178,11 +180,9 @@ export class VoiceRangeCheck {
           now,
         );
         if (before !== this.range.notes.length) this.render();
-        this.frame = requestAnimationFrame(tick);
-      };
-      this.frame = requestAnimationFrame(tick);
+      });
     } catch (error) {
-      if (generation !== this.generation) return;
+      if (this.context !== context) return;
       this.stop();
       this.message(formatMicrophoneError(error));
     }

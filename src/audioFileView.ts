@@ -27,7 +27,7 @@ import {
   renderAudioRangeGraph,
 } from "./audioRangeGraph";
 import { queryElement } from "./dom";
-import { resolveCanvasBackingSize } from "./graphModel";
+import { observeGraphResize, resizeGraphCanvas } from "./graphCanvas";
 import {
   createMp3BlobFromDecodedAudio,
   createWavBlobFromDecodedAudio,
@@ -74,8 +74,7 @@ type AudioFileState = {
   audioAnalysisMemoryTimerId: number | null;
   isAudioPlaybackDurationCompatible: boolean;
   isDraggingAudioPlaybackCursor: boolean;
-  audioRangeResizeObserver: ResizeObserver | null;
-  audioRangeResizeHandler: (() => void) | null;
+  stopObservingGraph: (() => void) | null;
 };
 export function setupAudioFileView() {
   const state: AudioFileState = {
@@ -92,8 +91,7 @@ export function setupAudioFileView() {
     audioAnalysisMemoryTimerId: null,
     isAudioPlaybackDurationCompatible: true,
     isDraggingAudioPlaybackCursor: false,
-    audioRangeResizeObserver: null,
-    audioRangeResizeHandler: null,
+    stopObservingGraph: null,
   };
   const elements = {
     audioFileView: queryElement<HTMLElement>("#audioFileView"),
@@ -925,16 +923,10 @@ export function setupAudioFileView() {
       handleAudioRangePointerLeave,
     );
 
-    const ResizeObserverClass = globalThis.ResizeObserver;
-    if (ResizeObserverClass) {
-      const observer = new ResizeObserverClass(drawAudioRangeGraph);
-      observer.observe(elements.audioRangeScroll);
-      state.audioRangeResizeObserver = observer;
-      return;
-    }
-
-    state.audioRangeResizeHandler = drawAudioRangeGraph;
-    window.addEventListener("resize", state.audioRangeResizeHandler);
+    state.stopObservingGraph = observeGraphResize(
+      [elements.audioRangeScroll],
+      drawAudioRangeGraph,
+    );
   }
 
   function cleanupAudioRangeCanvasListeners() {
@@ -959,13 +951,8 @@ export function setupAudioFileView() {
       handleAudioRangePointerLeave,
     );
 
-    state.audioRangeResizeObserver?.disconnect();
-    state.audioRangeResizeObserver = null;
-
-    if (state.audioRangeResizeHandler) {
-      window.removeEventListener("resize", state.audioRangeResizeHandler);
-      state.audioRangeResizeHandler = null;
-    }
+    state.stopObservingGraph?.();
+    state.stopObservingGraph = null;
   }
 
   function handleAudioRangePointerDown(event: PointerEvent) {
@@ -1091,41 +1078,16 @@ export function setupAudioFileView() {
       1,
       Math.round(rect.height || canvas.clientHeight || canvas.height),
     );
-    const backingSize = resolveCanvasBackingSize(
-      cssWidth,
-      cssHeight,
-      window.devicePixelRatio || 1,
-    );
-
+    const backingSize = resizeGraphCanvas(canvas, cssWidth, cssHeight);
     state.audioRangePixelRatio = backingSize.pixelRatio;
     graphWidth = backingSize.width / backingSize.pixelRatio;
-
-    if (
-      canvas.width !== backingSize.width ||
-      canvas.height !== backingSize.height
-    ) {
-      canvas.width = backingSize.width;
-      canvas.height = backingSize.height;
-    }
 
     const axisRect = axisCanvas.getBoundingClientRect();
     const axisCssWidth = Math.max(
       1,
       Math.round(axisRect.width || axisCanvas.clientWidth || axisCanvas.width),
     );
-    const axisBackingSize = resolveCanvasBackingSize(
-      axisCssWidth,
-      cssHeight,
-      state.audioRangePixelRatio,
-    );
-
-    if (
-      axisCanvas.width !== axisBackingSize.width ||
-      axisCanvas.height !== axisBackingSize.height
-    ) {
-      axisCanvas.width = axisBackingSize.width;
-      axisCanvas.height = axisBackingSize.height;
-    }
+    resizeGraphCanvas(axisCanvas, axisCssWidth, cssHeight);
   }
 
   function getAudioFileDurationSec(): number {

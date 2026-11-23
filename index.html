@@ -37,7 +37,7 @@
         </div>
       </section>
 
-        <section class="control-panel common-settings" aria-labelledby="commonSettingsTitle">
+        <section class="panel control-panel common-settings" aria-labelledby="commonSettingsTitle">
           <div class="settings-launcher">
             <div><h2 id="commonSettingsTitle">共通設定</h2><p>単音・メロディ・ゲーム</p></div>
             <button id="openPracticeSettings" class="secondary-button settings-button" type="button" aria-haspopup="dialog" aria-controls="practiceSettings">
@@ -164,7 +164,7 @@
       </nav>
       <p id="practiceViewDescription" class="view-description">音をひとつ選び、お手本に合わせて声を伸ばします。</p>
       <section id="practiceWorkspace" class="practice-layout" aria-label="音程トレーニング">
-        <div class="control-panel single-note-panel" data-single-only>
+        <div class="panel control-panel single-note-panel" data-single-only>
           <div class="panel-header">
             <div>
               <h2 class="with-icon">
@@ -178,7 +178,7 @@
           <fieldset data-single-only id="noteButtons" class="note-grid" aria-label="お手本の音を選択"></fieldset>
         </div>
 
-        <div class="graph-panel">
+        <div class="panel graph-panel">
           <section class="melody-practice" hidden aria-labelledby="melodyTitle">
             <h2 id="melodyTitle">メロディ稽古</h2>
             <div class="settings-launcher melody-settings-launcher">
@@ -243,10 +243,12 @@
             </details>
             <p id="melodyStatus" class="melody-status" role="status">メロディを選んで始めてください。</p>
             <progress id="melodyProgress" max="1" value="0" aria-label="メロディ稽古の進み具合"></progress>
-            <button id="playScaleButton" class="primary-button" type="button">メロディ稽古を始める</button>
+            <div class="melody-actions">
+              <button id="playScaleButton" class="primary-button" type="button">メロディ稽古を始める</button>
+            </div>
 
           </section>
-          <div class="action-row" data-single-only>
+          <div class="action-row mobile-action-bar" data-single-only>
             <button id="playToneButton" class="primary-button" type="button">
               <span aria-hidden="true">▶</span>
               お手本音
@@ -354,12 +356,12 @@
           <div id="melodyResults" class="melody-results" hidden></div>
         </div>
 
-        <div class="summary-panel" data-single-only>
+        <div class="panel summary-panel" data-single-only>
           <h2 class="with-icon">
             <img class="heading-icon" src="/icons/heading-record.png" alt="" aria-hidden="true" />
             稽古の記録
           </h2>
-          <div class="summary-grid">
+          <div class="result-grid summary-grid">
             <div>
               <span class="label">稽古時間</span>
               <strong id="durationReadout">0.0 秒</strong>
@@ -389,7 +391,7 @@
           </div>
         </div>
 
-        <div id="audioFileView" class="audio-file-panel" hidden>
+        <div id="audioFileView" class="panel audio-file-panel" hidden>
           <div class="panel-header">
             <div>
               <h2 class="with-icon">
@@ -409,7 +411,7 @@
                 accept="audio/*,video/*,.mp3,.m4a,.aac,.wav,.mp4,.mov,.webm,.mkv"
               />
             </label>
-            <div class="file-picker playback-file-picker">
+            <div class="file-picker">
               <label class="checkbox-row" for="useSeparatePlaybackAudioInput">
                 <input id="useSeparatePlaybackAudioInput" type="checkbox" />
                 別の再生用音源を使う
@@ -433,7 +435,7 @@
               <option value="bs-roformer-fp16">高品質: BS-RoFormer fp16 2-stem（約310MB）</option>
             </select>
             <span id="vocalSeparationModelHelp" class="setting-help info-note compact-info-note">
-              <button class="info-note-icon" type="button" aria-label="抽出モデルの補足" aria-describedby="vocalSeparationModelTooltip">i</button>
+              <button class="info-button" type="button" aria-label="抽出モデルの補足" aria-describedby="vocalSeparationModelTooltip">i</button>
               <span id="vocalSeparationModelTooltip" class="info-note-popup" role="tooltip">
                 ボーカル抽出はDemucs / BS-RoFormerのどちらもWebGPUと大きなモデルを使うため、ゲーミングPC相当の環境での利用を推奨します。通常のPCやスマホでは、抽出済みボーカル音源を読み込むか、ボーカル抽出を使わずに解析してください。
               </span>
@@ -450,7 +452,7 @@
               <option value="crepe-full">CREPE full（約89MB）</option>
             </select>
             <span id="audioPitchEstimatorHelp" class="setting-help info-note compact-info-note">
-              <button class="info-note-icon" type="button" aria-label="ピッチ推定の補足" aria-describedby="audioPitchEstimatorTooltip">i</button>
+              <button class="info-button" type="button" aria-label="ピッチ推定の補足" aria-describedby="audioPitchEstimatorTooltip">i</button>
               <span id="audioPitchEstimatorTooltip" class="info-note-popup" role="tooltip">
                 既定のRMVPEはゲーミングPCでの利用想定です。通常のPCやスマホでは軽量なpitchyを選んでください。RMVPEは初回ロードに時間がかかりますが推定は高速です。CREPEは初回ロードは軽めですが推定は重めです。
               </span>
@@ -496,10 +498,10 @@
                 </button>
               </fieldset>
               <fieldset class="audio-seek-controls" aria-label="音源の再生位置調整">
-                <button class="mini-button" type="button" data-audio-seek="-10" disabled>-10秒</button>
-                <button class="mini-button" type="button" data-audio-seek="-5" disabled>-5秒</button>
-                <button class="mini-button" type="button" data-audio-seek="5" disabled>+5秒</button>
-                <button class="mini-button" type="button" data-audio-seek="10" disabled>+10秒</button>
+                <button class="secondary-button mini-button" type="button" data-audio-seek="-10" disabled>-10秒</button>
+                <button class="secondary-button mini-button" type="button" data-audio-seek="-5" disabled>-5秒</button>
+                <button class="secondary-button mini-button" type="button" data-audio-seek="5" disabled>+5秒</button>
+                <button class="secondary-button mini-button" type="button" data-audio-seek="10" disabled>+10秒</button>
               </fieldset>
               <span id="audioPlaybackTime">0:00 / 0:00</span>
             </div>
@@ -511,7 +513,7 @@
             メモリ使用量: --
           </p>
 
-          <fieldset class="voice-range-grid" aria-label="音源の声域推定結果">
+          <fieldset class="result-grid voice-range-grid" aria-label="音源の声域推定結果">
             <div>
               <span class="label">推定声域</span>
               <strong id="voiceRangeReadout">--</strong>
@@ -561,14 +563,13 @@
         </div>
       </section>
 
-      <section id="voiceRangeView" class="voice-range-check" aria-labelledby="voiceRangeTitle" hidden>
+      <section id="voiceRangeView" class="panel voice-range-check" aria-labelledby="voiceRangeTitle" hidden>
         <div class="panel-header"><div><h2 id="voiceRangeTitle">自分の声域チェック</h2><p>楽な高さから始めて、低い声・高い声をゆっくり伸ばしてください。</p></div></div>
         <p>同じ音を約0.6秒保つと記録します。無理に声を張らず、つらくなったら停止してください。お手本音は鳴りません。</p>
         <p class="graph-hint">共通設定のマイクと「声の拾いやすさ」を使います。「声の高さ」の設定にかかわらず、低い音から高い音まで測れます。</p>
-        <div class="voice-range-actions">
+        <div id="voiceRangeActions" class="voice-range-actions">
           <button id="voiceRangeStart" type="button" class="primary-button">声域チェックを開始・続ける</button>
           <button id="voiceRangeStop" type="button" class="secondary-button" disabled>停止</button>
-          <button id="voiceRangeReset" type="button" class="secondary-button">記録を消す</button>
         </div>
         <p id="voiceRangeStatus" role="status">開始するとマイクの利用許可を求めます。</p>
         <div class="voice-range-live"><span>いまの声</span><strong id="voiceRangeCurrent">—</strong>
@@ -580,12 +581,13 @@
         <canvas id="voiceRangeCanvas" class="voice-range-canvas" width="640" height="320" aria-label="声域チェックの声の高さのグラフ" aria-describedby="voiceRangeGraphHelp voiceRangeSpan"></canvas>
         <p id="voiceRangeGraphHelp" class="graph-hint">横軸は直近12秒、縦軸は声の高さです。青い実線が検出した声、最低・最高の破線が記録した音の両端です。音程を検出できない間は線が途切れます。停止後も表示を残します。</p>
         <h3>記録した声域の目安</h3>
-        <div class="voice-range-results">
+        <div class="result-grid voice-range-results">
           <div><span>ドレミ＋オクターブ</span><strong id="voiceRangeSolfege">—</strong></div>
           <div><span>国際式（C4など）</span><strong id="voiceRangeScientific">—</strong></div>
           <div><span>カラオケ式（Low・mid・hi）</span><strong id="voiceRangeKaraoke">—</strong></div>
         </div>
         <p id="voiceRangeSpan"></p>
+        <button id="voiceRangeReset" type="button" class="secondary-button">記録を消す</button>
         <details><summary>記録した音を確認・削除</summary><p class="graph-hint">停止後に音のボタンを押すと、その音だけを記録から削除できます。青い声の軌跡は残ります。</p><ul id="voiceRangeNotes" class="voice-range-notes"></ul></details>
         <details class="voice-range-help"><summary>測定の目安・音名の読み方</summary>
           <p class="graph-hint">ドレミの数字はオクターブです（ド4＝C4）。カラオケ式はLowG＝G2、mid1G＝G3、mid2C＝C4、hiA＝A4として表示します。Aで区切る方式です。</p>
@@ -593,7 +595,7 @@
         </details>
       </section>
 
-      <section id="gamePracticeView" class="game-practice" aria-labelledby="gameTitle" hidden>
+      <section id="gamePracticeView" class="panel game-practice" aria-labelledby="gameTitle" hidden>
         <h2 id="gameTitle">音程ゲーム <small>試作</small></h2>
         <details id="gameSetup" class="game-setup" open><summary>モード・難易度を選ぶ</summary>
         <fieldset id="gameSettings" class="game-settings">
@@ -646,12 +648,12 @@
         <div class="game-actions"><button id="gameStart" type="button" class="primary-button">ゲームを始める</button><button id="gameStop" type="button" class="secondary-button" disabled>中止</button></div>
         <p id="gameScore" class="game-score">0 / 5問 ・ 0問成功</p>
         <progress id="gameRoundProgress" max="5" value="0" aria-label="ゲーム全体の進み具合"></progress>
-        <div class="game-stats"><div>今回のスコア<strong id="gamePoints">0 pt</strong></div><div>連続成功<strong id="gameStreak">0連続</strong></div><div>自己ベスト（同じ設定）<strong id="gameBest">0 pt</strong></div></div>
+        <div class="result-grid game-stats"><div>今回のスコア<strong id="gamePoints">0 pt</strong></div><div>連続成功<strong id="gameStreak">0連続</strong></div><div>自己ベスト（同じ設定）<strong id="gameBest">0 pt</strong></div></div>
         <div class="game-feedback-area"><p id="gameFeedback" class="game-feedback" role="status">モードを選んで始めてください。</p><div id="gameCelebration" class="game-celebration" aria-hidden="true"></div></div>
         <section id="gameResult" class="game-result" aria-label="今回のゲーム結果" hidden></section>
         <div id="gameVoiceStage">
           <p id="gameCountdown" class="game-countdown" hidden>開始まで 3</p>
-          <div class="game-readouts"><div>目標音<strong id="gameTarget">—</strong></div><div>自分の声<strong id="gameVoice">—</strong></div><div>目標との差<strong id="gameGap">—</strong></div></div>
+          <div class="result-grid game-readouts"><div>目標音<strong id="gameTarget">—</strong></div><div>自分の声<strong id="gameVoice">—</strong></div><div>目標との差<strong id="gameGap">—</strong></div></div>
           <p id="gameMetric">—</p><progress id="gameHoldProgress" max="2" value="0" aria-label="連続キープの進み具合"></progress>
           <canvas id="gameCanvas" width="960" height="260" aria-label="ランダムな目標音の横棒と自分の声の軌跡"></canvas>
           <p class="graph-legend"><span class="reference-key">━ 目標音</span><span class="voice-key">━ 自分の声（直近5秒）</span></p>

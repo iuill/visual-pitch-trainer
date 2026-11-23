@@ -1,4 +1,10 @@
+import { AnimationLoop } from "./animationLoop";
 import { createAudioContext } from "./audioContext";
+import {
+  getGraphTheme,
+  observeGraphResize,
+  resizeGraphCanvas,
+} from "./graphCanvas";
 import {
   formatMicrophoneError,
   type MicrophoneCapture,
@@ -45,15 +51,14 @@ type Phase =
 
 export class GamePractice {
   private readonly root: HTMLElement;
-  private readonly resizeObserver: ResizeObserver | undefined;
+  private readonly stopObservingGraph: () => void;
   private active = false;
   private audioReady = false;
   private generation = 0;
   private context: AudioContext | null = null;
   private player: ReferencePlayer | null = null;
   private readonly microphone = new MicrophoneInput();
-  private capture: MicrophoneCapture | null = null;
-  private frame: number | null = null;
+  private readonly earLoop = new AnimationLoop();
   private phase: Phase = "idle";
   private mode = "voice";
   private settings: Settings | null = null;
@@ -95,10 +100,9 @@ export class GamePractice {
       else this.nextEarRound();
     });
     this.el("gameMode").addEventListener("change", () => this.showMode());
-    if (typeof ResizeObserver !== "undefined") {
-      this.resizeObserver = new ResizeObserver(() => this.draw());
-      this.resizeObserver.observe(this.el("gameCanvas"));
-    }
+    this.stopObservingGraph = observeGraphResize([this.el("gameCanvas")], () =>
+      this.draw(),
+    );
     this.showMode();
   }
   private el<T extends HTMLElement>(id: string): T {
@@ -135,7 +139,7 @@ export class GamePractice {
   }
   dispose() {
     this.stop();
-    this.resizeObserver?.disconnect();
+    this.stopObservingGraph();
   }
 
   stop(message = "ゲームを中止しました。最初からやり直せます。") {
@@ -144,12 +148,10 @@ export class GamePractice {
     this.audioReady = false;
     ++this.generation;
     this.phase = "idle";
-    if (this.frame !== null) cancelAnimationFrame(this.frame);
-    this.frame = null;
+    this.earLoop.stop();
     this.clearCelebration();
     this.player?.dispose();
     this.microphone.stop();
-    this.capture = null;
     if (this.context && this.context.state !== "closed")
       void this.context.close().catch(() => {});
     this.player = null;
@@ -259,7 +261,6 @@ export class GamePractice {
           onEnded: () => this.stop("マイクが切断されました。"),
         });
         if (!capture || generation !== this.generation) return;
-        this.capture = capture;
         this.until = context.currentTime * 1000 + 3000;
         this.el("gameCountdown").hidden = false;
         this.message(
@@ -269,7 +270,8 @@ export class GamePractice {
       await context.resume();
       if (generation !== this.generation) return;
       this.audioReady = true;
-      this.tick();
+      if (this.mode === "ear") this.earLoop.start(() => this.tick());
+      else this.microphone.startFrames((_, capture) => this.tick(capture));
       this.el("gameFeedback").scrollIntoView({
         block: "start",
         behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -362,7 +364,7 @@ export class GamePractice {
     this.el("gameNext").hidden = false;
     this.updateScore();
   }
-  private tick = () => {
+  private tick(capture?: MicrophoneCapture) {
     if (!this.active || !this.context) return;
     const now = this.context.currentTime * 1000;
     if (this.mode === "ear") {
@@ -383,10 +385,10 @@ export class GamePractice {
         this.phase === "challenge" &&
         this.challenge &&
         this.target &&
-        this.capture &&
+        capture &&
         this.settings
       ) {
-        const detection = this.capture.sampleTarget({
+        const detection = capture.sampleTarget({
           minRms: this.settings.minRms,
           minClarity: 0.9,
           targetFrequency: this.target.frequency,
@@ -456,8 +458,7 @@ export class GamePractice {
         this.draw();
       }
     }
-    if (this.active) this.frame = requestAnimationFrame(this.tick);
-  };
+  }
   private updateScore() {
     this.el("gameScore").textContent =
       `${this.round} / ${this.rounds}問 ・ ${this.correct}問成功`;
@@ -568,28 +569,28 @@ export class GamePractice {
   }
   private draw() {
     const canvas = this.el<HTMLCanvasElement>("gameCanvas");
-    const width = canvas.getBoundingClientRect().width;
-    if (!width) return;
-    const ratio = Math.min(devicePixelRatio || 1, 2);
-    canvas.width = Math.round(width * ratio);
-    canvas.height = Math.round(260 * ratio);
+    const { width, height } = canvas.getBoundingClientRect();
+    if (!width || !height) return;
+    const { pixelRatio } = resizeGraphCanvas(canvas, width, height);
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.scale(ratio, ratio);
-    ctx.fillStyle = "#fbfcfc";
-    ctx.fillRect(0, 0, width, 260);
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    const theme = getGraphTheme();
+    ctx.fillStyle = theme.background;
+    ctx.fillRect(0, 0, width, height);
     const startMidi = this.settings?.startMidi ?? this.getSettings().startMidi;
     const y = (midi: number) => 240 - ((midi - startMidi) / 12) * 220;
     ctx.font = "12px system-ui";
     for (let i = 0; i <= 12; i++) {
       const at = y(startMidi + i);
-      ctx.strokeStyle = "#e1e8eb";
+      ctx.strokeStyle = theme.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(40, at);
       ctx.lineTo(width, at);
       ctx.stroke();
-      ctx.fillStyle = "#5c6870";
+      ctx.fillStyle = theme.label;
       ctx.fillText(midiToNoteName(startMidi + i), 3, at + 4);
     }
     ctx.save();
@@ -598,7 +599,7 @@ export class GamePractice {
     ctx.clip();
     if (this.target) {
       const at = y(hzToMidi(this.target.frequency));
-      ctx.strokeStyle = "#146c75";
+      ctx.strokeStyle = theme.target;
       ctx.lineWidth = this.challenge?.phase === "hold" ? 8 : 6;
       if (this.challenge?.phase === "hold") {
         ctx.shadowColor = "#15806d";
@@ -610,7 +611,7 @@ export class GamePractice {
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
-    ctx.strokeStyle = "#2b6cb0";
+    ctx.strokeStyle = theme.voice;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     const latest = this.trace.at(-1)?.time ?? 0;

@@ -21,20 +21,25 @@ import {
   pickToneScaleStart,
   recordMelodyObservation,
 } from "./melodyPractice";
-import { formatMicrophoneError } from "./microphone";
+import {
+  formatMicrophoneError,
+  type MicrophoneCapture,
+  PRACTICE_MIN_CLARITY,
+} from "./microphone";
 import { formatPitchMovement, type Note } from "./pitchMath";
 import { getPitchMovementIcon } from "./pitchMovementVisual";
-import type { PitchSample } from "./session";
+import type { PracticeReadout } from "./practiceReadout";
+import {
+  createPitchSample,
+  formatAnalysisStatus,
+  type PitchSample,
+  resolveAnalysisStatus,
+} from "./session";
 import { setupSettingsDialog } from "./settingsDialog";
 
-export type PracticeInputStartResult =
-  | { ok: true }
-  | { ok: false; message?: string };
-
 type MelodyInput = {
-  start(): Promise<PracticeInputStartResult>;
+  start(): Promise<MicrophoneCapture | null>;
   stop(): void;
-  isStarting(): boolean;
 };
 
 export function createMelodyPracticeView(
@@ -49,17 +54,19 @@ export function createMelodyPracticeView(
   {
     input,
     controls,
+    readout,
   }: {
     input: MelodyInput;
+    readout: PracticeReadout;
     controls: {
       prepare(): void;
-      reportStatus(message: string): void;
       setLocked(locked: boolean): void;
     };
   },
 ) {
   const elements = {
     melodySection: queryElement<HTMLElement>(".melody-practice"),
+    actions: queryElement<HTMLElement>(".melody-actions"),
     melodySetup: queryElement<HTMLDialogElement>("#melodySetup"),
     openMelodySettings: queryElement<HTMLButtonElement>("#openMelodySettings"),
     melodySettingsSummary: queryElement<HTMLElement>("#melodySettingsSummary"),
@@ -117,7 +124,7 @@ export function createMelodyPracticeView(
     melodyResults: queryElement<HTMLDivElement>("#melodyResults"),
   };
   let running = false;
-  let timer: number | null = null;
+  let lastSample: PitchSample | null = null;
   let scalePlaybackRequestId = 0;
   let melodyGraphData: MelodyGraphData | null = null;
 
@@ -178,6 +185,44 @@ export function createMelodyPracticeView(
       !visible ||
       melodyGraphData?.phase !== "stopped" ||
       !elements.melodyResults.childElementCount;
+    if (visible) {
+      readout.status.textContent =
+        melodyGraphData?.phase === "stopped"
+          ? "停止した周回の声を表示しています。"
+          : "お手本と一緒に発声して判定します。停止するまで繰り返せます。";
+      readout.showMeters(lastSample);
+      readout.describeMelody();
+    }
+  }
+
+  function onFrame(now: number, capture: MicrophoneCapture) {
+    const position = updatePosition();
+    if (position?.phase !== "sing") return;
+    const target = melodyRun?.notes[position.index];
+    if (!target) return;
+    const { minRms, tolerance } = settings.getSettings();
+    const detection = capture.sampleTarget({
+      minRms,
+      minClarity: PRACTICE_MIN_CLARITY,
+      targetFrequency: target.frequency,
+    });
+    const sample = createPitchSample(
+      now,
+      detection,
+      detection.rms,
+      target.frequency,
+      null,
+    );
+    const inGracePeriod = record(position, sample, detection.rms >= minRms);
+    if (inGracePeriod) sample.centsFromTarget = null;
+    lastSample = sample;
+    readout.showMeters(sample);
+    const status = resolveAnalysisStatus(sample, minRms, tolerance);
+    readout.status.textContent = inGracePeriod
+      ? "周回開始の猶予中です（各周回の最初の0.4秒は判定しません）"
+      : formatAnalysisStatus(status);
+    readout.describe(sample, status, target.name);
+    draw();
   }
 
   function draw() {
@@ -289,7 +334,7 @@ export function createMelodyPracticeView(
     const frequencies = notes.map((note) => note.frequency);
     // If the audio clock reaches the boundary while updating the display, use the following lap.
     for (let attempt = 0; attempt < 2; attempt++) {
-      const position = tickMelody(false);
+      const position = updatePosition();
       if (!position) return;
       const lap = position.phase === "countdown" ? 0 : position.lap + 1;
       if (!player.replaceScaleLap(lap, frequencies)) continue;
@@ -297,7 +342,7 @@ export function createMelodyPracticeView(
         degree === toneScaleStartDegree ? null : { degree, lap, notes };
       if (lap === 0) {
         applyMelodyLapChange(run);
-        tickMelody(false);
+        updatePosition();
         draw();
       } else if (position.index === run.notes.length - 1) {
         updateMelodyMovement(
@@ -444,11 +489,10 @@ export function createMelodyPracticeView(
   }
 
   function setMelodyControlsLocked(locked: boolean) {
-    document.body.classList.toggle("is-melody-running", locked);
     controls.setLocked(locked);
-    elements.playScaleButton
-      .closest(".melody-practice")
-      ?.classList.toggle("is-running", locked);
+    elements.melodySection.classList.toggle("is-running", locked);
+    elements.actions.classList.toggle("mobile-action-bar", locked);
+    elements.playScaleButton.classList.toggle("is-active", locked);
     for (const control of [
       elements.openMelodySettings,
       elements.melodyPatternSelect,
@@ -494,7 +538,7 @@ export function createMelodyPracticeView(
     updateToneScaleControls(run.notes[0]);
   }
 
-  function tickMelody(schedule = true, elapsed?: number) {
+  function updatePosition(elapsed?: number) {
     const run = melodyRun;
     const context = peekAudioContext();
     if (!run || !context) return;
@@ -568,7 +612,6 @@ export function createMelodyPracticeView(
           });
         } else item.removeAttribute("aria-current");
       }
-      if (position.index >= 0) draw();
     }
     const message =
       position.phase === "countdown"
@@ -576,8 +619,9 @@ export function createMelodyPracticeView(
         : `${position.lap + 1}周目・一緒に発声：${position.index + 1}/${run.notes.length}音 ${run.notes[position.index].solfege} (${run.notes[position.index].name})・あと${Math.ceil(position.remaining)}秒`;
     if (elements.melodyStatus.textContent !== message)
       elements.melodyStatus.textContent = message;
-    if (schedule && position.phase !== "sing") draw();
-    if (schedule) timer = window.setTimeout(tickMelody, 50);
+    if (position.phase === "countdown")
+      readout.status.textContent =
+        "準備中です。3秒後からお手本と一緒に発声してください。";
     return position;
   }
 
@@ -653,13 +697,6 @@ export function createMelodyPracticeView(
       return;
     }
 
-    if (input.isStarting()) {
-      controls.reportStatus(
-        "マイクの準備中です。少し待ってからメロディ稽古を始めてください。",
-      );
-      return;
-    }
-
     let notes: Note[];
     try {
       notes = selectedMelody();
@@ -674,6 +711,7 @@ export function createMelodyPracticeView(
     elements.melodyResults.replaceChildren();
     elements.melodyStatus.textContent =
       "マイクとお手本音を準備しています。マイクの利用を許可してください。";
+    readout.status.textContent = "マイクとお手本音を準備しています。";
 
     const requestId = ++scalePlaybackRequestId;
     const { instrument } = settings.getSettings();
@@ -683,9 +721,9 @@ export function createMelodyPracticeView(
       const player = playback.getPlayer();
       await player.prepare(instrument);
       if (requestId !== scalePlaybackRequestId) return;
-      let startResult: PracticeInputStartResult;
+      let capture: MicrophoneCapture | null;
       try {
-        startResult = await input.start();
+        capture = await input.start();
       } catch (error) {
         if (requestId !== scalePlaybackRequestId) return;
         stopScalePlayback();
@@ -694,12 +732,12 @@ export function createMelodyPracticeView(
         return;
       }
       if (requestId !== scalePlaybackRequestId) return;
-      if (!startResult.ok) {
+      if (!capture) {
         stopScalePlayback();
-        if (startResult.message)
-          elements.melodyStatus.textContent = startResult.message;
         return;
       }
+      lastSample = null;
+      readout.showMeters(null);
       await context.resume();
       if (requestId !== scalePlaybackRequestId) return;
       const seconds = Number(elements.melodySecondsSelect.value);
@@ -740,7 +778,8 @@ export function createMelodyPracticeView(
       );
       updateToneScaleControls(notes[0]);
       settings.resetReferenceStatus();
-      tickMelody();
+      updatePosition();
+      draw();
     } catch (error) {
       if (requestId !== scalePlaybackRequestId) return;
       stopScalePlayback();
@@ -756,15 +795,10 @@ export function createMelodyPracticeView(
     const context = peekAudioContext();
     const elapsed = run && context ? context.currentTime - run.startedAt : 0;
     if (run?.pending && elapsed >= MELODY_COUNTDOWN_SECONDS)
-      tickMelody(false, elapsed);
+      updatePosition(elapsed);
     elements.melodyCountdown.hidden = true;
     scalePlaybackRequestId++;
     playback.getCurrentPlayer()?.stopScale();
-    if (timer !== null) {
-      window.clearTimeout(timer);
-      timer = null;
-    }
-
     running = false;
     melodyRun = null;
     elements.playScaleButton.disabled = !isAudioContextSupported();
@@ -786,6 +820,7 @@ export function createMelodyPracticeView(
       );
     elements.melodyStatus.textContent =
       "メロディ稽古を停止しました。もう一度始めると最初から練習できます。";
+    readout.status.textContent = "稽古を停止しました";
     settings.resetReferenceStatus();
     draw();
   }
@@ -794,20 +829,16 @@ export function createMelodyPracticeView(
     init,
     show,
     draw,
-    record,
-    get running() {
-      return running;
-    },
+    onFrame,
     graphScroll: elements.melodyGraphScroll,
-    tick: tickMelody,
-    noteAt: (index: number | undefined) =>
-      index === undefined ? undefined : melodyRun?.notes[index],
     stop: stopScalePlayback,
     refresh: renderMelodyPreview,
-    hasStoppedGraph: () => melodyGraphData?.phase === "stopped",
     followKeyboard: () => followMelodyKeyboard(elements.melodyKeyboard),
-    clearGraph() {
+    clear() {
       if (melodyGraphData) melodyGraphData.samples = [];
+      lastSample = null;
+      readout.showMeters(null);
+      draw();
     },
     updateTolerance(tolerance: number) {
       if (melodyGraphData?.phase === "ready")

@@ -1,7 +1,5 @@
-import {
-  createMelodyGraphLayout,
-  resolveCanvasBackingSize,
-} from "./graphModel";
+import { getGraphTheme, resizeGraphCanvas } from "./graphCanvas";
+import { createMelodyGraphLayout } from "./graphModel";
 import { formatPitchMovement, midiToNoteName, type Note } from "./pitchMath";
 import { getPitchMovementIcon } from "./pitchMovementVisual";
 
@@ -32,18 +30,12 @@ export function drawMelodyGraph(
     300,
     data.midiRange,
   );
-  const backing = resolveCanvasBackingSize(
-    layout.width,
-    layout.height,
-    window.devicePixelRatio,
-  );
   canvas.style.width = `${layout.width}px`;
   canvas.style.height = `${layout.height}px`;
-  if (canvas.width !== backing.width) canvas.width = backing.width;
-  if (canvas.height !== backing.height) canvas.height = backing.height;
+  const backing = resizeGraphCanvas(canvas, layout.width, layout.height);
   context.setTransform(backing.pixelRatio, 0, 0, backing.pixelRatio, 0, 0);
   context.clearRect(0, 0, layout.width, layout.height);
-  context.fillStyle = "#fbfcfc";
+  context.fillStyle = getGraphTheme().background;
   context.fillRect(0, 0, layout.width, layout.height);
   context.font = "12px system-ui, sans-serif";
   const playing = data.phase === "sing";
@@ -54,14 +46,14 @@ export function drawMelodyGraph(
   const nextIndex = data.phase === "stopped" ? -1 : currentIndex + 1;
   for (let midi = layout.minMidi; midi <= layout.maxMidi; midi++) {
     const y = layout.y(midi);
-    context.strokeStyle = "#e1e8eb";
+    context.strokeStyle = getGraphTheme().grid;
     context.lineWidth = 1;
     context.beginPath();
     context.moveTo(layout.padding.left, y);
     context.lineTo(layout.width - layout.padding.right, y);
     context.stroke();
     if (midi % 2 === 0 || midi === layout.minMidi || midi === layout.maxMidi) {
-      context.fillStyle = "#5c6870";
+      context.fillStyle = getGraphTheme().label;
       context.fillText(midiToNoteName(midi), 5, y + 4);
     }
   }
@@ -169,7 +161,7 @@ export function drawMelodyGraph(
       }
       context.textAlign = "center";
     }
-    context.fillStyle = "#5c6870";
+    context.fillStyle = getGraphTheme().label;
     context.fillText(String(index + 1), x + width / 2, layout.height - 12);
   });
   context.textAlign = "left";
@@ -182,7 +174,7 @@ export function drawMelodyGraph(
     layout.plotHeight,
   );
   context.clip();
-  context.strokeStyle = "#2b6cb0";
+  context.strokeStyle = getGraphTheme().voice;
   context.lineWidth = 2.5;
   context.beginPath();
   let previous: MelodyTraceSample | null = null;
