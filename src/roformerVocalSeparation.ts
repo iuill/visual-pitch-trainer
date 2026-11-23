@@ -1,4 +1,5 @@
 import type * as ort from "onnxruntime-web/webgpu";
+import { createPeriodicHannWindow, fftInPlace, reflectPad } from "./audioDsp";
 import {
   type DecodedMediaAudio,
   resampleToStereo,
@@ -330,7 +331,7 @@ async function separateWithRoformerSession(
   const vocalsLeft = new Float32Array(totalSamples);
   const vocalsRight = new Float32Array(totalSamples);
   const overlapWeights = new Float32Array(totalSamples);
-  const window = hannWindow(config.winLength);
+  const window = createPeriodicHannWindow(config.winLength);
   const inputName = session.inputNames[0] ?? "stft_features";
   const outputName = session.outputNames[0] ?? "mask";
 
@@ -617,7 +618,7 @@ function stft(
   config: RoformerVocalModelConfig,
 ): StftResult {
   const paddedSignal = config.centeredStft
-    ? reflectPad(signal, config.nFft / 2)
+    ? reflectPad(signal, config.nFft / 2, "single-reflection")
     : signal;
   const nFrames = getFrameCount(config);
   const data = new Float32Array(N_FREQ * nFrames * 2);
@@ -694,7 +695,7 @@ function rfft(input: Float32Array, length: number): Float32Array {
   const real = new Float32Array(length);
   const imag = new Float32Array(length);
   real.set(input);
-  fftInPlace(real, imag, length);
+  fftInPlace(real, imag);
 
   const output = new Float32Array((length / 2 + 1) * 2);
 
@@ -721,7 +722,7 @@ function irfft(spectrum: Float32Array, length: number): Float32Array {
     imag[length - freqIndex] = spectrum[freqIndex * 2 + 1] ?? 0;
   }
 
-  fftInPlace(real, imag, length);
+  fftInPlace(real, imag);
 
   const output = new Float32Array(length);
 
@@ -730,71 +731,6 @@ function irfft(spectrum: Float32Array, length: number): Float32Array {
   }
 
   return output;
-}
-
-function fftInPlace(real: Float32Array, imag: Float32Array, length: number) {
-  for (let index = 1, reverseIndex = 0; index < length; index += 1) {
-    let bit = length >> 1;
-
-    for (; reverseIndex & bit; bit >>= 1) {
-      reverseIndex ^= bit;
-    }
-
-    reverseIndex ^= bit;
-
-    if (index < reverseIndex) {
-      const realValue = real[index] ?? 0;
-      real[index] = real[reverseIndex] ?? 0;
-      real[reverseIndex] = realValue;
-
-      const imagValue = imag[index] ?? 0;
-      imag[index] = imag[reverseIndex] ?? 0;
-      imag[reverseIndex] = imagValue;
-    }
-  }
-
-  for (let fftLength = 2; fftLength <= length; fftLength <<= 1) {
-    const halfLength = fftLength >> 1;
-    const angle = (-2 * Math.PI) / fftLength;
-    const twiddleReal = Math.cos(angle);
-    const twiddleImag = Math.sin(angle);
-
-    for (let offset = 0; offset < length; offset += fftLength) {
-      let currentReal = 1;
-      let currentImag = 0;
-
-      for (let index = 0; index < halfLength; index += 1) {
-        const leftIndex = offset + index;
-        const rightIndex = leftIndex + halfLength;
-        const tempReal =
-          currentReal * (real[rightIndex] ?? 0) -
-          currentImag * (imag[rightIndex] ?? 0);
-        const tempImag =
-          currentReal * (imag[rightIndex] ?? 0) +
-          currentImag * (real[rightIndex] ?? 0);
-
-        real[rightIndex] = (real[leftIndex] ?? 0) - tempReal;
-        imag[rightIndex] = (imag[leftIndex] ?? 0) - tempImag;
-        real[leftIndex] = (real[leftIndex] ?? 0) + tempReal;
-        imag[leftIndex] = (imag[leftIndex] ?? 0) + tempImag;
-
-        const nextCurrentReal =
-          currentReal * twiddleReal - currentImag * twiddleImag;
-        currentImag = currentReal * twiddleImag + currentImag * twiddleReal;
-        currentReal = nextCurrentReal;
-      }
-    }
-  }
-}
-
-function hannWindow(length: number): Float32Array {
-  const window = new Float32Array(length);
-
-  for (let index = 0; index < length; index += 1) {
-    window[index] = 0.5 * (1 - Math.cos((2 * Math.PI * index) / length));
-  }
-
-  return window;
 }
 
 function createChunkOverlapWindow({
@@ -820,23 +756,6 @@ function createChunkOverlapWindow({
   }
 
   return window;
-}
-
-function reflectPad(signal: Float32Array, padSize: number): Float32Array {
-  const padded = new Float32Array(signal.length + padSize * 2);
-
-  for (let index = 0; index < padSize; index += 1) {
-    padded[index] = signal[Math.max(0, padSize - index)] ?? 0;
-  }
-
-  padded.set(signal, padSize);
-
-  for (let index = 0; index < padSize; index += 1) {
-    padded[padSize + signal.length + index] =
-      signal[Math.max(0, signal.length - 2 - index)] ?? 0;
-  }
-
-  return padded;
 }
 
 function getFrameCount(config: RoformerVocalModelConfig): number {

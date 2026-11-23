@@ -1,3 +1,4 @@
+import { createPeriodicHannWindow, fftInPlace, reflectPad } from "./audioDsp";
 import {
   type AudioFileAnalysis,
   type AudioPitchPoint,
@@ -17,6 +18,7 @@ import {
   type PitchModelSession,
 } from "./onnxRuntime";
 import { getRms, hzToMidi } from "./pitchMath";
+import { decodePitchModelFrame } from "./pitchModelDecoding";
 
 export type RmvpeAnalysisProgress = {
   phase:
@@ -41,15 +43,12 @@ const RMVPE_SAMPLE_RATE = 16_000;
 const RMVPE_WIN_LENGTH = 1024;
 const RMVPE_HOP_LENGTH = 160;
 const RMVPE_N_MELS = 128;
-const RMVPE_N_CLASSES = 360;
-const RMVPE_CENTS_OFFSET = 1997.3794084376191;
 const RMVPE_MEL_FMIN = 30;
 const RMVPE_MEL_FMAX = 8000;
 const DEFAULT_MIN_RMS = 0.004;
 const DEFAULT_MIN_CONFIDENCE = 0.03;
 const DEFAULT_MIN_FREQUENCY = 82;
 const DEFAULT_MAX_FREQUENCY = 1047;
-const WEIGHTED_ARGMAX_RADIUS = 4;
 const RMVPE_MODEL_URL =
   import.meta.env.VITE_RMVPE_MODEL_URL || "models/rmvpe.onnx";
 
@@ -180,51 +179,19 @@ export async function assertRmvpeModelAccessible(): Promise<void> {
 export function assertRmvpePitchDetectionSupported(): Promise<void> {
   return assertWebGpuSupported("RMVPE推定");
 }
-export function decodeRmvpeFrame(
-  activation: Float32Array,
-  frameIndex: number,
-): {
-  frequency: number;
-  confidence: number;
-} {
-  const offset = frameIndex * RMVPE_N_CLASSES;
-  let maxIndex = 0;
-  let confidence = Number.NEGATIVE_INFINITY;
-
-  for (let index = 0; index < RMVPE_N_CLASSES; index += 1) {
-    const value = activation[offset + index] ?? 0;
-
-    if (value > confidence) {
-      confidence = value;
-      maxIndex = index;
-    }
-  }
-
-  const start = Math.max(0, maxIndex - WEIGHTED_ARGMAX_RADIUS);
-  const end = Math.min(RMVPE_N_CLASSES - 1, maxIndex + WEIGHTED_ARGMAX_RADIUS);
-  let weightedSum = 0;
-  let weightTotal = 0;
-
-  for (let index = start; index <= end; index += 1) {
-    const value = Math.max(0, activation[offset + index] ?? 0);
-    weightedSum += rmvpeBinToCents(index) * value;
-    weightTotal += value;
-  }
-
-  const cents =
-    weightTotal > 0 ? weightedSum / weightTotal : rmvpeBinToCents(maxIndex);
-
-  return {
-    frequency: 10 * 2 ** (cents / 1200),
-    confidence: Math.max(0, confidence),
-  };
+export function decodeRmvpeFrame(activation: Float32Array, frameIndex: number) {
+  return decodePitchModelFrame(activation, frameIndex, "cents");
 }
 
 export function createLogMelSpectrogram(
   audioData: Float32Array,
   onProgress?: (processedFrames: number, totalFrames: number) => void,
 ): Float32Array {
-  const paddedAudio = reflectPad(audioData, RMVPE_WIN_LENGTH / 2);
+  const paddedAudio = reflectPad(
+    audioData,
+    RMVPE_WIN_LENGTH / 2,
+    "repeat-reflection",
+  );
   const totalFrames =
     paddedAudio.length < RMVPE_WIN_LENGTH
       ? 0
@@ -234,7 +201,7 @@ export function createLogMelSpectrogram(
   const frame = new Float32Array(RMVPE_WIN_LENGTH);
   const real = new Float32Array(RMVPE_WIN_LENGTH);
   const imag = new Float32Array(RMVPE_WIN_LENGTH);
-  const window = createHannWindow(RMVPE_WIN_LENGTH);
+  const window = createPeriodicHannWindow(RMVPE_WIN_LENGTH);
 
   for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
     const offset = frameIndex * RMVPE_HOP_LENGTH;
@@ -245,7 +212,7 @@ export function createLogMelSpectrogram(
 
     real.set(frame);
     imag.fill(0);
-    fft(real, imag);
+    fftInPlace(real, imag);
 
     for (let bin = 0; bin <= RMVPE_WIN_LENGTH / 2; bin += 1) {
       magnitudes[bin * totalFrames + frameIndex] = Math.hypot(
@@ -281,7 +248,11 @@ export function createLogMelSpectrogram(
 }
 
 function resolveFrameVolumes(audioData: Float32Array): Float32Array {
-  const paddedAudio = reflectPad(audioData, RMVPE_WIN_LENGTH / 2);
+  const paddedAudio = reflectPad(
+    audioData,
+    RMVPE_WIN_LENGTH / 2,
+    "repeat-reflection",
+  );
   const totalFrames =
     paddedAudio.length < RMVPE_WIN_LENGTH
       ? 0
@@ -340,103 +311,6 @@ function hzToMel(hz: number): number {
 
 function melToHz(mel: number): number {
   return 700 * (10 ** (mel / 2595) - 1);
-}
-
-function createHannWindow(length: number): Float32Array {
-  return Float32Array.from(
-    { length },
-    (_, index) => 0.5 - 0.5 * Math.cos((2 * Math.PI * index) / length),
-  );
-}
-
-function reflectPad(audioData: Float32Array, padSize: number): Float32Array {
-  const output = new Float32Array(audioData.length + padSize * 2);
-
-  for (let index = 0; index < output.length; index += 1) {
-    output[index] =
-      audioData[reflectIndex(index - padSize, audioData.length)] ?? 0;
-  }
-
-  return output;
-}
-
-function reflectIndex(index: number, length: number): number {
-  if (length <= 1) {
-    return 0;
-  }
-
-  let reflected = index;
-
-  while (reflected < 0 || reflected >= length) {
-    if (reflected < 0) {
-      reflected = -reflected;
-    }
-
-    if (reflected >= length) {
-      reflected = 2 * length - reflected - 2;
-    }
-  }
-
-  return reflected;
-}
-
-function fft(real: Float32Array, imag: Float32Array) {
-  const n = real.length;
-  let j = 0;
-
-  for (let i = 1; i < n; i += 1) {
-    let bit = n >> 1;
-
-    for (; j & bit; bit >>= 1) {
-      j ^= bit;
-    }
-
-    j ^= bit;
-
-    if (i < j) {
-      const tempReal = real[i] ?? 0;
-      const tempImag = imag[i] ?? 0;
-      real[i] = real[j] ?? 0;
-      imag[i] = imag[j] ?? 0;
-      real[j] = tempReal;
-      imag[j] = tempImag;
-    }
-  }
-
-  for (let length = 2; length <= n; length <<= 1) {
-    const angle = (-2 * Math.PI) / length;
-    const wLengthReal = Math.cos(angle);
-    const wLengthImag = Math.sin(angle);
-
-    for (let i = 0; i < n; i += length) {
-      let wReal = 1;
-      let wImag = 0;
-
-      for (let k = 0; k < length / 2; k += 1) {
-        const evenIndex = i + k;
-        const oddIndex = evenIndex + length / 2;
-        const oddReal = real[oddIndex] ?? 0;
-        const oddImag = imag[oddIndex] ?? 0;
-        const tReal = wReal * oddReal - wImag * oddImag;
-        const tImag = wReal * oddImag + wImag * oddReal;
-        const uReal = real[evenIndex] ?? 0;
-        const uImag = imag[evenIndex] ?? 0;
-
-        real[evenIndex] = uReal + tReal;
-        imag[evenIndex] = uImag + tImag;
-        real[oddIndex] = uReal - tReal;
-        imag[oddIndex] = uImag - tImag;
-
-        const nextWReal = wReal * wLengthReal - wImag * wLengthImag;
-        wImag = wReal * wLengthImag + wImag * wLengthReal;
-        wReal = nextWReal;
-      }
-    }
-  }
-}
-
-function rmvpeBinToCents(bin: number): number {
-  return 20 * bin + RMVPE_CENTS_OFFSET;
 }
 
 export async function releaseRmvpeSession() {
