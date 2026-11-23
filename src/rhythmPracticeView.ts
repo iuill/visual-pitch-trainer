@@ -1,8 +1,15 @@
 import { AnimationLoop } from "./animationLoop";
 import { getAudioContext } from "./audioContext";
 import { queryElement } from "./dom";
+import { isGeneratedInstrument } from "./generatedInstruments";
 import { midiToFrequency } from "./pitchMath";
 import type { ReferencePlayer } from "./referencePlayer";
+import {
+  buildSongEvents,
+  type SongEvent,
+  songDrumsForEvents,
+  songSampleInstruments,
+} from "./rhythmArrangement";
 import {
   CALIBRATION_BEAT_MS,
   CALIBRATION_COUNTDOWN_MS,
@@ -23,6 +30,8 @@ import {
   type RhythmNoteValue,
   type RhythmRestValue,
   type RhythmStep,
+  rhythmBeatAccent,
+  rhythmPulseUnits,
   rhythmSlotsPerBeat,
 } from "./rhythmCourse";
 import {
@@ -72,7 +81,6 @@ const restNotation: Record<RhythmRestValue, string> = {
 };
 const linePercent = 18;
 const beatPercent = 30;
-const previewBeatPercent = 20;
 const timingPulseMs = 100;
 const countdownSeconds = CALIBRATION_COUNTDOWN_MS / 1000;
 const practiceReadyMs = 3000;
@@ -80,7 +88,22 @@ const practiceCountInBars = 2;
 const rhythmTapLabel = "タップ（スペース / F / J）";
 
 function rhythmMeterAndTempo(step: RhythmStep) {
+  if (step.beatsPerBar === 7) return `7/8拍子（2＋2＋3）・♪ = ${step.bpm}`;
   return `${step.beatsPerBar ?? 4}/4拍子・${step.bpm} BPM`;
+}
+
+function rhythmDuration(step: RhythmStep, bars: number) {
+  const seconds = Math.round((bars * (step.beatsPerBar ?? 4) * 60) / step.bpm);
+  return `${Math.floor(seconds / 60)}分${String(seconds % 60).padStart(2, "0")}秒`;
+}
+
+function rhythmCountLabel(step: RhythmStep, pulse: number) {
+  let start = 0;
+  for (const group of step.beatGroups ?? []) {
+    if (group > pulse) break;
+    start = group;
+  }
+  return String(pulse - start + 1);
 }
 
 function rhythmBeatLabel(beat: number, part: number, slotsPerBeat: number) {
@@ -214,6 +237,8 @@ export function setupRhythmPractice(
   const setup = queryElement<HTMLElement>("#rhythmSetup");
   const stepSelect = queryElement<HTMLSelectElement>("#rhythmStep");
   const stepInfo = queryElement<HTMLElement>("#rhythmStepInfo");
+  const sectionField = queryElement<HTMLElement>("#rhythmSectionField");
+  const sectionSelect = queryElement<HTMLSelectElement>("#rhythmSection");
   const unlockMessage = queryElement<HTMLElement>("#rhythmUnlockMessage");
   const unlockCount = queryElement<HTMLElement>("#rhythmUnlockCount");
   const unlockProgress = queryElement<HTMLProgressElement>(
@@ -301,6 +326,7 @@ export function setupRhythmPractice(
   let generation = 0;
   let acceptTap: ((timestamp: number) => void) | null = null;
   let preparedBars: string[] | null = null;
+  let sectionIndex = -1;
   let activeExample: {
     cards: readonly HTMLElement[];
     button: HTMLButtonElement;
@@ -316,6 +342,10 @@ export function setupRhythmPractice(
 
   function stepSelectable(step: ReturnType<typeof currentStep>) {
     return settings.freePlay || rhythmStepUnlocked(progress, step);
+  }
+
+  function selectedSection(step: RhythmStep) {
+    return step.sections?.[sectionIndex];
   }
 
   function positionPracticeStart() {
@@ -348,6 +378,7 @@ export function setupRhythmPractice(
         RHYTHM_STEPS.find((item) => !progress.steps[item.id]?.cleared) ??
         RHYTHM_STEPS[0];
       progress.currentStepId = firstUncleared.id;
+      sectionIndex = -1;
       store.saveProgress(progress);
       resultPanel.hidden = true;
       feedback.textContent = "";
@@ -374,8 +405,11 @@ export function setupRhythmPractice(
             : unlocked
               ? ""
               : "（未解放）";
+          const label = item.sections
+            ? item.title
+            : `${rhythmMeterAndTempo(item)} ／ ${item.title}`;
           const option = new Option(
-            `${item.id} ｜ ${rhythmMeterAndTempo(item)} ／ ${item.title}${state}`,
+            `${item.id} ｜ ${label}${state}`,
             item.id,
             false,
             item === step,
@@ -388,6 +422,22 @@ export function setupRhythmPractice(
     );
     const record = progress.steps[step.id];
     stepInfo.textContent = rhythmMeterAndTempo(step);
+    const section = selectedSection(step);
+    const from = section?.startBar ?? 0;
+    const to = section?.endBar ?? step.patterns.length;
+    sectionField.hidden = !step.sections;
+    sectionSelect.replaceChildren(
+      new Option(`通し（${rhythmDuration(step, step.patterns.length)}）`, "-1"),
+      ...(step.sections ?? []).map(
+        ({ title, startBar, endBar }, index) =>
+          new Option(
+            `${title}（${startBar + 1}〜${endBar}小節）`,
+            String(index),
+            false,
+            index === sectionIndex,
+          ),
+      ),
+    );
     const streak = record?.streak ?? 0;
     const cleared = record?.cleared ?? false;
     unlockMessage.textContent = cleared
@@ -397,7 +447,7 @@ export function setupRhythmPractice(
           !settings.freePlay && step !== RHYTHM_STEPS.at(-1),
         );
     unlockCount.hidden = cleared;
-    unlockCount.textContent = `連続合格 ${streak} / ${step.requiredStreak}回`;
+    unlockCount.textContent = `${step.sections ? "合格" : "連続合格"} ${streak} / ${step.requiredStreak}回`;
     unlockProgress.hidden = cleared;
     unlockProgress.max = step.requiredStreak;
     unlockProgress.value = streak;
@@ -407,13 +457,25 @@ export function setupRhythmPractice(
     const subdivided = step.countSubdivision !== undefined;
     const stride = subdivided ? 1 : slotsPerBeat;
     examplePlayAll.hidden = step.patterns.length < 2;
-    examplePlayAll.textContent = step.melody ? "曲を通して再生" : "通しで再生";
+    examplePlayAll.textContent = section
+      ? "この区間を再生"
+      : step.melody
+        ? "曲を通して再生"
+        : "通しで再生";
+    exampleVoice
+      .closest("label")
+      ?.toggleAttribute("hidden", Boolean(step.beatGroups));
     exampleBarsLabel.hidden = !step.melody;
+    exampleBarsLabel.textContent = step.sections
+      ? "冒頭4小節の譜例"
+      : "小節ごとの譜例";
     if (!step.melody) exampleBars.open = true;
     positionPracticeStart();
     exampleHelp.textContent =
       (step.melody
-        ? `全${step.patterns.length}小節。バスドラムで足の拍を取り、ピアノの音が始まるところでタップします。`
+        ? step.sections
+          ? `${to - from}小節・${rhythmDuration(step, to - from)}。上段の音符は主旋律です。音色が変わっても、音符が判定ラインに来たところでタップします。${step.beatGroups && settings.sound === "voice" ? "準備にはクリックで「2＋2＋3」を示します。" : ""}`
+          : `全${step.patterns.length}小節。バスドラムで足の拍を取り、ピアノの音が始まるところでタップします。`
         : feetOnly
           ? "バスドラムに合わせて足で拍を取ります。"
           : "バスドラムが足の拍、ハイタムが手でタップする位置です。") +
@@ -424,7 +486,11 @@ export function setupRhythmPractice(
           : subdivided
             ? "「&」は拍と次の拍の真ん中です。"
             : "");
-    const symbols = step.patterns.join("");
+    const previewPatterns = step.patterns.slice(
+      from,
+      step.sections ? Math.min(to, from + 4) : to,
+    );
+    const symbols = previewPatterns.join("");
     const shownValues = new Set(Array.from(symbols, getRhythmNoteValue));
     const legend = [];
     for (const value of [
@@ -443,10 +509,16 @@ export function setupRhythmPractice(
       const beats =
         value === "triplet-eighth"
           ? "1/3拍"
-          : RHYTHM_NOTE_BEATS[value] === 0.5
+          : RHYTHM_NOTE_BEATS[value] * rhythmPulseUnits(step) === 0.5
             ? "半拍"
-            : `${RHYTHM_NOTE_BEATS[value]}拍`;
-      item.append(createNoteIcon(value), `${noteNotation[value]}（${beats}）`);
+            : step.beatGroups
+              ? `8分音符${RHYTHM_NOTE_BEATS[value] * rhythmPulseUnits(step)}つ分`
+              : `${RHYTHM_NOTE_BEATS[value]}拍`;
+      const label =
+        step.beatGroups && value === "eighth"
+          ? noteNotation[value]
+          : `${noteNotation[value]}（${beats}）`;
+      item.append(createNoteIcon(value), label);
       legend.push(item);
     }
     const shownRests = new Set(Array.from(symbols, getRhythmRestValue));
@@ -455,14 +527,16 @@ export function setupRhythmPractice(
       const item = document.createElement("li");
       item.append(
         createRestIcon(value),
-        `${restNotation[value]}（${value === "quarter" ? "1拍" : "半拍"}休む）`,
+        step.beatGroups
+          ? restNotation[value]
+          : `${restNotation[value]}（${value === "quarter" ? "1拍" : "半拍"}休む）`,
       );
       legend.push(item);
     }
     patternLegend.replaceChildren(...legend);
     patternLegend.hidden = legend.length === 0;
     examples.replaceChildren(
-      ...step.patterns.map((pattern, index) => {
+      ...previewPatterns.map((pattern, index) => {
         const card = document.createElement("div");
         card.className = "rhythm-pattern";
         const slots = Array.from(pattern).flatMap((note, slot) =>
@@ -515,9 +589,15 @@ export function setupRhythmPractice(
             const value =
               kind === "note" ? getRhythmNoteValue(text) : undefined;
             const rest = kind === "note" ? getRhythmRestValue(text) : undefined;
-            if (index === 1 && (value || (kind === "beat" && text))) {
+            if (
+              index > 0 &&
+              rhythmBeatAccent(step, ((index - 1) * stride) / slotsPerBeat) &&
+              (value || (kind === "beat" && text))
+            ) {
               cell.classList.add("rhythm-pattern-downbeat");
             }
+            if (step.beatGroups?.includes(index - 1))
+              cell.classList.add("rhythm-pattern-group-start");
             if (kind === "beat" && index > 0 && text) {
               cell.append(createFootprint());
             } else if (value) {
@@ -535,7 +615,7 @@ export function setupRhythmPractice(
           "count",
           slots.map(({ beat, part }) =>
             part === 0
-              ? String(beat)
+              ? rhythmCountLabel(step, beat - 1)
               : slotsPerBeat === 2 || (slotsPerBeat === 4 && part === 2)
                 ? "&"
                 : "・",
@@ -555,7 +635,7 @@ export function setupRhythmPractice(
         const example = document.createElement("div");
         example.className = "rhythm-pattern-example";
         const label = step.melody
-          ? `${index + 1}小節目`
+          ? `${from + index + 1}小節目`
           : step.patterns.length === 1
             ? "見本"
             : `見本${index + 1}`;
@@ -573,6 +653,78 @@ export function setupRhythmPractice(
   function stopMelody() {
     melodyPlayer?.stopScale();
     melodyPlayer = null;
+  }
+
+  async function prepareMelody(
+    player: ReferencePlayer,
+    events: readonly SongEvent[] | undefined,
+    isCurrent: () => boolean,
+  ) {
+    const requested = songSampleInstruments(events);
+    const prepared = await Promise.allSettled(
+      requested.map((instrument) => player.prepare(instrument)),
+    );
+    const instruments = new Set(
+      requested.filter((_, index) => prepared[index].status === "fulfilled"),
+    );
+    let deadline = performance.now() + 8;
+    for (const event of events ?? []) {
+      if (!("instrument" in event) || !isGeneratedInstrument(event.instrument))
+        continue;
+      if (performance.now() >= deadline) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+        deadline = performance.now() + 8;
+      }
+      if (!isCurrent()) break;
+      player.prepareGeneratedNote(
+        event.instrument,
+        midiToFrequency(event.midi),
+        event.seconds,
+        event.bendSemitones,
+      );
+    }
+    return {
+      instruments,
+      substitute: instruments.has("piano")
+        ? ("piano" as const)
+        : ("sine" as const),
+      message:
+        instruments.size === requested.length
+          ? ""
+          : events
+            ? "読み込めなかった楽器は別の音色で再生します。"
+            : "ピアノを読み込めなかったため、電子音でメロディーを再生します。",
+    };
+  }
+
+  function playSong(
+    player: RhythmScheduler,
+    reference: ReferencePlayer,
+    sounds: Awaited<ReturnType<typeof prepareMelody>>,
+    events: readonly SongEvent[],
+    startMs: number,
+    volume: number,
+  ) {
+    melodyPlayer = reference;
+    player.scheduleTrack(
+      events.map((event) => ({ ...event, timeMs: startMs + event.timeMs })),
+      (event) => {
+        const when = event.timeMs / 1000;
+        if ("instrument" in event)
+          reference.schedulePhraseNote(
+            isGeneratedInstrument(event.instrument) ||
+              sounds.instruments.has(event.instrument)
+              ? event.instrument
+              : sounds.substitute,
+            midiToFrequency(event.midi),
+            when,
+            event.seconds,
+            volume * event.level,
+            event.bendSemitones,
+          );
+        else player.scheduleDrum(event.drum, when, volume * event.level);
+      },
+    );
   }
 
   function stopExample() {
@@ -599,11 +751,16 @@ export function setupRhythmPractice(
     const beatsPerBar = step.beatsPerBar ?? 4;
     const slotsPerBeat = rhythmSlotsPerBeat(step);
     const slotsPerBar = beatsPerBar * slotsPerBeat;
+    const section = selectedSection(step);
+    const from = (section?.startBar ?? 0) + (index ?? 0);
+    const to =
+      index === undefined
+        ? (section?.endBar ?? step.patterns.length)
+        : from + 1;
     const exampleCards = Array.from(
       examples.querySelectorAll<HTMLElement>(".rhythm-pattern"),
     );
-    const patterns =
-      index === undefined ? step.patterns : [step.patterns[index]];
+    const patterns = step.patterns.slice(from, to);
     const cards = index === undefined ? exampleCards : [exampleCards[index]];
     const label = button.textContent ?? "見本を再生";
     const example = { cards, button, label };
@@ -620,51 +777,67 @@ export function setupRhythmPractice(
       if (activeExample !== example) return;
       scheduler ??= new RhythmScheduler(context);
       const player = scheduler;
-      const melody =
-        index === undefined ? step.melody?.flat() : step.melody?.[index];
+      const melody = step.melody?.slice(from, to).flat();
       const feetOnly = step.feetOnly === true || melody !== undefined;
       const eighths = step.countSubdivision === "eighth";
       const spokenEighths = eighths && !melody;
-      const voice = settings.exampleVoice ? settings.countVoice : null;
-      const pianoPlayer = melody ? getReferencePlayer() : null;
-      const [percussion, spoken, piano] = await Promise.allSettled([
-        player.loadPercussion(feetOnly),
-        voice ? player.loadVoices(voice) : undefined,
-        pianoPlayer?.prepare("piano"),
+      const voice =
+        settings.exampleVoice && !step.beatGroups ? settings.countVoice : null;
+      const reference = melody ? getReferencePlayer() : null;
+      const events = step.arrangement
+        ? buildSongEvents(step, from, to, 0, false)
+        : undefined;
+      const [percussion, spoken, sounds] = await Promise.all([
+        player
+          .loadPercussion(
+            events
+              ? songDrumsForEvents(events)
+              : feetOnly
+                ? ["kick"]
+                : ["kick", "high-tom"],
+          )
+          .then(
+            () => true,
+            () => false,
+          ),
+        voice
+          ? player.loadVoices(voice).then(
+              () => true,
+              () => false,
+            )
+          : true,
+        reference
+          ? prepareMelody(reference, events, () => activeExample === example)
+          : null,
       ]);
       if (activeExample !== example) return;
       const messages = [];
-      if (percussion.status === "rejected")
+      if (!percussion)
         messages.push("読み込めなかった打楽器音は電子音で代用します。");
-      if (spoken.status === "rejected")
+      if (!spoken)
         messages.push(
           "カウント音声を読み込めなかったため、拍の音で再生します。",
         );
-      if (piano.status === "rejected")
-        messages.push(
-          "ピアノを読み込めなかったため、電子音でメロディーを再生します。",
-        );
+      if (sounds?.message) messages.push(sounds.message);
       exampleStatus.textContent = messages.join(" ");
       const startAt = player.playExample(patterns, step.bpm, {
         beatsPerBar,
         feetOnly,
         eighths: spokenEighths,
-        voice: spoken.status === "fulfilled" ? voice : null,
+        voice: spoken ? voice : null,
+        scheduleDrums: !events,
       });
-      if (melody && pianoPlayer) {
+      if (events && reference && sounds) {
+        playSong(player, reference, sounds, events, startAt * 1000, 0.67);
+      } else if (melody && reference && sounds) {
         const notes = melodyNotes(
           melody,
           createRhythmTargets(patterns, step.bpm, 0, slotsPerBeat),
           step.bpm,
           0,
         );
-        melodyPlayer = pianoPlayer;
-        pianoPlayer.playPhrase(
-          piano.status === "fulfilled" ? "piano" : "sine",
-          notes,
-          startAt,
-          0.36,
-        );
+        melodyPlayer = reference;
+        reference.playPhrase(sounds.substitute, notes, startAt, 0.36);
       }
       const slotSeconds = 60 / (step.bpm * slotsPerBeat);
       const subdivisions = step.countSubdivision ? 1 : slotsPerBeat;
@@ -764,17 +937,21 @@ export function setupRhythmPractice(
     if (mode !== null) stage.scrollIntoView({ block: "nearest" });
   }
 
-  async function prepareAudio(needsCount = false, needsMelody = false) {
+  async function prepareAudio(
+    step?: RhythmStep,
+    events?: readonly SongEvent[],
+  ) {
     const token = ++generation;
     let cue = settings.sound;
+    if (step?.beatGroups && cue === "voice") cue = "click";
     try {
       const context = getAudioContext();
       if (context.state !== "running") await context.resume();
       if (token !== generation) return null;
       scheduler ??= new RhythmScheduler(context);
       const player = scheduler;
-      let instrument: "piano" | "sine" | null = null;
-      if (needsCount && cue === "voice" && settings.volume > 0) {
+      let sounds: Awaited<ReturnType<typeof prepareMelody>> | null = null;
+      if (step && cue === "voice" && settings.volume > 0) {
         try {
           await player.loadVoices(settings.countVoice);
         } catch {
@@ -785,22 +962,25 @@ export function setupRhythmPractice(
         }
       }
       if (token !== generation) return null;
-      if (needsMelody && settings.volume > 0) {
-        const [piano, drums] = await Promise.allSettled([
-          getReferencePlayer().prepare("piano"),
-          player.loadPercussion(true),
+      if (step?.melody && settings.volume > 0) {
+        const [melody, drums] = await Promise.all([
+          prepareMelody(
+            getReferencePlayer(),
+            events,
+            () => token === generation,
+          ),
+          player
+            .loadPercussion(events ? songDrumsForEvents(events) : ["kick"])
+            .then(
+              () => true,
+              () => false,
+            ),
         ]);
         if (token !== generation) return null;
-        instrument = piano.status === "fulfilled" ? "piano" : "sine";
-        const messages = [feedback.textContent];
-        if (piano.status === "rejected")
-          messages.push(
-            "ピアノを読み込めなかったため、電子音でメロディーを再生します。",
-          );
-        if (drums.status === "rejected")
-          messages.push(
-            "バスドラムを読み込めなかったため、電子音で足の拍を鳴らします。",
-          );
+        sounds = melody;
+        const messages = [feedback.textContent, melody.message];
+        if (!drums)
+          messages.push("読み込めなかった打楽器音は電子音で代用します。");
         feedback.textContent = messages.filter(Boolean).join(" ");
       }
       if (token !== generation) return null;
@@ -810,7 +990,7 @@ export function setupRhythmPractice(
       };
       const eventTime = (timestamp: number, guide: RhythmGuide) =>
         rhythmEventTimeMs(context, timestamp, guide, performance.now());
-      return { player, now, eventTime, cue, instrument };
+      return { player, now, eventTime, cue, sounds };
     } catch {
       if (token !== generation) return null;
       end();
@@ -935,15 +1115,28 @@ export function setupRhythmPractice(
     const feetOnly = step.feetOnly;
     const beatsPerBar = step.beatsPerBar ?? 4;
     const slotsPerBeat = rhythmSlotsPerBeat(step);
-    preparedBars = createRhythmBars(step);
+    const section = selectedSection(step);
+    const from = section?.startBar ?? 0;
+    preparedBars = section
+      ? step.patterns.slice(from, section.endBar)
+      : createRhythmBars(step);
     openStage(null);
     lanes.dataset.dense = String(slotsPerBeat > 2);
-    laneArea.before(score);
+    lanes.style.setProperty(
+      "--rhythm-note-gap",
+      `${beatPercent / slotsPerBeat}cqi`,
+    );
+    if (step.sections) stopButton.after(score);
+    else laneArea.before(score);
     score.hidden = false;
-    scoreLabel.textContent = `${preparedBars.length}小節の判定`;
+    scoreLabel.textContent = section
+      ? `${section.title}（${from + 1}〜${section.endBar}小節）の判定`
+      : `${preparedBars.length}小節の判定`;
     scoreExtras.hidden = true;
     const stride = step.countSubdivision ? 1 : slotsPerBeat;
     scoreBars.dataset.dense = String((beatsPerBar * slotsPerBeat) / stride > 8);
+    scoreBars.toggleAttribute("data-long-song", Boolean(step.sections));
+    scoreBars.tabIndex = step.sections ? 0 : -1;
     scoreBars.style.setProperty(
       "--rhythm-score-slots",
       String((beatsPerBar * slotsPerBeat) / stride),
@@ -953,13 +1146,15 @@ export function setupRhythmPractice(
         const bar = document.createElement("li");
         const number = document.createElement("span");
         number.className = "rhythm-score-bar-number";
-        number.textContent = `${index + 1}小節`;
+        number.textContent = `${from + index + 1}小節`;
         bar.append(number);
         for (let slot = 0; slot < pattern.length; slot += stride) {
           const note = document.createElement("span");
           note.className = "rhythm-score-slot";
           const value = getRhythmNoteValue(pattern[slot]);
           const rest = getRhythmRestValue(pattern[slot]);
+          if (step.beatGroups?.includes(slot))
+            note.classList.add("rhythm-pattern-group-start");
           const label = rhythmBeatLabel(
             Math.floor(slot / slotsPerBeat) + 1,
             slot % slotsPerBeat,
@@ -986,10 +1181,11 @@ export function setupRhythmPractice(
         return bar;
       }),
     );
+    scoreBars.scrollTop = 0;
     for (let beat = 0; beat < beatsPerBar; beat++) {
       const marker = makeMarker("beat");
-      marker.dataset.accent = String(beat === 0);
-      marker.style.left = `${linePercent + previewBeatPercent * beat}%`;
+      marker.dataset.accent = String(rhythmBeatAccent(step, beat));
+      marker.style.left = `${linePercent + beatPercent * beat}%`;
     }
     if (!feetOnly) {
       Array.from(preparedBars[0]).forEach((symbol, slot) => {
@@ -997,10 +1193,11 @@ export function setupRhythmPractice(
         const rest = getRhythmRestValue(symbol);
         const marker = value
           ? makeMarker("note", createNoteIcon(value))
-          : rest && makeRestMarker(rest, previewBeatPercent).marker;
+          : rest &&
+            makeRestMarker(rest, beatPercent * rhythmPulseUnits(step)).marker;
         if (!marker) return;
         if (value) marker.dataset.accent = String(slot === 0);
-        marker.style.left = `${linePercent + (previewBeatPercent * slot) / slotsPerBeat}%`;
+        marker.style.left = `${linePercent + (beatPercent * slot) / slotsPerBeat}%`;
       });
     }
     stage.scrollIntoView({ block: "nearest" });
@@ -1011,6 +1208,8 @@ export function setupRhythmPractice(
     if (!bars) return;
     preparedBars = null;
     const step = currentStep();
+    const section = selectedSection(step);
+    const from = section?.startBar ?? 0;
     const beatsPerBar = step.beatsPerBar ?? 4;
     const slotsPerBeat = rhythmSlotsPerBeat(step);
     const countInBeats = beatsPerBar * practiceCountInBars;
@@ -1028,7 +1227,11 @@ export function setupRhythmPractice(
         : "");
     inputHelp.textContent = `準備の${practiceCountInBars}小節は足で拍を刻みます。タップは「本番」の表示からです。`;
     const beatMs = 60_000 / step.bpm;
-    const audio = await prepareAudio(true, Boolean(step.melody));
+    const events =
+      step.arrangement && settings.volume > 0
+        ? buildSongEvents(step, from, from + bars.length, 0, true)
+        : undefined;
+    const audio = await prepareAudio(step, events);
     if (!audio) return;
     loading.hidden = true;
     phase.textContent = "準備まで";
@@ -1037,7 +1240,7 @@ export function setupRhythmPractice(
     count.textContent = String(practiceReadyMs / 1000);
     const guideMode = settings.guide;
     // With a melody, the moving notes follow the audible output in either guide mode.
-    const clockGuide = audio.instrument ? "audio" : guideMode;
+    const clockGuide = audio.sounds ? "audio" : guideMode;
     const correction =
       guideMode === "audio"
         ? (calibration?.audioOffsetMs ?? 0)
@@ -1050,7 +1253,13 @@ export function setupRhythmPractice(
     const counts: RhythmCount[] = [];
     for (let beat = 0; beat < beatCount; beat++) {
       const timeMs = firstBeatMs + beat * beatMs;
-      counts.push({ timeMs, voiceIndex: beat % beatsPerBar });
+      const pulse = beat % beatsPerBar;
+      const voiceIndex = step.beatGroups
+        ? rhythmBeatAccent(step, pulse)
+          ? 0
+          : 1
+        : pulse;
+      counts.push({ timeMs, voiceIndex });
       if (
         beat >= countInBeats &&
         !step.melody &&
@@ -1066,10 +1275,19 @@ export function setupRhythmPractice(
       settings.countVoice,
       step.melody ? startMs : endMs,
     );
-    if (step.melody && audio.instrument) {
+    if (events && audio.sounds) {
+      playSong(
+        audio.player,
+        getReferencePlayer(),
+        audio.sounds,
+        events,
+        startMs,
+        settings.volume,
+      );
+    } else if (step.melody && audio.sounds) {
       melodyPlayer = getReferencePlayer();
       melodyPlayer.playPhrase(
-        audio.instrument,
+        audio.sounds.substitute,
         melodyNotes(step.melody.flat(), targets, step.bpm, startMs),
         startMs / 1000,
         settings.volume,
@@ -1086,38 +1304,41 @@ export function setupRhythmPractice(
     lanes.setAttribute("data-count-in", "");
     lanes.style.setProperty("--rhythm-count-in-width", "100%");
     markers.replaceChildren();
-    const moving = counts
-      .filter((item) => item.voiceIndex !== 4)
-      .map((item, index) => {
+    const moving = markerWindow(
+      counts
+        .filter((item) => item.voiceIndex !== 4)
+        .map((item, index) => ({ ...item, index })),
+      (item) => {
         const marker = makeMarker("beat");
         marker.dataset.accent = String(item.voiceIndex === 0);
-        marker.toggleAttribute("data-count-in", index < countInBeats);
-        return { ...item, marker };
-      });
-    const notes = step.feetOnly
-      ? []
-      : targets.map((target) => {
-          const marker = makeMarker("note", createNoteIcon(target.noteValue));
-          marker.dataset.accent = String(target.downbeat);
-          return { target, marker };
-        });
-    const rests = bars.flatMap((pattern, bar) =>
-      Array.from(pattern).flatMap((symbol, slot) => {
-        const rest = getRhythmRestValue(symbol);
-        return rest
-          ? [
-              {
-                timeMs:
-                  startMs +
-                  ((bar * pattern.length + slot) * beatMs) / slotsPerBeat,
-                ...makeRestMarker(rest, beatPercent),
-              },
-            ]
-          : [];
-      }),
+        marker.toggleAttribute("data-count-in", item.index < countInBeats);
+        return marker;
+      },
     );
-    for (const item of [...moving, ...notes, ...rests])
-      item.marker.hidden = true;
+    const notes = markerWindow(step.feetOnly ? [] : targets, (target) => {
+      const marker = makeMarker("note", createNoteIcon(target.noteValue));
+      marker.dataset.accent = String(target.downbeat);
+      return marker;
+    });
+    const restBeatWidth = beatPercent * rhythmPulseUnits(step);
+    const rests = markerWindow(
+      bars.flatMap((pattern, bar) =>
+        Array.from(pattern).flatMap((symbol, slot) => {
+          const rest = getRhythmRestValue(symbol);
+          return rest
+            ? [
+                {
+                  timeMs:
+                    startMs +
+                    ((bar * pattern.length + slot) * beatMs) / slotsPerBeat,
+                  rest,
+                },
+              ]
+            : [];
+        }),
+      ),
+      ({ rest }) => makeRestMarker(rest, restBeatWidth).marker,
+    );
     const scoreNotes = scoreBars.querySelectorAll<HTMLElement>("[data-note]");
     const hits: RhythmHit[] = [];
     let extras = 0;
@@ -1156,6 +1377,32 @@ export function setupRhythmPractice(
       return linePercent + (deltaMs / beatMs) * beatPercent;
     }
 
+    function markerWindow<T extends { timeMs: number }>(
+      events: readonly T[],
+      create: (item: T) => HTMLElement,
+    ) {
+      let next = 0;
+      const mounted = new Map<T, HTMLElement>();
+      return (
+        now: number,
+        update: (item: T, marker: HTMLElement, delta: number) => void,
+      ) => {
+        const earliest = now - beatMs * 3;
+        const latest = now + beatMs * 3;
+        for (const [item, marker] of mounted) {
+          if (item.timeMs >= earliest) break;
+          marker.remove();
+          mounted.delete(item);
+        }
+        while (next < events.length && events[next].timeMs <= latest) {
+          const item = events[next++];
+          if (item.timeMs >= earliest) mounted.set(item, create(item));
+        }
+        for (const [item, marker] of mounted)
+          update(item, marker, item.timeMs - now);
+      };
+    }
+
     function position(
       marker: HTMLElement,
       delta: number,
@@ -1176,29 +1423,29 @@ export function setupRhythmPractice(
       );
       lanes.style.setProperty("--rhythm-count-in-width", `${countInWidth}%`);
       let beatPulse = false;
-      for (const item of moving) {
-        const delta = item.timeMs - visibleMs;
+      moving(visibleMs, (_item, marker, delta) => {
         const active = delta <= 0 && delta > -timingPulseMs;
-        item.marker.dataset.active = String(active);
+        marker.dataset.active = String(active);
         beatPulse ||= active;
-        position(item.marker, delta);
-      }
+        position(marker, delta);
+      });
       let notePulse = false;
-      for (const note of notes) {
-        const delta = note.target.timeMs - visibleMs;
+      notes(visibleMs, (target, marker, delta) => {
         const active = delta <= 0 && delta > -timingPulseMs;
-        note.marker.toggleAttribute("data-active", active);
+        marker.toggleAttribute("data-active", active);
         notePulse ||= active;
-        position(
-          note.marker,
-          delta,
-          !note.target.hit || delta > -timingPulseMs,
-        );
-      }
+        position(marker, delta, !target.hit || delta > -timingPulseMs);
+      });
       lanes.toggleAttribute("data-beat-pulse", beatPulse);
       lanes.toggleAttribute("data-note-pulse", notePulse);
-      for (const rest of rests)
-        position(rest.marker, rest.timeMs - visibleMs, true, rest.widthPercent);
+      rests(visibleMs, (item, marker, delta) =>
+        position(
+          marker,
+          delta,
+          true,
+          restBeatWidth * RHYTHM_NOTE_BEATS[item.rest],
+        ),
+      );
       if (elapsed < 0) {
         const seconds = String(
           Math.ceil(Math.min(-elapsed, practiceReadyMs) / 1000),
@@ -1221,9 +1468,11 @@ export function setupRhythmPractice(
         scoring &&
         step.countSubdivision === "eighth" &&
         elapsed % beatMs >= beatMs / 2;
-      const shownCount = `${(Math.min(beat, beatCount - 1) % beatsPerBar) + 1}${offbeat ? " &" : ""}`;
+      const shownCount = `${rhythmCountLabel(step, Math.min(beat, beatCount - 1) % beatsPerBar)}${offbeat ? " &" : ""}`;
       if (count.textContent !== shownCount) count.textContent = shownCount;
-      count.dataset.accent = String(beat % beatsPerBar === 0 && !offbeat);
+      count.dataset.accent = String(
+        rhythmBeatAccent(step, beat % beatsPerBar) && !offbeat,
+      );
       const label = scoring
         ? `本番 ${Math.min(bar - practiceCountInBars, bars.length)} / ${bars.length} 小節`
         : `準備 ${bar} / ${practiceCountInBars} 小節（判定なし）`;
@@ -1231,6 +1480,17 @@ export function setupRhythmPractice(
         phase.textContent = label;
         phase.toggleAttribute("data-scoring", scoring);
         lanes.toggleAttribute("data-count-in", !scoring);
+        if (scoring && step.sections) {
+          const currentBar = scoreBars.children[bar - practiceCountInBars - 1];
+          if (currentBar) {
+            const view = scoreBars.getBoundingClientRect();
+            const row = currentBar.getBoundingClientRect();
+            if (row.bottom > view.bottom)
+              scoreBars.scrollTop += row.bottom - view.bottom;
+            else if (row.top < view.top)
+              scoreBars.scrollTop += row.top - view.top;
+          }
+        }
       }
       if (scoring && inputHelp.textContent !== tapHelp)
         inputHelp.textContent = tapHelp;
@@ -1239,31 +1499,36 @@ export function setupRhythmPractice(
         presentHit(hit);
       if (visibleMs < endMs || judgeNow < endMs) return;
       const result = summarizeRhythm(hits, step.chapter);
-      const record = recordRhythmAttempt(
-        progress,
-        step,
-        result,
-        new Date().toISOString(),
-      );
-      store.saveProgress(progress);
+      const record = section
+        ? null
+        : recordRhythmAttempt(progress, step, result, new Date().toISOString());
+      if (record) store.saveProgress(progress);
       end();
-      const remaining = step.requiredStreak - record.streak;
-      const outcome = result.passed ? "合格！" : "今回は不合格。";
-      const courseCleared = RHYTHM_STEPS.every(
-        (item) => progress.steps[item.id]?.cleared,
-      );
-      const progressLabel = record.cleared
-        ? courseCleared
-          ? "全ステップクリア！"
-          : "このステップはクリア済みです。"
-        : remainingPassLabel(
-            remaining,
-            !settings.freePlay && nextStep !== undefined,
-          );
-      feedback.textContent = `${outcome} ${progressLabel}（連続合格 ${record.streak} / ${step.requiredStreak}回、ぴったり率 ${Math.round(result.perfectRate * 100)}%）`;
+      const perfectRate = `ぴったり率 ${Math.round(result.perfectRate * 100)}%`;
+      if (record) {
+        const remaining = step.requiredStreak - record.streak;
+        const outcome = result.passed ? "合格！" : "今回は不合格。";
+        const courseCleared = RHYTHM_STEPS.every(
+          (item) => progress.steps[item.id]?.cleared,
+        );
+        const progressLabel = record.cleared
+          ? courseCleared
+            ? "全ステップクリア！"
+            : "このステップはクリア済みです。"
+          : remainingPassLabel(
+              remaining,
+              !settings.freePlay && nextStep !== undefined,
+            );
+        feedback.textContent = step.sections
+          ? `${outcome} ${progressLabel}（${perfectRate}）`
+          : `${outcome} ${progressLabel}（連続合格 ${record.streak} / ${step.requiredStreak}回、${perfectRate}）`;
+      } else {
+        feedback.textContent = `${section?.title}の区間練習が終了しました。（${perfectRate}）`;
+      }
       resultPanel.insertBefore(score, stats);
       renderResult(result, step.chapter);
-      (next.hidden ? retry : next).focus();
+      scoreBars.scrollTop = 0;
+      (section || next.hidden ? retry : next).focus();
     });
   }
 
@@ -1319,6 +1584,7 @@ export function setupRhythmPractice(
     const step = RHYTHM_STEPS.find((item) => item.id === id);
     if (!step || !stepSelectable(step)) return;
     progress.currentStepId = id;
+    sectionIndex = -1;
     store.saveProgress(progress);
     examplesDetails.open = true;
     exampleBars.open = true;
@@ -1403,6 +1669,12 @@ export function setupRhythmPractice(
   visualCalibration.addEventListener("click", () => void calibrate("visual"));
   audioCalibration.addEventListener("click", () => void calibrate("audio"));
   stepSelect.addEventListener("change", () => selectStep(stepSelect.value));
+  sectionSelect.addEventListener("change", () => {
+    sectionIndex = Number(sectionSelect.value);
+    resultPanel.hidden = true;
+    feedback.textContent = "";
+    showSetup();
+  });
   for (const control of [
     sound,
     countVoice,

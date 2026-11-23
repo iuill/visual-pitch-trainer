@@ -26,6 +26,72 @@
       "repository": "https://github.com/sgossner/VCSL",
       "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
       "processing": "Average stereo channels. Trim at the first sample above 3.5% of peak with 1 ms of pre-roll. Cap duration, normalize peak, and apply a 0.5 ms fade-in and the specified fade-out. Export mono 44.1 kHz PCM16 WAV."
+    },
+    {
+      "file": "snare.wav",
+      "source": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+      "sourceSha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99",
+      "sha256": "de6c82e75decf5725f62f918f0a4c3b827f40ad035db00c94259f1aff69ef567",
+      "durationSeconds": 0.22,
+      "peak": 0.72,
+      "fadeOutSeconds": 0.05,
+      "library": "Versilian Community Sample Library (VCSL)",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "processing": "Average stereo channels. Trim at the first sample above 3.5% of peak with 1 ms of pre-roll. Cap duration, normalize peak, and apply a 0.5 ms fade-in and the specified fade-out. Export mono 44.1 kHz PCM16 WAV."
+    },
+    {
+      "file": "hi-hat.wav",
+      "source": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+      "sourceSha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031",
+      "sha256": "99f590e1673e92efcaa1e11986652febeac5bb72a7810ffc26600b3d3d0e09f2",
+      "durationSeconds": 0.105,
+      "peak": 0.58,
+      "fadeOutSeconds": 0.03,
+      "library": "Versilian Community Sample Library (VCSL)",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "processing": "Average stereo channels. Trim at the first sample above 3.5% of peak with 1 ms of pre-roll. Cap duration, normalize peak, and apply a 0.5 ms fade-in and the specified fade-out. Export mono 44.1 kHz PCM16 WAV."
+    },
+    {
+      "file": "low-tom.wav",
+      "source": "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v3_rr1_Mid.wav",
+      "sourceSha256": "bdc312f2f4c799cb43319a7aa0e664bf6194c6f8b14151051b375968df55eab4",
+      "sha256": "1fd71310adcc52a64e389f085f8cd56274c4a4bac93d61767926874cf6776b6c",
+      "durationSeconds": 0.24,
+      "peak": 0.69,
+      "fadeOutSeconds": 0.05,
+      "library": "Versilian Community Sample Library (VCSL)",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "processing": "Average stereo channels. Trim at the first sample above 3.5% of peak with 1 ms of pre-roll. Cap duration, normalize peak, and apply a 0.5 ms fade-in and the specified fade-out. Export mono 44.1 kHz PCM16 WAV."
+    },
+    {
+      "file": "crash.wav",
+      "source": "Idiophones/Struck Idiophones/Clash Cymbals 1/cymbal_crash1_mf1.wav",
+      "sourceSha256": "3b4a6ed42627eedca39f6480e9825dedeaab538197fc734f85be13ba655aa6aa",
+      "sha256": "c4cd650d1c2e02f07ed626d4a7110dda93d45089e045b6256660510871a8cddb",
+      "durationSeconds": 0.72,
+      "peak": 0.6,
+      "fadeOutSeconds": 0.24,
+      "library": "Versilian Community Sample Library (VCSL)",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "processing": "Average stereo channels. Trim at the first sample above 3.5% of peak with 1 ms of pre-roll. Cap duration, normalize peak, and apply a 0.5 ms fade-in and the specified fade-out. Export mono 44.1 kHz PCM16 WAV."
+    },
+    {
+      "file": "ride.wav",
+      "source": "https://cdn.freesound.org/previews/700/700817_10938187-hq.mp3",
+      "sourceSha256": "6e51ba941cd0e33c734a5315903118de9dd8fd059bc2c51a8bd5253bf1974cb7",
+      "sha256": "b8585863b59f46dc52b7e4bb4a051b49100608e0b0835d8110cabcf1d7d33b80",
+      "durationSeconds": 0.42,
+      "peak": 0.62,
+      "fadeOutSeconds": 0.14,
+      "title": "Ride short mp 2.wav",
+      "author": "HenKonen",
+      "page": "https://freesound.org/people/HenKonen/sounds/700817/",
+      "license": "CC0-1.0",
+      "processing": "Decode the high-quality MP3 preview at 44.1 kHz and average channels. Trim at the first sample above 3.5% of peak with 1 ms of pre-roll. Cap duration, normalize peak, and apply a 0.5 ms fade-in and the specified fade-out. Export mono 44.1 kHz PCM16 WAV."
     }
   ]
 }

@@ -1,8 +1,15 @@
 import {
+  createInstrumentBuffer,
+  type GeneratedInstrument,
+  isGeneratedInstrument,
+} from "./generatedInstruments";
+import {
   findNearestSample,
   REFERENCE_INSTRUMENTS,
   type ReferenceInstrumentId,
 } from "./referenceInstruments";
+
+type PhraseInstrument = ReferenceInstrumentId | GeneratedInstrument;
 
 type Voice = {
   source: OscillatorNode | AudioBufferSourceNode;
@@ -22,6 +29,7 @@ type PlayerOptions = {
 export class ReferencePlayer {
   private readonly output: GainNode;
   private readonly buffers = new Map<string, AudioBuffer>();
+  private readonly generatedBuffers = new Map<string, AudioBuffer>();
   private readonly loading = new Map<ReferenceInstrumentId, Promise<void>>();
   private readonly referenceVoices = new Set<Voice>();
   private readonly scaleVoices = new Set<Voice>();
@@ -261,47 +269,109 @@ export class ReferencePlayer {
     return offset;
   }
 
+  schedulePhraseNote(
+    instrument: PhraseInstrument,
+    frequency: number,
+    at: number,
+    seconds: number,
+    volume: number,
+    bendSemitones?: number,
+  ) {
+    this.createVoice(
+      instrument,
+      frequency,
+      at,
+      seconds - 0.03,
+      this.scaleVoices,
+      volume,
+      bendSemitones,
+    );
+  }
+
+  prepareGeneratedNote(
+    instrument: GeneratedInstrument,
+    frequency: number,
+    seconds: number,
+    bendSemitones = 0,
+  ): AudioBuffer {
+    const key = `${instrument}/${frequency}`;
+    const minimumSeconds = seconds * 2 ** (bendSemitones / 12);
+    const existing = this.generatedBuffers.get(key);
+    if (existing && existing.duration >= minimumSeconds) return existing;
+    const buffer = createInstrumentBuffer(
+      this.context,
+      instrument,
+      frequency,
+      minimumSeconds,
+    );
+    this.generatedBuffers.set(key, buffer);
+    return buffer;
+  }
+
   private createVoice(
-    instrument: ReferenceInstrumentId,
+    instrument: PhraseInstrument,
     frequency: number,
     at: number,
     duration: number | null,
     group: Set<Voice>,
     volume?: number,
+    bendSemitones?: number,
   ) {
     if (this.disposed) throw new Error("Reference player is closed.");
-    const definition = REFERENCE_INSTRUMENTS[instrument];
     let source: OscillatorNode | AudioBufferSourceNode;
-    if (definition.kind === "oscillator") {
-      const oscillator = this.context.createOscillator();
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(frequency, at);
-      source = oscillator;
-    } else {
-      const sample = findNearestSample(definition.samples, frequency);
-      const buffer = this.buffers.get(`${instrument}/${sample.file}`);
-      if (!buffer) throw new Error("Reference instrument is not loaded.");
-      const sampler = this.context.createBufferSource();
-      sampler.buffer = buffer;
-      if (definition.playback === "loop") {
-        sampler.loop = true;
-        sampler.loopStart = 0;
-        sampler.loopEnd = buffer.duration;
+    let attack = 0.01;
+    if (isGeneratedInstrument(instrument)) {
+      const player = this.context.createBufferSource();
+      player.buffer = this.prepareGeneratedNote(
+        instrument,
+        frequency,
+        duration ?? 2,
+        bendSemitones,
+      );
+      if (
+        instrument === "electric-guitar" &&
+        bendSemitones &&
+        duration !== null
+      ) {
+        player.playbackRate.setValueAtTime(1, at);
+        player.playbackRate.linearRampToValueAtTime(
+          2 ** (bendSemitones / 12),
+          at + Math.min(duration / 2, 0.22),
+        );
       }
-      sampler.playbackRate.setValueAtTime(frequency / sample.rootFrequency, at);
-      source = sampler;
+      source = player;
+      attack = instrument === "mellotron" ? 0.035 : 0.004;
+    } else {
+      const definition = REFERENCE_INSTRUMENTS[instrument];
+      if (definition.kind === "oscillator") {
+        const oscillator = this.context.createOscillator();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, at);
+        source = oscillator;
+      } else {
+        const sample = findNearestSample(definition.samples, frequency);
+        const buffer = this.buffers.get(`${instrument}/${sample.file}`);
+        if (!buffer) throw new Error("Reference instrument is not loaded.");
+        const sampler = this.context.createBufferSource();
+        sampler.buffer = buffer;
+        if (definition.playback === "loop") {
+          attack = 0.05;
+          sampler.loop = true;
+          sampler.loopStart = 0;
+          sampler.loopEnd = buffer.duration;
+        }
+        sampler.playbackRate.setValueAtTime(
+          frequency / sample.rootFrequency,
+          at,
+        );
+        source = sampler;
+      }
     }
     const gain = this.context.createGain();
     const level =
       volume === undefined ? 1 : Math.max(0, Math.min(1, volume)) * 0.5;
     gain.gain.setValueAtTime(0, at);
-    gain.gain.linearRampToValueAtTime(
-      level,
-      at +
-        (definition.kind === "samples" && definition.playback === "loop"
-          ? 0.05
-          : 0.01),
-    );
+    gain.gain.linearRampToValueAtTime(level, at + attack);
     if (duration !== null) {
       gain.gain.setValueAtTime(level, at + duration - 0.06);
       gain.gain.linearRampToValueAtTime(0, at + duration);
@@ -356,6 +426,7 @@ export class ReferencePlayer {
     this.stopScale();
     this.disposed = true;
     this.buffers.clear();
+    this.generatedBuffers.clear();
     this.output.disconnect();
   }
 }

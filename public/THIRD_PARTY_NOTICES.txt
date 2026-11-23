@@ -22,18 +22,27 @@ VCSL names place middle C one octave lower. Playback compensates for the
 measured tuning of each recording. These recordings are licensed separately
 from the application's MIT-licensed code.
 
-VCSL — rhythm practice recordings (high tom and bass drum)
+VCSL — rhythm practice recordings (toms, bass drum, snare, closed hi-hat, and crash)
 Source commit: c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e
 License: CC0 1.0 Universal (CC0-1.0).
 Full license: audio/rhythm/LICENSE.txt
 Source recordings, checksums and processing: audio/rhythm/sources.json
 
+HenKonen — "Ride short mp 2.wav" (rock drum kit ride)
+Source: https://freesound.org/people/HenKonen/sounds/700817/
+License: CC0 1.0 Universal (CC0-1.0).
+Full license: audio/rhythm/LICENSE.txt
+Source recording, checksums and processing: audio/rhythm/sources.json
+
 Rhythm practice — compositions and counting voices
 
-The practice arrangements are transcribed from the historical compositions
+Chapter 4 practice arrangements are transcribed from the historical compositions
 and played locally with the bundled piano samples. The app distributes note
 data and its own notation. Score scans, lyrics and recordings of the pieces
 are reference materials and are not included.
+
+The five Chapter 5 pieces are original compositions of this project (MIT).
+Their arrangements use bundled recordings and synthesized instruments.
 
 - Twinkle, Twinkle, Little Star: traditional French melody, also the theme of
   Mozart's K. 265. https://www.loc.gov/nls/services-and-resources/music-service-and-materials/piano-scores-braille/braille-composers-jacob-quilter/

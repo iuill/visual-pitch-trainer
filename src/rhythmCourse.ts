@@ -1,13 +1,19 @@
+import type { SongBar } from "./rhythmArrangement";
+import { ORIGINAL_RHYTHM_STEPS } from "./rhythmOriginalSongs";
+
 export interface RhythmStep {
   id: string;
-  chapter: 1 | 2 | 3 | 4;
+  chapter: 1 | 2 | 3 | 4 | 5;
   title: string;
   hint: string;
   bpm: number;
-  beatsPerBar?: 2 | 3 | 4;
+  beatsPerBar?: 2 | 3 | 4 | 7;
+  beatGroups?: readonly number[];
   patterns: readonly string[];
   feetOnly?: boolean;
   melody?: readonly (readonly number[])[];
+  arrangement?: readonly SongBar[];
+  sections?: readonly { title: string; startBar: number; endBar: number }[];
   requiredStreak: number;
   countSubdivision?: "eighth" | "triplet" | "sixteenth";
   mixed?: boolean;
@@ -16,14 +22,25 @@ export interface RhythmStep {
 export const RHYTHM_BARS = 4;
 
 export function rhythmSlotsPerBeat(step: RhythmStep) {
+  if (step.beatsPerBar === 7) return 1;
   if (step.countSubdivision === "sixteenth") return 4;
   return step.countSubdivision === "triplet" ? 3 : 2;
 }
+
+export function rhythmPulseUnits(step: RhythmStep) {
+  return step.beatsPerBar === 7 ? 2 : 1;
+}
+
+export function rhythmBeatAccent(step: RhythmStep, pulse: number) {
+  return pulse === 0 || step.beatGroups?.includes(pulse) === true;
+}
+
 export const RHYTHM_CHAPTERS = [
   "ゆっくり基礎",
   "だんだん速く",
   "裏拍",
   "実践編",
+  "実践編2",
 ];
 
 export type RhythmNoteValue =
@@ -501,6 +518,7 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
     requiredStreak: 2,
     countSubdivision: "triplet",
   },
+  ...ORIGINAL_RHYTHM_STEPS,
 ];
 
 export function createRhythmBars(
