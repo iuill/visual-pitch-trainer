@@ -90,6 +90,15 @@ export class VoiceRangeCheck {
     if (element.textContent !== text) element.textContent = text;
   }
 
+  show(visible: boolean) {
+    this.root.hidden = !visible;
+    if (visible) requestAnimationFrame(() => this.drawGraph());
+  }
+
+  settingsChanged() {
+    this.stop();
+  }
+
   dispose() {
     this.stop();
     this.stopObservingGraph();

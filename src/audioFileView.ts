@@ -266,7 +266,7 @@ export function setupAudioFileView() {
         elements.audioFileView.hidden = !visible;
         if (visible) requestAnimationFrame(drawAudioRangeGraph);
       },
-      pause: pauseAudioFilePlayback,
+      stop: pauseAudioFilePlayback,
       dispose() {
         state.operation?.controller.abort();
         stopAudioAnalysisMemoryTracking();
