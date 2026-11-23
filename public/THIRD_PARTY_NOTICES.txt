@@ -22,6 +22,50 @@ VCSL names place middle C one octave lower. Playback compensates for the
 measured tuning of each recording. These recordings are licensed separately
 from the application's MIT-licensed code.
 
+VCSL — rhythm practice recordings (high tom and bass drum)
+Source commit: c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e
+License: CC0 1.0 Universal (CC0-1.0).
+Full license: audio/rhythm/LICENSE.txt
+Source recordings, checksums and processing: audio/rhythm/sources.json
+
+Rhythm practice — compositions and counting voices
+
+The practice arrangements are transcribed from the historical compositions
+and played locally with the bundled piano samples. The app distributes note
+data and its own notation. Score scans, lyrics and recordings of the pieces
+are reference materials and are not included.
+
+- Twinkle, Twinkle, Little Star: traditional French melody, also the theme of
+  Mozart's K. 265. https://www.loc.gov/nls/services-and-resources/music-service-and-materials/piano-scores-braille/braille-composers-jacob-quilter/
+- Furusato: Teiichi Okano (1878–1941), from the 1914 Ministry of Education
+  songbook. https://crd.ndl.go.jp/reference/entry/index.php?id=1000018285&page=ref_view
+- Für Elise and Symphony No. 5: Ludwig van Beethoven (1770–1827).
+  https://commons.wikimedia.org/wiki/File:Beethoven_WoO_59_Erstausgabe.png
+  https://www.esm.rochester.edu/beethoven/symphony-no-5/
+- The Blue Danube: Johann Strauss II (1825–1899), first waltz.
+  https://www.digital.wienbibliothek.at/wbrobv/content/titleinfo/2606471
+- Turkish March, K. 331: Wolfgang Amadeus Mozart (1756–1791).
+  https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=108
+- Carmen, Habanera: Georges Bizet (1838–1875), based on a song by Sebastián
+  Yradier (1809–1865). The exercise uses the opening accompaniment rhythm.
+  https://hdwlabs.artsci.wustl.edu/bizet/works/Carmen.html
+  https://www.loc.gov/item/2023832098/
+- Canon in D: Johann Pachelbel (1653–1706). Historical source: Berlin State
+  Library, Mus.ms. 16481/8.
+  https://imslp.org/wiki/Canon_in_D_(Pachelbel,_Johann)
+- Moonlight Sonata, first movement: Ludwig van Beethoven (1770–1827).
+  The exercise uses the opening arpeggios.
+  https://hdl.handle.net/1802/4754
+- From the New World, second movement (Largo): Antonín Dvořák (1841–1904).
+  The exercise uses the instrumental theme known as Goin' Home.
+  https://urresearch.rochester.edu/institutionalPublicationPublicView.action?institutionalItemVersionId=18093
+- Minuet in G major, BWV Anh. 114: attributed to Christian Petzold (1677–1733).
+  https://www.mutopiaproject.org/ftp/BachJS/BWVAnh114/anna-magdalena-04/anna-magdalena-04-a4.pdf
+
+Counting voices: English counting words synthesized locally with stock eSpeak
+NG formant voices. The synthesizer is GPL-3.0-or-later. Only the generated WAV
+output is included. See audio/count/LICENSE.txt and audio/count/sources.json.
+
 pitchy
 https://github.com/ianprime0509/pitchy
 
@@ -96,6 +140,15 @@ https://lame.sourceforge.io/
 LAME is licensed under the GNU Lesser General Public License.
 License information:
 https://lame.sourceforge.io/license.txt
+LAME 3.100 source: https://sourceforge.net/projects/lame/files/lame/3.100/
+The source and rebuild instructions for the bundled WASM bridge are in
+the @mediabunny/mp3-encoder 1.61.1 source revision:
+https://github.com/Vanilagy/mediabunny/tree/922054aaac0bfe5e48545a46205038d6e73dc0d1/packages/mp3-encoder
+
+Web fonts — Noto Sans JP and Yuji Syuku
+These fonts are served by Google Fonts under the SIL Open Font License 1.1.
+https://github.com/google/fonts/blob/main/ofl/notosansjp/OFL.txt
+https://github.com/google/fonts/blob/main/ofl/yujisyuku/OFL.txt
 
 demucs-web
 https://github.com/timcsy/demucs-web
@@ -132,6 +185,8 @@ Licensed under the MIT License.
 The vocal extraction model file is not bundled with this application. It is
 loaded at runtime from the default Hugging Face URL documented by demucs-web:
 https://huggingface.co/timcsy/demucs-web-onnx/resolve/main/htdemucs_embedded.onnx
+Original Demucs project: https://github.com/facebookresearch/demucs
+The ONNX download page does not provide a separate model license.
 
 Additional bundled/transitive packages introduced by ONNX Runtime Web include:
 

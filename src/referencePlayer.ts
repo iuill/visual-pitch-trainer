@@ -237,22 +237,26 @@ export class ReferencePlayer {
 
   playPhrase(
     instrument: ReferenceInstrumentId,
-    notes: readonly { frequency: number; seconds: number }[],
+    notes: readonly {
+      frequency: number;
+      seconds: number;
+      offsetSeconds?: number;
+    }[],
+    startAt = this.context.currentTime + 0.01,
   ) {
     this.stopScale();
-    const start = this.context.currentTime + 0.01;
-    let at = start;
-    for (const { frequency, seconds } of notes) {
+    let offset = 0;
+    for (const { frequency, seconds, offsetSeconds = offset } of notes) {
       this.createVoice(
         instrument,
         frequency,
-        at,
+        startAt + offsetSeconds,
         seconds - 0.08,
         this.scaleVoices,
       );
-      at += seconds;
+      offset = offsetSeconds + seconds;
     }
-    return at - start;
+    return offset;
   }
 
   private createVoice(
