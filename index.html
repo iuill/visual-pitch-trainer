@@ -411,7 +411,7 @@
                 accept="audio/*,video/*,.mp3,.m4a,.aac,.wav,.mp4,.mov,.webm,.mkv"
               />
             </label>
-            <div class="file-picker playback-file-picker">
+            <div class="file-picker">
               <label class="checkbox-row" for="useSeparatePlaybackAudioInput">
                 <input id="useSeparatePlaybackAudioInput" type="checkbox" />
                 別の再生用音源を使う
@@ -435,7 +435,7 @@
               <option value="bs-roformer-fp16">高品質: BS-RoFormer fp16 2-stem（約310MB）</option>
             </select>
             <span id="vocalSeparationModelHelp" class="setting-help info-note compact-info-note">
-              <button class="info-note-icon" type="button" aria-label="抽出モデルの補足" aria-describedby="vocalSeparationModelTooltip">i</button>
+              <button class="info-button" type="button" aria-label="抽出モデルの補足" aria-describedby="vocalSeparationModelTooltip">i</button>
               <span id="vocalSeparationModelTooltip" class="info-note-popup" role="tooltip">
                 ボーカル抽出はDemucs / BS-RoFormerのどちらもWebGPUと大きなモデルを使うため、ゲーミングPC相当の環境での利用を推奨します。通常のPCやスマホでは、抽出済みボーカル音源を読み込むか、ボーカル抽出を使わずに解析してください。
               </span>
@@ -452,7 +452,7 @@
               <option value="crepe-full">CREPE full（約89MB）</option>
             </select>
             <span id="audioPitchEstimatorHelp" class="setting-help info-note compact-info-note">
-              <button class="info-note-icon" type="button" aria-label="ピッチ推定の補足" aria-describedby="audioPitchEstimatorTooltip">i</button>
+              <button class="info-button" type="button" aria-label="ピッチ推定の補足" aria-describedby="audioPitchEstimatorTooltip">i</button>
               <span id="audioPitchEstimatorTooltip" class="info-note-popup" role="tooltip">
                 既定のRMVPEはゲーミングPCでの利用想定です。通常のPCやスマホでは軽量なpitchyを選んでください。RMVPEは初回ロードに時間がかかりますが推定は高速です。CREPEは初回ロードは軽めですが推定は重めです。
               </span>
@@ -498,10 +498,10 @@
                 </button>
               </fieldset>
               <fieldset class="audio-seek-controls" aria-label="音源の再生位置調整">
-                <button class="mini-button" type="button" data-audio-seek="-10" disabled>-10秒</button>
-                <button class="mini-button" type="button" data-audio-seek="-5" disabled>-5秒</button>
-                <button class="mini-button" type="button" data-audio-seek="5" disabled>+5秒</button>
-                <button class="mini-button" type="button" data-audio-seek="10" disabled>+10秒</button>
+                <button class="secondary-button mini-button" type="button" data-audio-seek="-10" disabled>-10秒</button>
+                <button class="secondary-button mini-button" type="button" data-audio-seek="-5" disabled>-5秒</button>
+                <button class="secondary-button mini-button" type="button" data-audio-seek="5" disabled>+5秒</button>
+                <button class="secondary-button mini-button" type="button" data-audio-seek="10" disabled>+10秒</button>
               </fieldset>
               <span id="audioPlaybackTime">0:00 / 0:00</span>
             </div>

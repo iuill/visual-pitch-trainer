@@ -17,6 +17,7 @@
   --graph-trend: #1f5f93;
   --panel-padding: 18px;
   --panel-radius: 8px;
+  --control-height: 48px;
   --mobile-actions-space: calc(82px + env(safe-area-inset-bottom));
   --shadow: 0 14px 40px rgba(23, 32, 38, 0.08);
 }
@@ -54,6 +55,42 @@ button {
 :where(button, input, select, summary, [tabindex="0"]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+details > summary {
+  min-height: 44px;
+  padding: 8px 0;
+  color: var(--accent-strong);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+:is(select, input[type="text"], input[type="file"]) {
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--control-height);
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+input[type="file"] {
+  padding-block: 9px;
+}
+
+:is(select, input[type="text"], input[type="file"]):disabled {
+  background: #eef2f3;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--accent);
 }
 
 .app-shell {
@@ -320,10 +357,6 @@ fieldset {
   min-width: 0;
 }
 
-.reference-instrument-picker select {
-  min-width: 0;
-}
-
 .reference-instrument-status {
   margin: 8px 0 12px;
   color: var(--muted);
@@ -347,7 +380,7 @@ fieldset {
 
 .primary-button,
 .secondary-button {
-  min-height: 48px;
+  min-height: var(--control-height);
 }
 
 .primary-button {
@@ -473,16 +506,6 @@ fieldset {
 .melody-practice p {
   overflow-wrap: anywhere;
 }
-.melody-practice select,
-.melody-practice input {
-  min-width: 0;
-  width: 100%;
-}
-.melody-practice input {
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
 .melody-practice [hidden] {
   display: none;
 }
@@ -499,10 +522,6 @@ fieldset {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-.tone-scale-actions select {
-  width: auto;
-  max-width: 100%;
 }
 .melody-notes {
   position: relative;
@@ -600,21 +619,12 @@ fieldset {
 input[type="range"] {
   width: 100%;
   min-width: 0;
+  accent-color: var(--accent);
 }
 
 .setting-row output {
   min-width: 4.8em;
   text-align: right;
-}
-
-.setting-row select {
-  width: 100%;
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text);
-  padding: 0 10px;
 }
 
 .device-row {
@@ -627,15 +637,11 @@ input[type="range"] {
   color: var(--muted);
 }
 
-.device-row select {
+.setting-row select,
+.setting-row input[type="text"],
+.device-row select,
+.file-picker input[type="file"] {
   width: 100%;
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text);
-  padding: 0 10px;
-  font: inherit;
 }
 
 .device-row p {
@@ -711,16 +717,6 @@ input[type="range"] {
   font-weight: 700;
 }
 
-.file-picker input {
-  width: 100%;
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text);
-  padding: 9px 10px;
-}
-
 .checkbox-row {
   display: inline-flex;
   gap: 8px;
@@ -728,22 +724,11 @@ input[type="range"] {
   cursor: pointer;
 }
 
-.playback-file-picker input[type="checkbox"] {
-  width: 18px;
-  min-height: 18px;
-  padding: 0;
-}
-
 .vocal-extraction-row {
   width: fit-content;
   margin-top: 12px;
   color: var(--text);
   font-weight: 700;
-}
-
-.vocal-extraction-row input {
-  width: 18px;
-  min-height: 18px;
 }
 
 .playback-source-row,
@@ -794,22 +779,6 @@ input[type="range"] {
   padding: 10px 12px 10px 16px;
 }
 
-.info-note-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  margin-top: 2px;
-  background: #2f74b5;
-  border: 1px solid #2f74b5;
-  border-radius: 50%;
-  color: #fff;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 0.9rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
 .compact-info-note {
   display: inline-grid;
   width: fit-content;
@@ -817,16 +786,6 @@ input[type="range"] {
   padding: 0;
   border: 0;
   background: transparent;
-}
-
-.compact-info-note .info-note-icon {
-  padding: 0;
-  cursor: help;
-  outline: none;
-}
-
-.compact-info-note .info-note-icon:focus-visible {
-  box-shadow: 0 0 0 3px rgba(47, 116, 181, 0.24);
 }
 
 .info-note-popup {
@@ -856,11 +815,6 @@ input[type="range"] {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
-}
-
-.playback-file-picker input[type="file"]:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .file-analysis-status {
@@ -940,19 +894,8 @@ input[type="range"] {
 }
 
 .mini-button {
-  min-height: 34px;
+  min-height: 44px;
   padding: 6px 9px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.mini-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .voice-range-grid {
@@ -1357,6 +1300,10 @@ input[type="range"] {
 }
 
 @media (max-width: 520px) {
+  :root {
+    --control-height: 54px;
+  }
+
   body {
     font-size: 16px;
   }
@@ -1474,7 +1421,6 @@ input[type="range"] {
 
   .primary-button,
   .secondary-button {
-    min-height: 54px;
     padding: 0 12px;
     font-size: 1rem;
   }
@@ -1557,7 +1503,7 @@ input[type="range"] {
     font-size: 0.98rem;
   }
 
-  .file-picker input {
+  input[type="file"] {
     min-height: 52px;
     padding: 11px 12px;
     font-size: 1rem;
@@ -1596,7 +1542,6 @@ input[type="range"] {
   }
 
   .mini-button {
-    min-height: 42px;
     padding: 8px 6px;
     font-size: 0.95rem;
   }
@@ -1669,13 +1614,6 @@ input[type="range"] {
 }
 .control-panel {
   align-self: start;
-}
-.melody-sequence > summary {
-  min-height: 44px;
-  padding: 8px 0;
-  cursor: pointer;
-  font-weight: 700;
-  color: var(--accent-strong);
 }
 .practice-advanced {
   margin-top: 24px;
@@ -1939,11 +1877,6 @@ body[data-practice-view="melody"] .control-panel {
   gap: 8px;
   line-height: 1.6;
 }
-.melody-countdown-setting input {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-}
 #melodyCanvas {
   display: block;
   max-width: none;
@@ -2138,11 +2071,6 @@ body[data-practice-view="melody"] .control-panel {
 .game-setup {
   margin-bottom: 16px;
 }
-.game-practice .game-setup > summary {
-  cursor: pointer;
-  padding: 8px 0;
-  font-weight: 700;
-}
 .game-setup[open] .game-settings {
   margin-top: 12px;
 }
@@ -2215,11 +2143,6 @@ body[data-practice-view="melody"] .control-panel {
 .game-history {
   margin-top: 20px;
 }
-.game-practice .game-history > summary {
-  cursor: pointer;
-  padding: 8px 0;
-  font-weight: 700;
-}
 .game-feedback-area {
   position: relative;
   margin: 16px 0;
@@ -2275,11 +2198,6 @@ body[data-practice-view="melody"] .control-panel {
   align-items: center;
   gap: 8px;
   grid-column: 1 / -1;
-}
-.game-sound-setting input {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
 }
 .game-result {
   padding: 20px;
@@ -2488,10 +2406,6 @@ body:has(.settings-dialog[open]) {
   color: var(--danger);
   font-weight: 700;
 }
-.settings-dialog select,
-.settings-dialog input {
-  min-width: 0;
-}
 .melody-settings {
   width: min(640px, calc(100% - 32px));
 }
@@ -2515,12 +2429,6 @@ body:has(.settings-dialog[open]) {
   .settings-dialog .setting-row.select-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
-  }
-  .settings-dialog select {
-    width: 100%;
-  }
-  .settings-dialog input[type="range"] {
-    width: 100%;
   }
 }
 .common-settings-help {
@@ -2656,10 +2564,6 @@ body:has(.settings-dialog[open]) {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-}
-.voice-range-graph-header select {
-  max-width: 100%;
-  min-height: 44px;
 }
 .voice-range-canvas {
   display: block;
