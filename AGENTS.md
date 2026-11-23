@@ -21,6 +21,7 @@
   - `src/microphone.ts`: マイク入力の取得・解放と、フレームごとの音量・音程の読み取り。
   - `src/audioContext.ts`: AudioContext の生成と共有コンテキストの管理。
   - `src/audioFileView.ts` / `src/audioAnalysisPipeline.ts`: 音源の声域確認と解析の流れ。
+  - `src/audioFilePlayback.ts`: 音源プレーヤーと一時URL、再生位置の管理。
   - `src/audioRangeGraph.ts` / `src/singlePracticeGraph.ts`: 音源の声域と単音練習のグラフ描画。
   - `model-comparison.html` / `src/modelComparisonTool.ts`: 開発用の音源解析モデル比較。
   - `src/pitchMath.ts`: 音名、MIDI、周波数、音程差などの計算。

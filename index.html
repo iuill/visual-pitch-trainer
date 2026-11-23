@@ -541,13 +541,21 @@
               aria-hidden="true"
             ></canvas>
             <div class="audio-range-scroll">
-              <canvas
-                id="audioRangeCanvas"
-                width="960"
-                height="260"
-                aria-label="音源から推定した声域グラフ"
-                aria-describedby="audioRangeDescription"
-              ></canvas>
+              <div class="audio-range-content">
+                <canvas
+                  id="audioRangeCanvas"
+                  width="960"
+                  height="260"
+                  aria-label="音源から推定した声域グラフ"
+                  aria-describedby="audioRangeDescription"
+                ></canvas>
+                <div id="audioRangeCursor" aria-hidden="true" hidden>
+                  <span id="audioRangeCursorTime"></span>
+                  <span class="audio-range-cursor-pitch">
+                    <span id="audioRangeCursorPitch" hidden></span>
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
