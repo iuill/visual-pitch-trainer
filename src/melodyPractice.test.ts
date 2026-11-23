@@ -38,7 +38,7 @@ describe("melody practice", () => {
       buildMelody("three-tone", "", 60, 1).map((note) => note.name),
     ).toEqual(["D4", "E4", "F4", "E4"]);
     expect(
-      buildMelody("five-tone", "", 60, 4).map((note) => note.name),
+      buildMelody("five-tone", "", 60, 3).map((note) => note.name),
     ).toEqual(["F4", "G4", "A4", "B4", "C5", "B4", "A4", "G4"]);
   });
   test("picks a different in-range start within the selected number of steps", () => {

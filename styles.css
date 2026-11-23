@@ -364,6 +364,7 @@ fieldset {
 }
 
 .secondary-button:disabled,
+.tone-scale-actions .secondary-button[aria-disabled="true"],
 .icon-button:disabled {
   border-color: #dfe5e8;
   background: #eef2f3;

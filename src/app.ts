@@ -2497,9 +2497,16 @@ function updateToneScaleControls() {
   elements.toneScaleManual.hidden = random;
   elements.toneScaleNext.hidden = !random;
   elements.toneScaleRandom.disabled = locked;
-  elements.toneScaleDown.disabled = locked || toneScaleStartDegree === 0;
-  elements.toneScaleUp.disabled =
-    locked || toneScaleStartDegree === getLastToneScaleStart(tones);
+  elements.toneScaleDown.disabled = locked;
+  elements.toneScaleUp.disabled = locked;
+  elements.toneScaleDown.setAttribute(
+    "aria-disabled",
+    String(locked || toneScaleStartDegree === 0),
+  );
+  elements.toneScaleUp.setAttribute(
+    "aria-disabled",
+    String(locked || toneScaleStartDegree === getLastToneScaleStart(tones)),
+  );
   elements.toneScaleNext.disabled = locked;
 }
 
@@ -2544,7 +2551,9 @@ function renderMelodyPreview() {
     const notes = selectedMelody();
     if (!elements.toneScaleControls.hidden) {
       const start = notes[0];
-      elements.toneScaleStart.textContent = `開始音：${start.solfege}（${start.name}）`;
+      const label = `開始音：${start.solfege}（${start.name}）`;
+      if (elements.toneScaleStart.textContent !== label)
+        elements.toneScaleStart.textContent = label;
     }
     updateMelodyMovement(notes, 0);
     melodyGraphData = {
@@ -2569,7 +2578,9 @@ function renderMelodyPreview() {
       }),
     );
     const duration = notes.length * Number(elements.melodySecondsSelect.value);
-    elements.melodyStatus.textContent = `${notes.length}音・1周${duration}秒。3秒の準備後、お手本と一緒に発声します。停止するまで繰り返します。`;
+    const message = `${notes.length}音・1周${duration}秒。3秒の準備後、お手本と一緒に発声します。停止するまで繰り返します。`;
+    if (elements.melodyStatus.textContent !== message)
+      elements.melodyStatus.textContent = message;
     elements.playScaleButton.disabled = !isAudioContextSupported();
   } catch (error) {
     elements.melodyNotes.replaceChildren();
