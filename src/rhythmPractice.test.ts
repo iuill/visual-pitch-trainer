@@ -17,6 +17,7 @@ import {
   RHYTHM_NOTE_BEATS,
   RHYTHM_STEPS,
   rhythmBeatAccent,
+  rhythmPulseDynamics,
   rhythmPulseLevel,
   rhythmPulseUnits,
   rhythmSlotsPerBeat,
@@ -37,6 +38,15 @@ import {
 } from "./rhythmProgressStore";
 
 describe("rhythm course", () => {
+  test("keeps spoken subdivisions quieter than weak beats", () => {
+    const [downbeat, offbeat, weak, secondary, last] = [0, 0.5, 1, 2, 3].map(
+      (pulse) => rhythmPulseDynamics(RHYTHM_STEPS[0], pulse).voiceLevel,
+    );
+    expect(downbeat).toBeGreaterThan(secondary);
+    expect(secondary).toBeGreaterThan(weak);
+    expect(weak).toBe(last);
+    expect(weak).toBeGreaterThan(offbeat);
+  });
   test("distinguishes downbeats, secondary accents and weak beats by meter", () => {
     const step = RHYTHM_STEPS[0];
     const levels = (meter: typeof step, pulses: number[]) =>
