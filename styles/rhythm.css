@@ -409,6 +409,10 @@
   font-weight: 700;
 }
 
+.rhythm-score-hand-label {
+  display: block;
+}
+
 .rhythm-score-foot-label,
 .rhythm-score-slot[data-foot] {
   grid-row: 2;

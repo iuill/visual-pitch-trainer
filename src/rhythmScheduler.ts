@@ -133,7 +133,7 @@ export class RhythmScheduler {
             source,
             when,
             buffer.duration / rate,
-            level * (0.28 + 0.72 * pulseLevel),
+            level * (0.44 + 0.56 * pulseLevel),
           );
         } else {
           this.tone(
@@ -141,7 +141,7 @@ export class RhythmScheduler {
             620 + 720 * pulseLevel,
             when,
             0.033,
-            level * 0.36 * pulseLevel,
+            level * (0.2 + 0.16 * pulseLevel),
           );
         }
       }
@@ -204,7 +204,7 @@ export class RhythmScheduler {
         this.scheduleBassDrum(
           when,
           pulse === 0,
-          0.4 * rhythmPulseLevel(step, pulse),
+          0.1 + 0.3 * rhythmPulseLevel(step, pulse),
         );
       }
     }

@@ -232,7 +232,12 @@ export function buildSongEvents(
           pitch,
           slot,
           ending ? 8 : muted ? 0.9 : 1.8,
-          0.36 + 0.2 * rhythmPulseLevel(step, slot / 2),
+          0.36 +
+            0.2 *
+              rhythmPulseLevel(
+                step,
+                Math.round((slot * length) / 8) / slotsPerPulse,
+              ),
         );
       }
     } else if (ending || part.keys === "held") {

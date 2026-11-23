@@ -343,24 +343,30 @@ describe("rhythm course", () => {
   });
 });
 
-test("detects simultaneous gamepad lanes on the press edge only", () => {
+test("timestamps gamepad press edges and falls back to the current poll time", () => {
   const poll = createRhythmGamepadPoller();
-  const gamepad = (values: Record<number, number>) => ({
+  const gamepad = (values: Record<number, number>, timestamp = 0) => ({
     id: "Xbox Controller",
     connected: true,
     mapping: "standard" as const,
     index: 0,
+    timestamp,
     buttons: Array.from({ length: 17 }, (_, index) => {
       const value = values[index] ?? 0;
       return { value, pressed: value === 1, touched: value > 0 };
     }),
   });
-  expect([...poll([gamepad({ 0: 1, 6: 0.6 })])]).toEqual(["hand", "foot"]);
-  expect([...poll([gamepad({ 0: 1, 6: 0.8 })])]).toEqual([]);
-  expect([...poll([gamepad({ 0: 1, 2: 1, 6: 0.4 })])]).toEqual(["hand"]);
-  expect([...poll([gamepad({ 6: 0.5 })])]).toEqual(["foot"]);
-  expect([...poll([null])]).toEqual([]);
-  expect([...poll([gamepad({ 1: 1 })])]).toEqual(["hand"]);
+  expect([...poll([gamepad({ 0: 1, 6: 0.6 }, 95)], 100)]).toEqual([
+    ["hand", 95],
+    ["foot", 95],
+  ]);
+  expect([...poll([gamepad({ 0: 1, 6: 0.8 }, 112)], 116)]).toEqual([]);
+  expect([...poll([gamepad({ 0: 1, 2: 1, 6: 0.4 }, 95)], 132)]).toEqual([
+    ["hand", 132],
+  ]);
+  expect([...poll([gamepad({ 6: 0.5 })], 148)]).toEqual([["foot", 148]]);
+  expect([...poll([null], 164)]).toEqual([]);
+  expect([...poll([gamepad({ 7: 1 }, 181)], 180)]).toEqual([["foot", 180]]);
 });
 
 describe("rhythm judging", () => {

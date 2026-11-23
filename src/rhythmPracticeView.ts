@@ -944,7 +944,7 @@ export function setupRhythmPractice(
         ? "準備の4拍でリズムをつかみ、測定に入ったら円が光る瞬間にタップします。"
         : mode === "audio"
           ? "準備の4拍でリズムをつかみ、測定に入ったらクリック音が聞こえた瞬間にタップします。"
-          : `タップかスペース・F・Jキーで開始します。同じテンポで準備${practiceCountInBars}小節、本番${preparedBars?.length ?? 0}小節です。本番では Xbox コントローラの A・B・X・Y でもタップできます。`;
+          : `タップかスペース・F・Jキーで開始します。同じテンポで準備${practiceCountInBars}小節、本番${preparedBars?.length ?? 0}小節です。本番ではゲームパッド（Xbox の A・B・X・Y など）でもタップできます。`;
     feedback.textContent = "";
     tap.focus({ preventScroll: true });
     if (mode !== null) stage.scrollIntoView({ block: "nearest" });
@@ -1069,8 +1069,8 @@ export function setupRhythmPractice(
       received++;
     };
     const poll = createGamepadInput();
-    loop.start((timestamp) => {
-      poll(timestamp);
+    loop.start(() => {
+      poll();
       const elapsed = audio.now(mode) - prepMs;
       if (elapsed < 0) {
         count.textContent = countdownText(elapsed);
@@ -1109,16 +1109,19 @@ export function setupRhythmPractice(
   function createGamepadInput() {
     const poll = createRhythmGamepadPoller();
     let available = typeof navigator.getGamepads === "function";
-    return (timestamp: number) => {
+    return () => {
       if (!available || !document.hasFocus()) return;
+      let gamepads: (Gamepad | null)[];
       try {
-        for (const lane of poll(navigator.getGamepads()))
-          acceptTap?.(timestamp, lane);
+        gamepads = navigator.getGamepads();
       } catch (error) {
         if (!(error instanceof DOMException) || error.name !== "SecurityError")
           throw error;
         available = false;
+        return;
       }
+      for (const [lane, timeMs] of poll(gamepads, performance.now()))
+        acceptTap?.(timeMs, lane);
     };
   }
 
@@ -1179,7 +1182,13 @@ export function setupRhythmPractice(
         const bar = document.createElement("li");
         const number = document.createElement("span");
         number.className = "rhythm-score-bar-number";
-        number.textContent = `${from + index + 1}小節${dualLane ? " 手" : ""}`;
+        number.textContent = `${from + index + 1}小節`;
+        if (dualLane) {
+          const handLabel = document.createElement("span");
+          handLabel.className = "rhythm-score-hand-label";
+          handLabel.textContent = "手";
+          number.append(handLabel);
+        }
         bar.append(number);
         for (let slot = 0; slot < pattern.length; slot += stride) {
           const note = document.createElement("span");
@@ -1194,17 +1203,20 @@ export function setupRhythmPractice(
             slotsPerBeat,
           );
           if (value) {
-            note.dataset.note = label;
+            note.dataset.note = dualLane ? `手 ${label}` : label;
             note.setAttribute("role", "img");
             const noteLabel = feetOnly
               ? label
-              : `${label} ${noteNotation[value]}`;
+              : `${note.dataset.note} ${noteNotation[value]}`;
             note.setAttribute("aria-label", `${noteLabel} 未判定`);
             if (feetOnly) note.append(createFootprint());
             else note.append(createNoteIcon(value));
           } else if (rest) {
             note.setAttribute("role", "img");
-            note.setAttribute("aria-label", `${label} ${restNotation[rest]}`);
+            note.setAttribute(
+              "aria-label",
+              `${dualLane ? "手 " : ""}${label} ${restNotation[rest]}`,
+            );
             note.append(createRestIcon(rest));
           } else {
             note.setAttribute("aria-hidden", "true");
@@ -1280,7 +1292,7 @@ export function setupRhythmPractice(
       (step.feetOnly
         ? "足あとの中心線が判定ラインに重なった瞬間にタップします。"
         : "上段の音符の中心線が判定ラインに重なった瞬間にタップします。足は下段の足あとに合わせます。") +
-      "Xbox コントローラは A・B・X・Y でタップできます。" +
+      "ゲームパッドでもタップできます（Xbox では A・B・X・Y）。" +
       (settings.judgeFeet
         ? "足の拍は K キーか LB・RB・LT・RT で入力できます。"
         : "") +
@@ -1372,12 +1384,12 @@ export function setupRhythmPractice(
         ),
         startMs / 1000,
       );
-      for (const beat of counts.slice(countInBeats)) {
-        const downbeat = beat.pulseLevel === 1;
+      for (const [index, beat] of counts.slice(countInBeats).entries()) {
+        const downbeat = index % beatsPerBar === 0;
         audio.player.scheduleBassDrum(
           beat.timeMs / 1000,
           downbeat,
-          settings.volume * 0.66 * (beat.pulseLevel ?? 1),
+          settings.volume * (0.26 + 0.4 * (beat.pulseLevel ?? 1)),
         );
       }
     }
@@ -1514,8 +1526,8 @@ export function setupRhythmPractice(
     }
 
     const poll = createGamepadInput();
-    loop.start((timestamp) => {
-      poll(timestamp);
+    loop.start(() => {
+      poll();
       const visibleMs = audio.now(clockGuide);
       const elapsed = visibleMs - firstBeatMs;
       const countInWidth = Math.min(
@@ -1730,7 +1742,6 @@ export function setupRhythmPractice(
       }
       return;
     }
-    if (event.code === "Space" && focused === footTap) return;
     if (
       focused !== tap &&
       focused !== footTap &&
@@ -1744,20 +1755,24 @@ export function setupRhythmPractice(
   }
   document.addEventListener("keydown", handleKey);
   function handleKeyUp(event: KeyboardEvent) {
-    if (acceptTap && event.code === "Space" && document.activeElement === tap)
+    const focused = document.activeElement;
+    if (
+      acceptTap &&
+      event.code === "Space" &&
+      (focused === tap || focused === footTap)
+    )
       event.preventDefault();
   }
   document.addEventListener("keyup", handleKeyUp);
   tap.addEventListener("pointerdown", (event) => {
-    if (event.isPrimary && event.button === 0) acceptTap?.(event.timeStamp);
+    if (event.button === 0) acceptTap?.(event.timeStamp);
   });
   tap.addEventListener("click", (event) => {
     if (preparedBars) void play();
     else if (event.detail === 0) acceptTap?.(event.timeStamp);
   });
   footTap.addEventListener("pointerdown", (event) => {
-    if (event.isPrimary && event.button === 0)
-      acceptTap?.(event.timeStamp, "foot");
+    if (event.button === 0) acceptTap?.(event.timeStamp, "foot");
   });
   footTap.addEventListener("click", (event) => {
     if (event.detail === 0) acceptTap?.(event.timeStamp, "foot");
