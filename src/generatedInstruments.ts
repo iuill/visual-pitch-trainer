@@ -19,9 +19,14 @@ export function createInstrumentBuffer(
   context: BaseAudioContext,
   instrument: GeneratedInstrument,
   frequency: number,
+  minimumSeconds: number,
 ) {
   const sampleRate = 24_000;
-  const buffer = context.createBuffer(1, sampleRate * 2, sampleRate);
+  const buffer = context.createBuffer(
+    1,
+    Math.ceil(sampleRate * Math.max(2, minimumSeconds)),
+    sampleRate,
+  );
   const samples = buffer.getChannelData(0);
   if (instrument === "synth-lead" || instrument === "mellotron") {
     renderKeys(samples, sampleRate, frequency, instrument === "mellotron");

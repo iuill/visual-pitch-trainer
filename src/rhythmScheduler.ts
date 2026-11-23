@@ -4,6 +4,7 @@ import type { RhythmGrade } from "./rhythmJudge";
 import type { RhythmCountVoice, RhythmSound } from "./rhythmProgressStore";
 
 const countFiles = ["one", "two", "three", "four", "and"];
+const maxCountRate = 1.4;
 
 export interface RhythmCount {
   timeMs: number;
@@ -113,11 +114,14 @@ export class RhythmScheduler {
         const available =
           Math.min(counts[next]?.timeMs ?? endMs, endMs) / 1000 - when;
         const buffer = cue === "voice" ? voices?.[count.voiceIndex] : undefined;
-        if (buffer && available > 0) {
+        // Leave a short gap before the next beat or the start of the song.
+        const rate =
+          buffer && available > 0
+            ? Math.max(1, buffer.duration / (available * 0.97))
+            : Infinity;
+        if (buffer && rate <= maxCountRate) {
           const source = this.context.createBufferSource();
           source.buffer = buffer;
-          // Leave a short gap before the next beat or the start of the song.
-          const rate = Math.max(1, buffer.duration / (available * 0.97));
           source.playbackRate.setValueAtTime(rate, when);
           this.play(
             source,

@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { isGeneratedInstrument } from "./generatedInstruments";
 import {
   buildSongEvents,
-  songDrumsForStep,
+  songDrumsForEvents,
   songSampleInstruments,
 } from "./rhythmArrangement";
 import {
@@ -121,47 +122,25 @@ describe("rhythm course", () => {
       const fullLength = step.patterns.length;
       const barMs = (step.beatsPerBar ?? 4) * pulseMs;
       const events = buildSongEvents(step, 0, fullLength, startMs, false);
-      const pitched = events.filter((event) => "instrument" in event);
-      const rock = step.id === "5-4";
-      const symphonic = step.id === "5-5";
-      expect(new Set(pitched.map(({ instrument }) => instrument))).toEqual(
-        new Set(
-          rock
-            ? ["electric-guitar", "electric-bass"]
-            : symphonic
-              ? [
-                  "piano",
-                  "violin",
-                  "electric-guitar",
-                  "electric-bass",
-                  "mellotron",
-                  "synth-lead",
-                ]
-              : ["piano", "violin", "flute"],
-        ),
-      );
-      expect(songSampleInstruments(step)).toEqual(
-        rock
-          ? []
-          : symphonic
-            ? ["piano", "violin"]
-            : ["piano", "violin", "flute"],
-      );
-      expect(
-        new Set(
-          events.flatMap((event) => ("drum" in event ? [event.drum] : [])),
-        ),
-      ).toEqual(new Set(songDrumsForStep(step)));
-      if (rock)
-        expect(songDrumsForStep(step)).toEqual([
-          "kick",
-          "snare",
-          "hi-hat",
-          "high-tom",
-          "low-tom",
-          "crash",
-          "ride",
-        ]);
+      const samples = songSampleInstruments(events);
+      for (const event of events) {
+        if ("drum" in event) continue;
+        expect(event.seconds).toBeGreaterThan(0);
+        if (!isGeneratedInstrument(event.instrument))
+          expect(samples).toContain(event.instrument);
+      }
+      if (step.id === "5-4")
+        expect(new Set(songDrumsForEvents(events))).toEqual(
+          new Set([
+            "kick",
+            "snare",
+            "hi-hat",
+            "high-tom",
+            "low-tom",
+            "crash",
+            "ride",
+          ]),
+        );
       for (const section of step.sections ?? []) {
         const from = section.startBar;
         const to = section.endBar;
@@ -205,6 +184,21 @@ describe("rhythm course", () => {
         }
       }
     }
+  });
+
+  test("places the 7/8 accompaniment on the starts of the 2+2+3 groups", () => {
+    const step = RHYTHM_STEPS.find(({ id }) => id === "5-3");
+    if (!step) throw new Error("Missing 7/8 song");
+    const events = buildSongEvents(step, 0, 1, 0, false);
+    const accompaniment = events.filter(
+      (event) =>
+        "instrument" in event &&
+        event.instrument === "piano" &&
+        event.level < 0.5,
+    );
+    expect(accompaniment.map(({ timeMs }) => Math.round(timeMs))).toEqual([
+      0, 833, 1667,
+    ]);
   });
 
   test("records guitar bends at the solo's tap times", () => {

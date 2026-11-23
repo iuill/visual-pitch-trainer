@@ -6,7 +6,8 @@ import { midiToFrequency } from "./pitchMath";
 import type { ReferencePlayer } from "./referencePlayer";
 import {
   buildSongEvents,
-  songDrumsForStep,
+  type SongEvent,
+  songDrumsForEvents,
   songSampleInstruments,
 } from "./rhythmArrangement";
 import {
@@ -654,14 +655,26 @@ export function setupRhythmPractice(
     melodyPlayer = null;
   }
 
-  async function prepareMelody(player: ReferencePlayer, step: RhythmStep) {
-    const requested = songSampleInstruments(step);
+  async function prepareMelody(
+    player: ReferencePlayer,
+    events?: readonly SongEvent[],
+  ) {
+    const requested = songSampleInstruments(events);
     const prepared = await Promise.allSettled(
       requested.map((instrument) => player.prepare(instrument)),
     );
     const instruments = new Set(
       requested.filter((_, index) => prepared[index].status === "fulfilled"),
     );
+    for (const event of events ?? []) {
+      if ("instrument" in event && isGeneratedInstrument(event.instrument))
+        player.prepareGeneratedNote(
+          event.instrument,
+          midiToFrequency(event.midi),
+          event.seconds,
+          event.bendSemitones,
+        );
+    }
     return {
       instruments,
       substitute: instruments.has("piano")
@@ -670,7 +683,7 @@ export function setupRhythmPractice(
       message:
         instruments.size === requested.length
           ? ""
-          : step.arrangement
+          : events
             ? "読み込めなかった楽器は別の音色で再生します。"
             : "ピアノを読み込めなかったため、電子音でメロディーを再生します。",
     };
@@ -680,36 +693,30 @@ export function setupRhythmPractice(
     player: RhythmScheduler,
     reference: ReferencePlayer,
     sounds: Awaited<ReturnType<typeof prepareMelody>>,
-    step: RhythmStep,
-    range: { from: number; to: number },
+    events: readonly SongEvent[],
     startMs: number,
     volume: number,
-    footGuide: boolean,
   ) {
-    const events = buildSongEvents(
-      step,
-      range.from,
-      range.to,
-      startMs,
-      footGuide,
-    );
     melodyPlayer = reference;
-    player.scheduleTrack(events, (event) => {
-      const when = event.timeMs / 1000;
-      if ("instrument" in event)
-        reference.schedulePhraseNote(
-          isGeneratedInstrument(event.instrument) ||
-            sounds.instruments.has(event.instrument)
-            ? event.instrument
-            : sounds.substitute,
-          midiToFrequency(event.midi),
-          when,
-          event.seconds,
-          volume * event.level,
-          event.bendSemitones,
-        );
-      else player.scheduleDrum(event.drum, when, volume * event.level);
-    });
+    player.scheduleTrack(
+      events.map((event) => ({ ...event, timeMs: startMs + event.timeMs })),
+      (event) => {
+        const when = event.timeMs / 1000;
+        if ("instrument" in event)
+          reference.schedulePhraseNote(
+            isGeneratedInstrument(event.instrument) ||
+              sounds.instruments.has(event.instrument)
+              ? event.instrument
+              : sounds.substitute,
+            midiToFrequency(event.midi),
+            when,
+            event.seconds,
+            volume * event.level,
+            event.bendSemitones,
+          );
+        else player.scheduleDrum(event.drum, when, volume * event.level);
+      },
+    );
   }
 
   function stopExample() {
@@ -769,12 +776,14 @@ export function setupRhythmPractice(
       const voice =
         settings.exampleVoice && !step.beatGroups ? settings.countVoice : null;
       const reference = melody ? getReferencePlayer() : null;
-      const arranged = Boolean(step.arrangement);
+      const events = step.arrangement
+        ? buildSongEvents(step, from, to, 0, false)
+        : undefined;
       const [percussion, spoken, sounds] = await Promise.all([
         player
           .loadPercussion(
-            arranged
-              ? songDrumsForStep(step)
+            events
+              ? songDrumsForEvents(events)
               : feetOnly
                 ? ["kick"]
                 : ["kick", "high-tom"],
@@ -789,7 +798,7 @@ export function setupRhythmPractice(
               () => false,
             )
           : true,
-        reference ? prepareMelody(reference, step) : null,
+        reference ? prepareMelody(reference, events) : null,
       ]);
       if (activeExample !== example) return;
       const messages = [];
@@ -806,19 +815,10 @@ export function setupRhythmPractice(
         feetOnly,
         eighths: spokenEighths,
         voice: spoken ? voice : null,
-        scheduleDrums: !arranged,
+        scheduleDrums: !events,
       });
-      if (arranged && reference && sounds) {
-        playSong(
-          player,
-          reference,
-          sounds,
-          step,
-          { from, to },
-          startAt * 1000,
-          0.67,
-          false,
-        );
+      if (events && reference && sounds) {
+        playSong(player, reference, sounds, events, startAt * 1000, 0.67);
       } else if (melody && reference && sounds) {
         const notes = melodyNotes(
           melody,
@@ -927,7 +927,10 @@ export function setupRhythmPractice(
     if (mode !== null) stage.scrollIntoView({ block: "nearest" });
   }
 
-  async function prepareAudio(step?: RhythmStep) {
+  async function prepareAudio(
+    step?: RhythmStep,
+    events?: readonly SongEvent[],
+  ) {
     const token = ++generation;
     let cue = settings.sound;
     if (step?.beatGroups && cue === "voice") cue = "click";
@@ -951,11 +954,13 @@ export function setupRhythmPractice(
       if (token !== generation) return null;
       if (step?.melody && settings.volume > 0) {
         const [melody, drums] = await Promise.all([
-          prepareMelody(getReferencePlayer(), step),
-          player.loadPercussion(songDrumsForStep(step)).then(
-            () => true,
-            () => false,
-          ),
+          prepareMelody(getReferencePlayer(), events),
+          player
+            .loadPercussion(events ? songDrumsForEvents(events) : ["kick"])
+            .then(
+              () => true,
+              () => false,
+            ),
         ]);
         if (token !== generation) return null;
         sounds = melody;
@@ -1203,7 +1208,11 @@ export function setupRhythmPractice(
         : "");
     inputHelp.textContent = `準備の${practiceCountInBars}小節は足で拍を刻みます。タップは「本番」の表示からです。`;
     const beatMs = 60_000 / step.bpm;
-    const audio = await prepareAudio(step);
+    const events =
+      step.arrangement && settings.volume > 0
+        ? buildSongEvents(step, from, from + bars.length, 0, true)
+        : undefined;
+    const audio = await prepareAudio(step, events);
     if (!audio) return;
     loading.hidden = true;
     phase.textContent = "準備まで";
@@ -1247,16 +1256,14 @@ export function setupRhythmPractice(
       settings.countVoice,
       step.melody ? startMs : endMs,
     );
-    if (step.arrangement && audio.sounds) {
+    if (events && audio.sounds) {
       playSong(
         audio.player,
         getReferencePlayer(),
         audio.sounds,
-        step,
-        { from, to: from + bars.length },
+        events,
         startMs,
         settings.volume,
-        true,
       );
     } else if (step.melody && audio.sounds) {
       melodyPlayer = getReferencePlayer();

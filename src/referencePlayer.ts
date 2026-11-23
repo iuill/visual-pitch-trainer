@@ -288,6 +288,26 @@ export class ReferencePlayer {
     );
   }
 
+  prepareGeneratedNote(
+    instrument: GeneratedInstrument,
+    frequency: number,
+    seconds: number,
+    bendSemitones = 0,
+  ): AudioBuffer {
+    const key = `${instrument}/${frequency}`;
+    const minimumSeconds = seconds * 2 ** (bendSemitones / 12);
+    const existing = this.generatedBuffers.get(key);
+    if (existing && existing.duration >= minimumSeconds) return existing;
+    const buffer = createInstrumentBuffer(
+      this.context,
+      instrument,
+      frequency,
+      minimumSeconds,
+    );
+    this.generatedBuffers.set(key, buffer);
+    return buffer;
+  }
+
   private createVoice(
     instrument: PhraseInstrument,
     frequency: number,
@@ -301,14 +321,13 @@ export class ReferencePlayer {
     let source: OscillatorNode | AudioBufferSourceNode;
     let attack = 0.01;
     if (isGeneratedInstrument(instrument)) {
-      const key = `${instrument}/${frequency}`;
-      let buffer = this.generatedBuffers.get(key);
-      if (!buffer) {
-        buffer = createInstrumentBuffer(this.context, instrument, frequency);
-        this.generatedBuffers.set(key, buffer);
-      }
       const player = this.context.createBufferSource();
-      player.buffer = buffer;
+      player.buffer = this.prepareGeneratedNote(
+        instrument,
+        frequency,
+        duration ?? 2,
+        bendSemitones,
+      );
       if (
         instrument === "electric-guitar" &&
         bendSemitones &&

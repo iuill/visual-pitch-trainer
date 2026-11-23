@@ -1,4 +1,7 @@
-import type { GeneratedInstrument } from "./generatedInstruments";
+import {
+  type GeneratedInstrument,
+  isGeneratedInstrument,
+} from "./generatedInstruments";
 import type { ReferenceInstrumentId } from "./referenceInstruments";
 import {
   RHYTHM_NOTE_BEATS,
@@ -19,12 +22,10 @@ const songDrums = [
   "ride",
 ] as const;
 export type SongDrum = (typeof songDrums)[number];
-const sampleInstruments = [
-  "piano",
-  "violin",
-  "flute",
-] as const satisfies readonly ReferenceInstrumentId[];
-type SampleInstrument = (typeof sampleInstruments)[number];
+type SampleInstrument = Extract<
+  ReferenceInstrumentId,
+  "piano" | "violin" | "flute"
+>;
 export type SongInstrument = SampleInstrument | GeneratedInstrument;
 
 export interface SongPart {
@@ -52,7 +53,7 @@ export interface SongBar {
   bends?: Readonly<Record<number, number>>;
 }
 
-type SongEvent =
+export type SongEvent =
   | { timeMs: number; drum: SongDrum; level: number }
   | {
       timeMs: number;
@@ -74,38 +75,28 @@ const drumLevels: Record<SongDrum, number> = {
 };
 
 export function songSampleInstruments(
-  step: RhythmStep,
+  events: readonly SongEvent[] | undefined,
 ): readonly SampleInstrument[] {
-  const { arrangement } = step;
-  if (!arrangement) return ["piano"];
-  const requested = new Set<SongInstrument>();
-  for (const { part } of arrangement) {
-    requested.add(part.lead);
-    if (part.support) requested.add(part.support);
-    if (
-      part.lead === "violin" ||
-      part.lead === "flute" ||
-      (part.keys !== "power-chords" &&
-        part.keys !== "muted-power-chords" &&
-        part.keys !== "symphonic")
-    )
-      requested.add("piano");
-    if (part.keys === "symphonic" || part.keys === "mellotron")
-      requested.add("violin");
-  }
-  return sampleInstruments.filter((instrument) => requested.has(instrument));
+  if (!events) return ["piano"];
+  return [
+    ...new Set(
+      events.flatMap((event) =>
+        "instrument" in event && !isGeneratedInstrument(event.instrument)
+          ? [event.instrument]
+          : [],
+      ),
+    ),
+  ];
 }
 
-export function songDrumsForStep(step: RhythmStep): readonly SongDrum[] {
-  return songDrums.filter(
-    (drum) =>
-      drum === "kick" ||
-      step.arrangement?.some(
-        ({ part }) =>
-          part.drums?.[drum] ||
-          ((drum === "high-tom" || drum === "low-tom") && part.fill?.[drum]),
-      ),
-  );
+export function songDrumsForEvents(
+  events: readonly SongEvent[],
+): readonly SongDrum[] {
+  return [
+    ...new Set(
+      events.flatMap((event) => ("drum" in event ? [event.drum] : [])),
+    ),
+  ];
 }
 
 export function buildSongEvents(
@@ -141,14 +132,26 @@ export function buildSongEvents(
       level: number,
       bendSemitones?: number,
     ) {
+      const durationSlots = Math.min(duration, length - slot);
+      if (durationSlots <= 0) return;
       events.push({
         timeMs: barStart + slot * slotMs,
         instrument,
         midi,
-        seconds: (Math.min(duration, length - slot) * slotMs) / 1000,
+        seconds: (durationSlots * slotMs) / 1000,
         level,
         bendSemitones,
       });
+    }
+    function accompaniment(
+      instrument: SongInstrument,
+      midi: number,
+      slot: number,
+      duration: number,
+      level: number,
+    ) {
+      const scale = length / 8;
+      note(instrument, midi, slot * scale, duration * scale, level);
     }
     function drum(id: SongDrum, slot: number, level: number) {
       events.push({ timeMs: barStart + slot * slotMs, drum: id, level });
@@ -184,10 +187,10 @@ export function buildSongEvents(
         note("violin", bass + 24, 0, length, 0.2);
         note("electric-guitar", bass + 12, 0, length, 0.29);
         note("electric-guitar", bass + 19, 0, length, 0.22);
-        note("electric-bass", bassRoot, 0, ending ? length : 4, 0.49);
+        accompaniment("electric-bass", bassRoot, 0, ending ? 8 : 4, 0.49);
         if (!ending) {
-          note("electric-bass", bassRoot, 4, 2.75, 0.38);
-          note(
+          accompaniment("electric-bass", bassRoot, 4, 2.75, 0.38);
+          accompaniment(
             "electric-bass",
             bassRoot + (bar % 2 === 0 ? 7 : 12),
             7,
@@ -197,7 +200,7 @@ export function buildSongEvents(
         }
       } else {
         note("piano", bass, 0, length, 0.23);
-        if (!ending) note("piano", fifth, 4, 3, 0.17);
+        if (!ending) accompaniment("piano", fifth, 4, 3, 0.17);
       }
     } else if (
       part.keys === "power-chords" ||
@@ -211,17 +214,17 @@ export function buildSongEvents(
           ? [0, 2, 3, 4, 6, 7]
           : [0, 2, 4, 6];
       for (const slot of guitarSlots) {
-        const duration = ending ? length : muted ? 0.8 : 3.75;
-        note("electric-guitar", bass + 12, slot, duration, 0.37);
-        note("electric-guitar", bass + 19, slot, duration, 0.26);
+        const duration = ending ? 8 : muted ? 0.8 : 3.75;
+        accompaniment("electric-guitar", bass + 12, slot, duration, 0.37);
+        accompaniment("electric-guitar", bass + 19, slot, duration, 0.26);
       }
       for (const slot of bassSlots) {
         const pitch = slot === 6 ? bass + 7 : bass + (slot === 7 ? 12 : 0);
-        note(
+        accompaniment(
           "electric-bass",
           pitch,
           slot,
-          ending ? length : muted ? 0.9 : 1.8,
+          ending ? 8 : muted ? 0.9 : 1.8,
           0.56,
         );
       }
@@ -230,30 +233,39 @@ export function buildSongEvents(
       note("piano", fifth, 0, length, 0.17);
       note("piano", third, 0, length, 0.18);
     } else if (part.keys === "arpeggio") {
-      note("piano", bass, 0, 4, 0.3);
-      note("piano", fifth, 2, 2, 0.21);
-      note("piano", third, 4, 3, 0.19);
-      note("piano", fifth, 6, 2, 0.16);
+      accompaniment("piano", bass, 0, 4, 0.3);
+      accompaniment("piano", fifth, 2, 2, 0.21);
+      accompaniment("piano", third, 4, 3, 0.19);
+      accompaniment("piano", fifth, 6, 2, 0.16);
     } else if (part.keys === "offbeats") {
-      note("piano", bass, 0, 2.5, 0.38);
-      note("piano", bass + (bar % 2 ? 12 : 7), 3, 1, 0.24);
-      note("piano", bass, 5, 2, 0.3);
+      accompaniment("piano", bass, 0, 2.5, 0.38);
+      accompaniment("piano", bass + (bar % 2 ? 12 : 7), 3, 1, 0.24);
+      accompaniment("piano", bass, 5, 2, 0.3);
       for (const slot of [1, 3, 7]) {
-        note("piano", fifth, slot, 0.8, 0.19);
-        note("piano", third, slot, 0.8, 0.18);
+        accompaniment("piano", fifth, slot, 0.8, 0.19);
+        accompaniment("piano", third, slot, 0.8, 0.18);
       }
     } else {
-      note("piano", bass, 0, 2, 0.34);
-      note("piano", fifth, 2, 2, 0.23);
-      note("piano", bass + 12, 4, 2, 0.26);
-      note("piano", third, 6, 1, 0.19);
+      const pitches = [bass, fifth, bass + 12, third];
+      const levels = [0.34, 0.23, 0.26, 0.19];
+      const starts = step.beatGroups
+        ? [0, ...step.beatGroups].map((pulse) => pulse * slotsPerPulse)
+        : [0, 2, 4, 6].map((slot) => (slot * length) / 8);
+      for (const [index, slot] of starts.entries())
+        note(
+          "piano",
+          pitches[index % pitches.length],
+          slot,
+          (starts[index + 1] ?? length) - slot,
+          levels[index % levels.length],
+        );
     }
     if (part.support) {
       if (part.support === "violin" || ending)
         note(part.support, third + 12, 0, length, 0.23);
       else {
-        note("flute", fifth + 12, 3, 1, 0.21);
-        note("flute", third + 12, 5, 2, 0.2);
+        accompaniment("flute", fifth + 12, 3, 1, 0.21);
+        accompaniment("flute", third + 12, 5, 2, 0.2);
       }
     }
 
