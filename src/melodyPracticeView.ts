@@ -28,6 +28,10 @@ import type { ReferencePlayer } from "./referencePlayer";
 import type { PitchSample } from "./session";
 import { setupSettingsDialog } from "./settingsDialog";
 
+export type PracticeInputStartResult =
+  | { ok: true }
+  | { ok: false; message?: string };
+
 type MelodyDependencies = {
   getSettings(): {
     startMidi: number;
@@ -37,11 +41,10 @@ type MelodyDependencies = {
   getPlayer(): ReferencePlayer;
   getCurrentPlayer(): ReferencePlayer | null;
   prepareInput(): void;
-  startInput(): Promise<boolean>;
+  startInput(): Promise<PracticeInputStartResult>;
   stopInput(): void;
   inputIsStarting(): boolean;
   reportInputStatus(message: string): void;
-  readInputStatus(): string | null;
   prepareReferenceStatus(): void;
   updateReferenceInstrumentDescription(): void;
   showReferenceAudioError(error: unknown): void;
@@ -674,9 +677,9 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
       const player = deps.getPlayer();
       await player.prepare(instrument);
       if (requestId !== scalePlaybackRequestId) return;
-      let inputReady: boolean;
+      let input: PracticeInputStartResult;
       try {
-        inputReady = await deps.startInput();
+        input = await deps.startInput();
       } catch (error) {
         if (requestId !== scalePlaybackRequestId) return;
         stopScalePlayback();
@@ -685,10 +688,9 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
         return;
       }
       if (requestId !== scalePlaybackRequestId) return;
-      if (!inputReady) {
-        const message = deps.readInputStatus();
+      if (!input.ok) {
         stopScalePlayback();
-        elements.melodyStatus.textContent = message;
+        if (input.message) elements.melodyStatus.textContent = input.message;
         return;
       }
       await context.resume();

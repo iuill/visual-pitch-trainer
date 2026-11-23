@@ -140,7 +140,6 @@ export class VoiceRangeCheck {
       const capture = await this.microphone.start(context, {
         deviceId,
         fftSize: 8192,
-        minRms,
         onEnded: () => this.stop(),
       });
       if (!capture || generation !== this.generation) return;

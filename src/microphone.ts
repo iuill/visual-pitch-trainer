@@ -13,7 +13,6 @@ export type MicrophoneCapture = {
 type MicrophoneOptions = {
   deviceId: string;
   fftSize: number;
-  minRms?: number;
   onEnded(): void;
 };
 
@@ -81,8 +80,6 @@ export class MicrophoneInput {
       const buffer = new Float32Array(analyser.fftSize);
       const detector = PitchDetector.forFloat32Array(buffer.length);
       detector.clarityThreshold = PITCHY_CLARITY_THRESHOLD;
-      if (options.minRms !== undefined)
-        detector.minVolumeAbsolute = options.minRms;
       for (const track of tracks) track.addEventListener("ended", onEnded);
       return {
         stream,

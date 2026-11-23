@@ -6,7 +6,10 @@ import {
   getComboTier,
   updateGameEffectState,
 } from "./gameEffects";
-import { createMelodyPracticeView } from "./melodyPracticeView";
+import {
+  createMelodyPracticeView,
+  type PracticeInputStartResult,
+} from "./melodyPracticeView";
 import {
   formatMicrophoneError,
   type MicrophoneCapture,
@@ -172,16 +175,12 @@ export function setupPracticeView(beforePreview: () => void) {
       stopInstrumentPreview();
       stopReferenceTone();
     },
-    async startInput() {
-      await startMicrophone();
-      return Boolean(capture);
-    },
+    startInput: startMicrophone,
     stopInput: stopMicrophone,
     inputIsStarting: () => state.isMicStarting,
     reportInputStatus: (message) => {
       elements.analysisStatus.textContent = message;
     },
-    readInputStatus: () => elements.analysisStatus.textContent,
     prepareReferenceStatus() {
       elements.referenceInstrumentStatus.textContent =
         "お手本音を準備しています…";
@@ -592,7 +591,10 @@ export function setupPracticeView(beforePreview: () => void) {
     state.isMicStarting = true;
     updateMicButtonState("starting");
     try {
-      await startMicrophone();
+      const result = await startMicrophone();
+      if (microphoneStart === request && !result.ok && result.message) {
+        elements.analysisStatus.textContent = result.message;
+      }
     } catch (error) {
       if (microphoneStart !== request) return;
       elements.analysisStatus.textContent = switching
@@ -611,17 +613,18 @@ export function setupPracticeView(beforePreview: () => void) {
     }
   }
 
-  async function startMicrophone() {
+  async function startMicrophone(): Promise<PracticeInputStartResult> {
     if (!navigator.mediaDevices?.getUserMedia) {
-      elements.analysisStatus.textContent =
-        "この表示方法ではマイクを使えません。HTTPSのURL、またはlocalhostで開いてください。";
-      return;
+      return {
+        ok: false,
+        message:
+          "この表示方法ではマイクを使えません。HTTPSのURL、またはlocalhostで開いてください。",
+      };
     }
 
     const input = await microphone.start(getAudioContext(), {
       deviceId: state.selectedDeviceId,
       fftSize: PRACTICE_MIC_FFT_SIZE,
-      minRms: state.minRms,
       onEnded() {
         if (melody.running) melody.stop();
         else stopMicrophone();
@@ -629,7 +632,7 @@ export function setupPracticeView(beforePreview: () => void) {
           "マイクが切断されました。接続を確認して、もう一度開始してください。";
       },
     });
-    if (!input) return;
+    if (!input) return { ok: false };
     capture = input;
     if (melody.running) {
       lastMelodySample = null;
@@ -642,11 +645,12 @@ export function setupPracticeView(beforePreview: () => void) {
     elements.analysisStatus.textContent = "声の軌跡を見ています";
 
     await refreshAudioDevices();
-    if (capture !== input) return;
+    if (capture !== input) return { ok: false };
     updateActiveDeviceFromStream(input.stream);
     focusGraphForPractice();
 
     state.animationId = requestAnimationFrame(analyzeFrame);
+    return { ok: true };
   }
 
   function focusGraphForPractice() {
@@ -1086,10 +1090,6 @@ export function setupPracticeView(beforePreview: () => void) {
   function updateSensitivity() {
     const value = Number(elements.sensitivityInput.value);
     state.minRms = value / 1000;
-    if (capture) {
-      capture.detectors.detector.minVolumeAbsolute = state.minRms;
-    }
-
     if (value <= 4) {
       elements.sensitivityValue.textContent = "よく拾う";
     } else if (value >= 12) {
