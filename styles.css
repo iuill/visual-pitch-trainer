@@ -18,6 +18,7 @@
   --panel-padding: 18px;
   --panel-radius: 8px;
   --control-height: 48px;
+  --control-disabled-background: #eef2f3;
   --mobile-actions-space: calc(82px + env(safe-area-inset-bottom));
   --shadow: 0 14px 40px rgba(23, 32, 38, 0.08);
 }
@@ -57,7 +58,7 @@ button {
   outline-offset: 2px;
 }
 
-details > summary {
+:where(details > summary) {
   min-height: 44px;
   padding: 8px 0;
   color: var(--accent-strong);
@@ -65,7 +66,7 @@ details > summary {
   cursor: pointer;
 }
 
-:is(select, input[type="text"], input[type="file"]) {
+:where(select, input[type="text"], input[type="file"]) {
   min-width: 0;
   max-width: 100%;
   min-height: var(--control-height);
@@ -80,8 +81,12 @@ input[type="file"] {
   padding-block: 9px;
 }
 
-:is(select, input[type="text"], input[type="file"]):disabled {
-  background: #eef2f3;
+:where(
+  select:disabled,
+  input[type="text"]:disabled,
+  input[type="file"]:disabled
+) {
+  background: var(--control-disabled-background);
   color: var(--muted);
   cursor: not-allowed;
 }
@@ -414,7 +419,7 @@ fieldset {
 .tone-scale-actions .secondary-button[aria-disabled="true"],
 .icon-button:disabled {
   border-color: #dfe5e8;
-  background: #eef2f3;
+  background: var(--control-disabled-background);
   color: #8b969d;
   cursor: not-allowed;
   opacity: 0.72;
@@ -1145,15 +1150,6 @@ input[type="range"] {
   cursor: help;
 }
 
-.info-button:hover,
-.info-button:focus,
-.info-button:focus-visible {
-  border-color: #2f74b5;
-  background: #2f74b5;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(47, 116, 181, 0.24);
-}
-
 .tooltip {
   position: absolute;
   left: 12px;
@@ -1176,8 +1172,7 @@ input[type="range"] {
 }
 
 .info-button:hover + .tooltip,
-.info-button:focus + .tooltip,
-.info-button:focus-visible + .tooltip {
+.info-button:focus + .tooltip {
   opacity: 1;
   transform: translateY(0);
 }
