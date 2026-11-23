@@ -10,7 +10,7 @@ export interface RhythmStepProgress {
 }
 
 export interface RhythmProgress {
-  version: 2;
+  version: 1;
   steps: Record<string, RhythmStepProgress>;
   currentStepId: string;
 }
@@ -46,7 +46,7 @@ const defaultSettings: RhythmSettings = {
 };
 
 export function newRhythmProgress(): RhythmProgress {
-  return { version: 2, steps: {}, currentStepId: RHYTHM_STEPS[0].id };
+  return { version: 1, steps: {}, currentStepId: RHYTHM_STEPS[0].id };
 }
 
 export function rhythmStepUnlocked(
@@ -141,7 +141,7 @@ export function createRhythmProgressStore(onUnavailable: () => void) {
   return {
     loadProgress(): RhythmProgress {
       const progress = newRhythmProgress();
-      const data = read("progress");
+      const data = read("step-progress");
       if (data.version !== progress.version) return progress;
       const records = asRecord(data.steps);
       for (const step of RHYTHM_STEPS) {
@@ -215,7 +215,7 @@ export function createRhythmProgressStore(onUnavailable: () => void) {
         exampleVoice: exampleVoice === true,
       };
     },
-    saveProgress: (value: RhythmProgress) => write("progress", value),
+    saveProgress: (value: RhythmProgress) => write("step-progress", value),
     saveCalibration: (value: RhythmCalibration | null) =>
       write("calibration", value),
     saveSettings: (value: RhythmSettings) => write("settings", value),

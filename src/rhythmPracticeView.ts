@@ -75,7 +75,7 @@ const timingPulseMs = 100;
 const countdownSeconds = CALIBRATION_COUNTDOWN_MS / 1000;
 const practiceReadyMs = 3000;
 const practiceCountInBars = 2;
-const rhythmTapLabel = "タップ（スペースキー）";
+const rhythmTapLabel = "タップ（スペース / F / J）";
 
 function rhythmMeterAndTempo(step: RhythmStep) {
   return `${step.beatsPerBar ?? 4}/4拍子・${step.bpm} BPM`;
@@ -263,6 +263,7 @@ export function setupRhythmPractice(
   const scoreLabel = queryElement<HTMLElement>("#rhythmScoreLabel");
   const scoreBars = queryElement<HTMLOListElement>("#rhythmScoreBars");
   const scoreExtras = queryElement<HTMLElement>("#rhythmScoreExtras");
+  const laneArea = queryElement<HTMLElement>("#rhythmLaneArea");
   const lanes = queryElement<HTMLElement>("#rhythmLanes");
   const markers = queryElement<HTMLElement>("#rhythmMarkers");
   const inputHelp = queryElement<HTMLElement>("#rhythmInputHelp");
@@ -718,7 +719,7 @@ export function setupRhythmPractice(
     setup.hidden = true;
     resultPanel.hidden = true;
     stage.hidden = false;
-    lanes.hidden = mode !== null;
+    laneArea.hidden = mode !== null;
     lanes.removeAttribute("data-count-in");
     lanes.removeAttribute("data-note-pulse");
     lanes.removeAttribute("data-beat-pulse");
@@ -748,7 +749,7 @@ export function setupRhythmPractice(
         ? "カウントダウンの後、円が光る瞬間にタップします。"
         : mode === "audio"
           ? "カウントダウンの後、クリック音が聞こえた瞬間にタップします。"
-          : `タップかスペースキーで開始します。同じテンポで準備${practiceCountInBars}小節、本番${preparedBars?.length ?? 0}小節です。`;
+          : `タップかスペース・F・Jキーで開始します。同じテンポで準備${practiceCountInBars}小節、本番${preparedBars?.length ?? 0}小節です。`;
     feedback.textContent = "";
     tap.focus({ preventScroll: true });
     if (mode !== null) stage.scrollIntoView({ block: "nearest" });
@@ -910,7 +911,7 @@ export function setupRhythmPractice(
     preparedBars = createRhythmBars(step);
     openStage(null);
     lanes.dataset.dense = String(slotsPerBeat > 2);
-    stage.insertBefore(score, lanes);
+    laneArea.before(score);
     score.hidden = false;
     scoreLabel.textContent = `${preparedBars.length}小節の判定`;
     scoreExtras.hidden = true;
@@ -1308,9 +1309,9 @@ export function setupRhythmPractice(
   }
 
   function handleKey(event: KeyboardEvent) {
+    const letterKey = event.code === "KeyF" || event.code === "KeyJ";
     if (
-      !acceptTap ||
-      event.code !== "Space" ||
+      (!letterKey && event.code !== "Space") ||
       event.altKey ||
       event.ctrlKey ||
       event.metaKey ||
@@ -1318,6 +1319,14 @@ export function setupRhythmPractice(
     )
       return;
     const focused = document.activeElement;
+    if (letterKey && focused !== tap) return;
+    if (!acceptTap) {
+      if (letterKey && preparedBars) {
+        event.preventDefault();
+        if (!event.repeat) void play();
+      }
+      return;
+    }
     if (
       focused !== tap &&
       focused?.closest(

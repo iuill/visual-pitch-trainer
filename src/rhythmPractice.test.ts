@@ -325,8 +325,10 @@ describe("rhythm progress", () => {
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
       value: {
-        getItem() {
+        getItem(key: string) {
           if (blocked) throw new Error("blocked");
+          if (key === "rhythm-course:v1:progress")
+            return '{"version":1,"currentStepId":"4-3"}';
           return data;
         },
         setItem(_key: string, value: string) {
@@ -345,7 +347,7 @@ describe("rhythm progress", () => {
       });
       expect(store.loadProgress()).toEqual(newRhythmProgress());
       expect(failures).toBe(0);
-      data = '{"version":1,"currentStepId":"3-4"}';
+      data = '{"version":2,"currentStepId":"3-4"}';
       expect(store.loadProgress()).toEqual(newRhythmProgress());
       expect(store.loadCalibration()).toBeNull();
       const date = "2026-11-23T00:00:00.000Z";
@@ -357,7 +359,7 @@ describe("rhythm progress", () => {
         lastPlayedAt: date,
       };
       data = JSON.stringify({
-        version: 2,
+        version: 1,
         currentStepId: "3-3",
         steps: {
           "1-1": record,

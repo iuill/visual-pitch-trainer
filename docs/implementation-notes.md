@@ -242,7 +242,7 @@ src/melodyGraph.ts がメロディ専用Canvasを描画し、src/graphModel.ts �
 
 追加曲を含む全11曲の出典は `public/THIRD_PARTY_NOTICES.txt` に掲載する。配信する曲データは、保護期間が満了した歴史的な原曲の音高と発音位置を採譜したもの。譜例はアプリで描画し、音はCC0の楽器サンプルを使ってブラウザ内で生成する。「猫踏んじゃった」は作曲者と原曲の初出が確定できず、1954年の国内盤を確認できた範囲では海外配信での保護期間を判断しきれないため保留。 [昭和館のSPレコード情報](https://search.showakan.go.jp/search/record/detail.php?id=90007310) [文化庁の保護期間に関するQ&A](https://www.bunka.go.jp/seisaku/chosakuken/hokaisei/kantaiheiyo_chosakuken/1411890.html) [米国著作権局のURAA解説](https://copyright.gov/circs/circ38b.pdf)
 
-バスドラムとハイタムにはVCSLのCC0録音を使い、取得に失敗した音は電子音で代用する。各小節の1拍目はバスドラムを強くする。出典、加工条件、チェックサムは `public/audio/rhythm/` に記録する。「通しで再生」では表示順に全見本をつなぎ、同じ時計で現在の小節をハイライトする。見本の切り替え、譜例を閉じる操作、画面遷移で再生を停止する。補正測定のカウントダウンは、3つの電子音を同じ時計で予約する。最後の合図を高く長くし、カウント音の音量を適用する。カウント音声は男女各1組のWAVを使う。次の合図までに収まらないときは再生速度を上げ、デコードに失敗した場合はクリックで進める。生成条件とSHA-256は `public/audio/count/` に記録する。
+バスドラムとハイタムにはVCSLのCC0録音を使い、取得に失敗した音は電子音で代用する。各小節の1拍目はバスドラムを強くする。出典、加工条件、チェックサムは `public/audio/rhythm/` に記録する。「通しで再生」では表示順に全見本をつなぎ、同じ時計で現在の小節をハイライトする。見本の切り替え、譜例を閉じる操作、画面遷移で再生を停止する。補正測定のカウントダウンは、3つの電子音を同じ時計で予約する。最後の合図を高く長くし、カウント音の音量を適用する。カウント音声は男女各1組のWAVを使う。8分音符の見本では、半拍に収まるテンポで「&」も読み上げる。デコードに失敗した場合はクリックで進める。生成条件とSHA-256は `public/audio/count/` に記録する。
 
 合図を音に合わせる際は `getOutputTimestamp()` の時刻ペアで描画と入力を音の出力時刻へ合わせる。取得できない場合は `currentTime` と `performance.now()` による換算から `outputLatency`（未対応なら `baseLatency`）を引く。音に同期しない視覚ガイドでは `currentTime` を基準にする。採点時は選択したガイドの補正値を引く。 [Web Audio API仕様](https://www.w3.org/TR/webaudio-1.0/#dom-audiocontext-getoutputtimestamp)
 

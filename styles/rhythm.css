@@ -416,9 +416,14 @@
   }
 }
 
+.rhythm-lane-area {
+  --rhythm-lane-label-width: 2em;
+  position: relative;
+}
+
 .rhythm-lanes {
   display: grid;
-  grid-template-columns: 2em minmax(0, 1fr);
+  grid-template-columns: var(--rhythm-lane-label-width) minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -617,16 +622,16 @@
 
 .rhythm-hit-feedback {
   position: absolute;
-  top: 58%;
-  left: calc(var(--rhythm-line) + 0.75rem);
+  inset: 4px 1px auto calc(1px + var(--rhythm-lane-label-width));
   z-index: 3;
-  translate: 0 -50%;
   pointer-events: none;
 }
 
 .rhythm-hit-feedback > span {
   --rhythm-hit-rise: -26px;
-  display: block;
+  position: absolute;
+  top: 0;
+  left: calc(var(--rhythm-line) + 0.75rem);
   padding: 2px 8px;
   border-radius: 5px;
   font-size: clamp(0.8rem, 3vw, 1rem);

@@ -61,7 +61,7 @@ Switch between single-note practice, melody practice, rhythm practice, games, yo
 
 ## Rhythm Practice
 
-Keep the beat with your foot and tap the screen or press Space as notes reach the judgment line. The course has 27 steps, including 11 songs in the final chapter. You can preview the rhythm, review the result of each note, calibrate timing, and save your progress in the browser. See the [design notes](docs/design.md#リズム練習) for the practice flow and scoring rules.
+Keep the beat with your foot and tap the screen or press Space, F, or J as notes reach the judgment line. The course has 27 steps, including 11 songs in the final chapter. You can preview the rhythm, review the result of each note, calibrate timing, and save your progress in the browser. See the [design notes](docs/design.md#リズム練習) for the practice flow and scoring rules.
 
 ## Voice Range Check
 

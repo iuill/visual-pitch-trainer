@@ -115,12 +115,10 @@ export class RhythmScheduler {
         const available =
           Math.min(counts[next]?.timeMs ?? endMs, endMs) / 1000 - when;
         const buffer = cue === "voice" ? voices?.[count.voiceIndex] : undefined;
-        if (buffer && available > 0) {
+        if (buffer && buffer.duration <= available) {
           const source = this.context.createBufferSource();
           source.buffer = buffer;
-          const duration = Math.min(buffer.duration, available);
-          source.playbackRate.value = buffer.duration / duration;
-          this.play(source, when, duration, level * (accent ? 1 : 0.72));
+          this.play(source, when, buffer.duration, level * (accent ? 1 : 0.72));
         } else {
           this.tone(
             "sine",
@@ -152,11 +150,16 @@ export class RhythmScheduler {
     const { beatsPerBar } = options;
     const beatCount = patterns.length * beatsPerBar;
     if (options.voice) {
+      const speakOffbeats =
+        options.eighths &&
+        this.voices
+          .get(options.voice)
+          ?.every((sample) => sample.duration <= beatSeconds / 2);
       const counts: RhythmCount[] = [];
       for (let beat = 0; beat < beatCount; beat++) {
         const timeMs = (startAt + beat * beatSeconds) * 1000;
         counts.push({ timeMs, voiceIndex: beat % beatsPerBar });
-        if (options.eighths)
+        if (speakOffbeats)
           counts.push({ timeMs: timeMs + beatSeconds * 500, voiceIndex: 4 });
       }
       this.start(
