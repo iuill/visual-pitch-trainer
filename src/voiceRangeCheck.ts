@@ -1,7 +1,6 @@
 import { createAudioContext } from "./audioContext";
 import { VOICE_RANGE_GRAPH_MS, type VoiceRangeGraphSample } from "./graphModel";
 import { formatMicrophoneError, MicrophoneInput } from "./microphone";
-import { detectVoiceRangePitch } from "./pitchDetection";
 import {
   hzToMidi,
   midiToKaraokeName,
@@ -145,11 +144,7 @@ export class VoiceRangeCheck {
       if (!capture || generation !== this.generation) return;
       const tick = (now: number) => {
         if (generation !== this.generation) return;
-        const detection = detectVoiceRangePitch(
-          capture.read(),
-          capture.detectors,
-          minRms,
-        );
+        const detection = capture.sample({ minRms });
         const before = this.range.notes.length;
         observeVoiceRange(this.range, detection.frequency, now);
         if (now - (this.samples.at(-1)?.timeMs ?? -Infinity) >= 40) {

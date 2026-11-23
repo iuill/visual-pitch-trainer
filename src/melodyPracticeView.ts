@@ -32,12 +32,9 @@ export type PracticeInputStartResult =
   | { ok: false; message?: string };
 
 type MelodyInput = {
-  prepare(): void;
   start(): Promise<PracticeInputStartResult>;
   stop(): void;
   isStarting(): boolean;
-  reportStatus(message: string): void;
-  setControlsLocked(locked: boolean): void;
 };
 
 export function createMelodyPracticeView(
@@ -49,7 +46,17 @@ export function createMelodyPracticeView(
     | "reportReferenceError"
   >,
   playback: ReferencePlayback,
-  input: MelodyInput,
+  {
+    input,
+    controls,
+  }: {
+    input: MelodyInput;
+    controls: {
+      prepare(): void;
+      reportStatus(message: string): void;
+      setLocked(locked: boolean): void;
+    };
+  },
 ) {
   const elements = {
     melodySection: queryElement<HTMLElement>(".melody-practice"),
@@ -438,7 +445,7 @@ export function createMelodyPracticeView(
 
   function setMelodyControlsLocked(locked: boolean) {
     document.body.classList.toggle("is-melody-running", locked);
-    input.setControlsLocked(locked);
+    controls.setLocked(locked);
     elements.playScaleButton
       .closest(".melody-practice")
       ?.classList.toggle("is-running", locked);
@@ -647,7 +654,7 @@ export function createMelodyPracticeView(
     }
 
     if (input.isStarting()) {
-      input.reportStatus(
+      controls.reportStatus(
         "マイクの準備中です。少し待ってからメロディ稽古を始めてください。",
       );
       return;
@@ -660,7 +667,7 @@ export function createMelodyPracticeView(
       renderMelodyPreview();
       return;
     }
-    input.prepare();
+    controls.prepare();
     running = true;
     setMelodyControlsLocked(true);
     elements.melodyResults.hidden = true;

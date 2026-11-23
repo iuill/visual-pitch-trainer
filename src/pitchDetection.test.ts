@@ -1,20 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { PitchDetector } from "pitchy";
-import {
-  detectPitchWithLibraries,
-  detectVoiceRangePitch,
-  type LibraryDetectors,
-} from "./pitchDetection";
+import { analyzePitchFrame, type LibraryDetectors } from "./pitchDetection";
 
 const TEST_SAMPLE_RATE = 44_100;
 
 function createDetectors(pitch: number, clarity: number): LibraryDetectors {
   return {
     sampleRate: TEST_SAMPLE_RATE,
-    bufferSize: 4,
     detector: {
       findPitch: () => [pitch, clarity],
-    } as unknown as LibraryDetectors["detector"],
+    },
   };
 }
 
@@ -38,7 +33,7 @@ describe("pitch detection", () => {
     const buffer = new Float32Array([0.2, -0.2, 0.2, -0.2]);
     for (const hz of [32.71, 98, 196, 440, 1046, 2093]) {
       expect(
-        detectVoiceRangePitch(buffer, createDetectors(hz, 0.99), 0.006)
+        analyzePitchFrame(buffer, createDetectors(hz, 0.99), { minRms: 0.006 })
           .frequency,
       ).toBe(hz);
     }
@@ -49,40 +44,42 @@ describe("pitch detection", () => {
       [Infinity, 1],
     ]) {
       expect(
-        detectVoiceRangePitch(buffer, createDetectors(hz, clarity), 0.006)
-          .frequency,
+        analyzePitchFrame(buffer, createDetectors(hz, clarity), {
+          minRms: 0.006,
+        }).frequency,
       ).toBe(null);
     }
     expect(
-      detectVoiceRangePitch(new Float32Array(4), createDetectors(440, 1), 0.006)
-        .frequency,
+      analyzePitchFrame(new Float32Array(4), createDetectors(440, 1), {
+        minRms: 0.006,
+      }).frequency,
     ).toBe(null);
   });
   test("voice range detects real low and high sine waves", () => {
     for (const frequency of [32.71, 65.41, 98, 440, 1046.5]) {
       const buffer = createSineBuffer(frequency, TEST_SAMPLE_RATE, 8192);
       const detector = PitchDetector.forFloat32Array(8192);
-      const detection = detectVoiceRangePitch(
+      const detection = analyzePitchFrame(
         buffer,
-        { detector, sampleRate: TEST_SAMPLE_RATE, bufferSize: 8192 },
-        0.006,
+        { detector, sampleRate: TEST_SAMPLE_RATE },
+        { minRms: 0.006 },
       );
       expect(detection.frequency).not.toBe(null);
       expect(Math.abs((detection.frequency ?? 0) - frequency)).toBeLessThan(1);
     }
   });
   test("skips pitch detection when the buffer is below the RMS gate", () => {
-    const detection = detectPitchWithLibraries(
+    const detection = analyzePitchFrame(
       new Float32Array([0, 0, 0, 0]) as Float32Array<ArrayBuffer>,
       createDetectors(440, 1),
       { minRms: 0.006, minClarity: 0.52, targetFrequency: 440 },
     );
 
-    expect(detection).toEqual({ frequency: null, clarity: null });
+    expect(detection).toEqual({ frequency: null, clarity: null, rms: 0 });
   });
 
   test("returns the pitchy candidate near the target", () => {
-    const detection = detectPitchWithLibraries(
+    const detection = analyzePitchFrame(
       new Float32Array([0.2, -0.2, 0.2, -0.2]) as Float32Array<ArrayBuffer>,
       createDetectors(440, 0.99),
       { minRms: 0.006, minClarity: 0.52, targetFrequency: 440 },
@@ -90,16 +87,17 @@ describe("pitch detection", () => {
 
     expect(detection.frequency).toBe(440);
     expect(detection.clarity).toBe(0.99);
+    expect(detection.rms).toBeCloseTo(0.2);
   });
 
   test("reports fallback clarity when no candidate can be used", () => {
-    const detection = detectPitchWithLibraries(
+    const detection = analyzePitchFrame(
       new Float32Array([0.2, -0.2, 0.2, -0.2]) as Float32Array<ArrayBuffer>,
       createDetectors(3000, 0.7),
       { minRms: 0.006, minClarity: 0.52, targetFrequency: 440 },
     );
 
-    expect(detection).toEqual({ frequency: null, clarity: 0.7 });
+    expect(detection).toMatchObject({ frequency: null, clarity: 0.7 });
   });
 
   test("detects a real sine wave through pitchy", () => {
@@ -108,11 +106,10 @@ describe("pitch detection", () => {
     const detector = PitchDetector.forFloat32Array(bufferSize);
     detector.clarityThreshold = 0.93;
 
-    const detection = detectPitchWithLibraries(
+    const detection = analyzePitchFrame(
       createSineBuffer(targetFrequency, TEST_SAMPLE_RATE, bufferSize),
       {
         sampleRate: TEST_SAMPLE_RATE,
-        bufferSize,
         detector,
       },
       { minRms: 0.006, minClarity: 0.52, targetFrequency },

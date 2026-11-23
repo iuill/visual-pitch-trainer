@@ -18,7 +18,7 @@
   - `src/commonSettings.ts`: 共通設定の値・表示・変更通知、試聴、マイク選択。
   - `src/practiceView.ts` / `src/melodyPracticeView.ts`: 単音・メロディ練習。
   - `src/gamePractice.ts` / `src/voiceRangeCheck.ts`: ゲームと自分の声域チェック。
-  - `src/microphone.ts`: マイク入力の取得・波形の読み取り・解放。
+  - `src/microphone.ts`: マイク入力の取得・解放と、フレームごとの音量・音程の読み取り。
   - `src/audioContext.ts`: AudioContext の生成と共有コンテキストの管理。
   - `src/audioFileView.ts` / `src/audioAnalysisPipeline.ts`: 音源の声域確認と解析の流れ。
   - `src/audioRangeGraph.ts` / `src/singlePracticeGraph.ts`: 音源の声域と単音練習のグラフ描画。

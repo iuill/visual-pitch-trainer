@@ -248,9 +248,9 @@ export function setupCommonSettings(
       elements.sensitivity.disabled = locked;
     },
     refreshAudioDevices,
-    showActiveMicrophone(track: MediaStreamTrack | undefined) {
+    showActiveMicrophone(label: string) {
       // The active label is informational. The user's default selection stays empty.
-      elements.micStatus.textContent = `使用中: ${track?.label || selectedMicrophoneLabel()}`;
+      elements.micStatus.textContent = `使用中: ${label || selectedMicrophoneLabel()}`;
     },
     showMicrophoneSwitchError() {
       elements.micStatus.textContent = "マイクの切り替えに失敗しました。";
