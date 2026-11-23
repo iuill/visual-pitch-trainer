@@ -9,6 +9,23 @@ import type { RhythmCountVoice, RhythmSound } from "./rhythmProgressStore";
 
 const countFiles = ["one", "two", "three", "four", "and"];
 const maxCountRate = 1.4;
+const countVoiceRms = 0.15;
+const countVoicePeak = 0.97;
+
+function prepareCountVoice(buffer: AudioBuffer) {
+  let squareSum = 0;
+  let peak = 0;
+  for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+    for (const sample of buffer.getChannelData(channel)) {
+      squareSum += sample * sample;
+      peak = Math.max(peak, Math.abs(sample));
+    }
+  }
+  const rms = Math.sqrt(squareSum / (buffer.length * buffer.numberOfChannels));
+  const gain =
+    rms > 0 ? Math.min(countVoiceRms / rms, countVoicePeak / peak) : 1;
+  return { buffer, gain };
+}
 
 export interface RhythmCount {
   timeMs: number;
@@ -28,7 +45,10 @@ export type RhythmCue =
     };
 
 export class RhythmScheduler {
-  private voices = new Map<RhythmCountVoice, AudioBuffer[]>();
+  private voices = new Map<
+    RhythmCountVoice,
+    ReturnType<typeof prepareCountVoice>[]
+  >();
   private percussion = new Map<SongDrum, AudioBuffer>();
   private timer: number | null = null;
   private trackTimer: number | null = null;
@@ -77,7 +97,7 @@ export class RhythmScheduler {
           this.loadSample(`${directory}${count}.wav`, controller.signal),
         ),
       );
-      this.voices.set(voice, buffers);
+      this.voices.set(voice, buffers.map(prepareCountVoice));
     } finally {
       window.clearTimeout(timeout);
       controller.abort();
@@ -119,21 +139,22 @@ export class RhythmScheduler {
           count.pulseLevel ?? (count.voiceIndex === 0 ? 1 : 0.72);
         const available =
           Math.min(counts[next]?.timeMs ?? endMs, endMs) / 1000 - when;
-        const buffer = cue === "voice" ? voices?.[count.voiceIndex] : undefined;
+        const sample = cue === "voice" ? voices?.[count.voiceIndex] : undefined;
+        const buffer = sample?.buffer;
         // Leave a short gap before the next beat or the start of the song.
         const rate =
           buffer && available > 0
             ? Math.max(1, buffer.duration / (available * 0.97))
             : Infinity;
-        if (buffer && rate <= maxCountRate) {
+        if (sample && rate <= maxCountRate) {
           const source = this.context.createBufferSource();
-          source.buffer = buffer;
+          source.buffer = sample.buffer;
           source.playbackRate.setValueAtTime(rate, when);
           this.play(
             source,
             when,
-            buffer.duration / rate,
-            level * (0.44 + 0.56 * pulseLevel),
+            sample.buffer.duration / rate,
+            level * sample.gain * (0.42 + 0.58 * pulseLevel),
           );
         } else {
           this.tone(
@@ -170,7 +191,7 @@ export class RhythmScheduler {
         options.eighths &&
         this.voices
           .get(options.voice)
-          ?.every((sample) => sample.duration <= beatSeconds / 2);
+          ?.every(({ buffer }) => buffer.duration <= beatSeconds / 2);
       const counts: RhythmCount[] = [];
       for (let beat = 0; beat < beatCount; beat++) {
         const timeMs = (startAt + beat * beatSeconds) * 1000;

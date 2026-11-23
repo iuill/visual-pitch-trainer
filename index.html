@@ -598,54 +598,66 @@
 
       <section id="gamePracticeView" class="panel game-practice" aria-labelledby="gameTitle" hidden>
         <h2 id="gameTitle">音程ゲーム <small>試作</small></h2>
-        <details id="gameSetup" class="game-setup" open><summary>モード・難易度を選ぶ</summary>
-        <fieldset id="gameSettings" class="game-settings">
-          <legend class="visually-hidden">ゲームの設定</legend>
-          <fieldset id="gameMode" class="game-option-group game-mode-select">
-            <legend>モード</legend>
-            <div class="game-mode-options">
-              <label class="game-option"><input class="game-choice-input" type="radio" name="gameMode" value="voice" checked /><span class="game-option-face game-mode-face">
-                <svg class="game-mode-icon" viewBox="0 0 32 32" aria-hidden="true"><rect x="11" y="3" width="10" height="17" rx="5"/><path d="M7 14v2a9 9 0 0 0 18 0v-2M16 25v5m-5 0h10"/></svg>
-                <span class="game-mode-copy"><strong>発声チャレンジ</strong><span class="game-mode-description">3秒以内に音を合わせてキープ</span></span>
-              </span></label>
-              <label class="game-option"><input class="game-choice-input" type="radio" name="gameMode" value="ear" /><span class="game-option-face game-mode-face">
-                <svg class="game-mode-icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 18v-3a11 11 0 0 1 22 0v3M19 12v12"/><rect x="3" y="16" width="6" height="12" rx="3"/><rect x="23" y="16" width="6" height="12" rx="3"/><ellipse cx="16" cy="24" rx="3" ry="2"/></svg>
-                <span class="game-mode-copy"><strong>音当て</strong><span class="game-mode-description">鳴った音を聴いて選ぼう</span></span>
-              </span></label>
-            </div>
-          </fieldset>
-          <fieldset id="gameRounds" class="game-option-group">
-            <legend>問題数</legend>
-            <div class="game-option-row">
-              <label class="game-option"><input class="game-choice-input" type="radio" name="gameRounds" value="5" checked /><span class="game-option-face"><strong>5<span class="game-option-unit">問</span></strong></span></label>
-              <label class="game-option"><input class="game-choice-input" type="radio" name="gameRounds" value="10" /><span class="game-option-face"><strong>10<span class="game-option-unit">問</span></strong></span></label>
-            </div>
-          </fieldset>
-          <div id="voiceGameSettings">
-            <fieldset id="voiceGameHold" class="game-option-group">
-              <legend>連続キープする長さ</legend>
-              <div class="game-option-row">
-                <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="1" /><span class="game-option-face"><strong>1<span class="game-option-unit">秒</span></strong></span></label>
-                <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="2" checked /><span class="game-option-face"><strong>2<span class="game-option-unit">秒</span></strong></span></label>
-                <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="3" /><span class="game-option-face"><strong>3<span class="game-option-unit">秒</span></strong></span></label>
-                <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="5" /><span class="game-option-face"><strong>5<span class="game-option-unit">秒</span></strong></span></label>
-              </div>
-            </fieldset>
+        <div class="settings-launcher practice-settings-launcher">
+          <p id="gameSettingsSummary"></p>
+          <button id="openGameSettings" class="secondary-button settings-button" type="button" aria-haspopup="dialog" aria-controls="gameSetup">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6m8 0v6m-6 0v6" /></svg>ゲーム設定を開く
+          </button>
+        </div>
+        <dialog id="gameSetup" class="settings-dialog" aria-labelledby="gameSettingsTitle">
+          <div class="settings-dialog-header">
+            <h2 id="gameSettingsTitle">ゲーム設定</h2>
+            <button type="button" class="secondary-button" data-close-dialog>閉じる</button>
           </div>
-          <div id="earGameSettings" hidden>
-            <fieldset id="earGameDifficulty" class="game-option-group">
-              <legend>音当ての難易度</legend>
-              <div class="game-option-row">
-                <label class="game-option"><input class="game-choice-input" type="radio" name="earGameDifficulty" value="3" checked /><span class="game-option-face game-difficulty-face"><strong>やさしい</strong><span class="game-option-detail">3半音間隔・5択</span></span></label>
-                <label class="game-option"><input class="game-choice-input" type="radio" name="earGameDifficulty" value="1" /><span class="game-option-face game-difficulty-face"><strong>むずかしい</strong><span class="game-option-detail">半音間隔・13択</span></span></label>
+          <div class="settings-dialog-body">
+            <fieldset id="gameSettings" class="game-settings">
+              <legend class="visually-hidden">ゲームの設定</legend>
+              <fieldset id="gameMode" class="game-option-group game-mode-select">
+                <legend>モード</legend>
+                <div class="game-mode-options">
+                  <label class="game-option"><input class="game-choice-input" type="radio" name="gameMode" value="voice" checked /><span class="game-option-face game-mode-face">
+                    <svg class="game-mode-icon" viewBox="0 0 32 32" aria-hidden="true"><rect x="11" y="3" width="10" height="17" rx="5"/><path d="M7 14v2a9 9 0 0 0 18 0v-2M16 25v5m-5 0h10"/></svg>
+                    <span class="game-mode-copy"><strong>発声チャレンジ</strong><span class="game-mode-description">3秒以内に音を合わせてキープ</span></span>
+                  </span></label>
+                  <label class="game-option"><input class="game-choice-input" type="radio" name="gameMode" value="ear" /><span class="game-option-face game-mode-face">
+                    <svg class="game-mode-icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 18v-3a11 11 0 0 1 22 0v3M19 12v12"/><rect x="3" y="16" width="6" height="12" rx="3"/><rect x="23" y="16" width="6" height="12" rx="3"/><ellipse cx="16" cy="24" rx="3" ry="2"/></svg>
+                    <span class="game-mode-copy"><strong>音当て</strong><span class="game-mode-description">鳴った音を聴いて選ぼう</span></span>
+                  </span></label>
+                </div>
+              </fieldset>
+              <fieldset id="gameRounds" class="game-option-group">
+                <legend>問題数</legend>
+                <div class="game-option-row">
+                  <label class="game-option"><input class="game-choice-input" type="radio" name="gameRounds" value="5" checked /><span class="game-option-face"><strong>5<span class="game-option-unit">問</span></strong></span></label>
+                  <label class="game-option"><input class="game-choice-input" type="radio" name="gameRounds" value="10" /><span class="game-option-face"><strong>10<span class="game-option-unit">問</span></strong></span></label>
+                </div>
+              </fieldset>
+              <div id="voiceGameSettings">
+                <fieldset id="voiceGameHold" class="game-option-group">
+                  <legend>連続キープする長さ</legend>
+                  <div class="game-option-row">
+                    <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="1" /><span class="game-option-face"><strong>1<span class="game-option-unit">秒</span></strong></span></label>
+                    <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="2" checked /><span class="game-option-face"><strong>2<span class="game-option-unit">秒</span></strong></span></label>
+                    <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="3" /><span class="game-option-face"><strong>3<span class="game-option-unit">秒</span></strong></span></label>
+                    <label class="game-option"><input class="game-choice-input" type="radio" name="voiceGameHold" value="5" /><span class="game-option-face"><strong>5<span class="game-option-unit">秒</span></strong></span></label>
+                  </div>
+                </fieldset>
               </div>
+              <div id="earGameSettings" hidden>
+                <fieldset id="earGameDifficulty" class="game-option-group">
+                  <legend>音当ての難易度</legend>
+                  <div class="game-option-row">
+                    <label class="game-option"><input class="game-choice-input" type="radio" name="earGameDifficulty" value="3" checked /><span class="game-option-face game-difficulty-face"><strong>やさしい</strong><span class="game-option-detail">3半音間隔・5択</span></span></label>
+                    <label class="game-option"><input class="game-choice-input" type="radio" name="earGameDifficulty" value="1" /><span class="game-option-face game-difficulty-face"><strong>むずかしい</strong><span class="game-option-detail">半音間隔・13択</span></span></label>
+                  </div>
+                </fieldset>
+              </div>
+              <label class="game-sound-setting"><input id="gameEffectSound" type="checkbox" checked /> 成功時の効果音（共通設定のお手本音量を使用）</label>
             </fieldset>
+            <p class="graph-hint">音域・判定幅・マイクなどは共通設定を使います。ゲーム中に共通設定を変えると中止します。通常練習のスコア・自己ベストには加算しません。</p>
           </div>
-          <label class="game-sound-setting"><input id="gameEffectSound" type="checkbox" checked /> 成功時の効果音（共通設定のお手本音量を使用）</label>
-        </fieldset>
+        </dialog>
         <p id="gameInstructions"></p>
-        <p class="graph-hint">音域・判定幅・マイクなどは共通設定を使います。ゲーム中に共通設定を変えると中止します。通常練習のスコア・自己ベストには加算しません。</p>
-        </details>
         <div class="game-actions"><button id="gameStart" type="button" class="primary-button">ゲームを始める</button><button id="gameStop" type="button" class="secondary-button" disabled>中止</button></div>
         <p id="gameScore" class="game-score">0 / 5問 ・ 0問成功</p>
         <progress id="gameRoundProgress" max="5" value="0" aria-label="ゲーム全体の進み具合"></progress>
@@ -672,6 +684,12 @@
         <h2 id="rhythmTitle">リズム練習</h2>
         <p id="rhythmStorageWarning" class="graph-hint" role="status"></p>
         <div id="rhythmSetup">
+          <div class="settings-launcher practice-settings-launcher">
+            <p id="rhythmSettingsSummary"></p>
+            <button id="openRhythmSettings" class="secondary-button settings-button" type="button" aria-haspopup="dialog" aria-controls="rhythmSettings">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6m8 0v6m-6 0v6" /></svg>リズム練習の設定を開く
+            </button>
+          </div>
           <div>
             <label class="rhythm-field">コースのステップ <select id="rhythmStep"></select></label>
             <p id="rhythmStepInfo"></p>
@@ -701,45 +719,50 @@
             </details>
             <button id="rhythmStart" type="button" class="primary-button">練習画面へ</button>
           </div>
-          <details id="rhythmSettings">
-            <summary>リズム練習の設定</summary>
-            <div class="rhythm-settings-fields">
-              <label class="rhythm-field">カウント音 <select id="rhythmSound"><option value="voice">音声</option><option value="click">クリック</option><option value="none">なし</option></select></label>
-              <label class="rhythm-field">カウントの声 <select id="rhythmCountVoice"><option value="male">男性</option><option value="female">女性</option></select></label>
-              <label class="rhythm-field">カウント・曲の音量 <input id="rhythmVolume" type="range" min="0" max="100" step="1"></label>
-              <label><input id="rhythmEffects" type="checkbox"> 判定の効果音</label>
-              <label class="rhythm-field">何に合わせて叩くか <select id="rhythmGuide"><option value="visual">画面の動き</option><option value="audio">聞こえる音</option></select></label>
+          <dialog id="rhythmSettings" class="settings-dialog" aria-labelledby="rhythmSettingsTitle">
+            <div class="settings-dialog-header">
+              <h2 id="rhythmSettingsTitle">リズム練習の設定</h2>
+              <button type="button" class="secondary-button" data-close-dialog>閉じる</button>
             </div>
-            <label class="rhythm-free-play"><input id="rhythmJudgeFeet" type="checkbox" aria-describedby="rhythmJudgeFeetHelp"> 足レーンも判定する</label>
-            <p id="rhythmJudgeFeetHelp" class="graph-hint">フットコントローラを K キー、またはゲームパッドの LB・RB・LT・RT に割り当ててください。</p>
-            <label class="rhythm-free-play"><input id="rhythmFreePlay" type="checkbox" aria-describedby="rhythmFreePlayHelp"> 全ステップを自由に選ぶ</label>
-            <p id="rhythmFreePlayHelp" class="graph-hint">オンにすると、クリア前でも全ステップを選べます。練習結果も記録します。</p>
-            <fieldset class="rhythm-calibration-settings">
-              <legend>タイミング補正（任意）</legend>
-              <p class="graph-hint">3秒のカウントダウンの後、準備の4拍があります。「測定」に切り替わったら、合図に合わせて8回タップします。</p>
-              <div class="rhythm-calibration-options">
-                <div>
-                  <strong>画面を見て叩く</strong>
-                  <p class="graph-hint">画面の光とタップのズレを測ります。</p>
-                  <p id="rhythmVisualCalibrationInfo" class="graph-hint"></p>
-                  <div class="rhythm-actions">
-                    <button id="rhythmVisualCalibration" type="button" class="secondary-button">光に合わせて測る</button>
-                    <button id="rhythmClearVisualCalibration" type="button" class="secondary-button">画面の補正を解除</button>
-                  </div>
-                </div>
-                <div>
-                  <strong>音を聴いて叩く</strong>
-                  <p class="graph-hint">聞こえたクリック音とタップのズレを測ります。Bluetoothでも、練習に使うイヤホンやスピーカーで測ってください。</p>
-                  <p id="rhythmAudioCalibrationInfo" class="graph-hint"></p>
-                  <div class="rhythm-actions">
-                    <button id="rhythmAudioCalibration" type="button" class="secondary-button">クリック音に合わせて測る</button>
-                    <button id="rhythmClearAudioCalibration" type="button" class="secondary-button">音の補正を解除</button>
-                  </div>
-                </div>
+            <div class="settings-dialog-body">
+              <div class="rhythm-settings-fields">
+                <label class="rhythm-field">カウント音 <select id="rhythmSound"><option value="voice">音声</option><option value="click">クリック</option><option value="none">なし</option></select></label>
+                <label class="rhythm-field">カウントの声 <select id="rhythmCountVoice"><option value="male">男性</option><option value="female">女性</option></select></label>
+                <label class="rhythm-field">カウント・曲の音量 <input id="rhythmVolume" type="range" min="0" max="100" step="1"></label>
+                <label><input id="rhythmEffects" type="checkbox"> 判定の効果音</label>
+                <label class="rhythm-field">何に合わせて叩くか <select id="rhythmGuide"><option value="visual">画面の動き</option><option value="audio">聞こえる音</option></select></label>
               </div>
-            </fieldset>
-            <button id="rhythmReset" type="button" class="secondary-button">進捗をリセット</button>
-          </details>
+              <label class="rhythm-free-play"><input id="rhythmJudgeFeet" type="checkbox" aria-describedby="rhythmJudgeFeetHelp"> 足レーンも判定する</label>
+              <p id="rhythmJudgeFeetHelp" class="graph-hint">フットコントローラを K キー、またはゲームパッドの LB・RB・LT・RT に割り当ててください。</p>
+              <label class="rhythm-free-play"><input id="rhythmFreePlay" type="checkbox" aria-describedby="rhythmFreePlayHelp"> 全ステップを自由に選ぶ</label>
+              <p id="rhythmFreePlayHelp" class="graph-hint">オンにすると、クリア前でも全ステップを選べます。練習結果も記録します。</p>
+              <fieldset class="rhythm-calibration-settings">
+                <legend>タイミング補正（任意）</legend>
+                <p class="graph-hint">3秒のカウントダウンの後、準備の4拍があります。「測定」に切り替わったら、合図に合わせて8回タップします。</p>
+                <div class="rhythm-calibration-options">
+                  <div>
+                    <strong>画面を見て叩く</strong>
+                    <p class="graph-hint">画面の光とタップのズレを測ります。</p>
+                    <p id="rhythmVisualCalibrationInfo" class="graph-hint" role="status"></p>
+                    <div class="rhythm-actions">
+                      <button id="rhythmVisualCalibration" type="button" class="secondary-button">光に合わせて測る</button>
+                      <button id="rhythmClearVisualCalibration" type="button" class="secondary-button">画面の補正を解除</button>
+                    </div>
+                  </div>
+                  <div>
+                    <strong>音を聴いて叩く</strong>
+                    <p class="graph-hint">聞こえたクリック音とタップのズレを測ります。Bluetoothでも、練習に使うイヤホンやスピーカーで測ってください。</p>
+                    <p id="rhythmAudioCalibrationInfo" class="graph-hint" role="status"></p>
+                    <div class="rhythm-actions">
+                      <button id="rhythmAudioCalibration" type="button" class="secondary-button">クリック音に合わせて測る</button>
+                      <button id="rhythmClearAudioCalibration" type="button" class="secondary-button">音の補正を解除</button>
+                    </div>
+                  </div>
+                </div>
+              </fieldset>
+              <button id="rhythmReset" type="button" class="secondary-button">進捗をリセット</button>
+            </div>
+          </dialog>
         </div>
         <div id="rhythmStage" hidden>
           <p id="rhythmActiveStep" class="graph-hint" hidden>

@@ -210,14 +210,6 @@
   background: var(--panel);
 }
 
-.game-setup {
-  margin-bottom: 16px;
-}
-
-.game-setup[open] .game-settings {
-  margin-top: 12px;
-}
-
 #gameFeedback {
   scroll-margin-top: 88px;
 }

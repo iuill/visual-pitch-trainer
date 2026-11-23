@@ -57,7 +57,7 @@ describe("rhythm course", () => {
   });
   test("uses 32 ordered steps, in 5 chapters", () => {
     expect(RHYTHM_STEPS.map((step) => step.bpm)).toEqual([
-      60, 60, 60, 60, 60, 60, 70, 70, 80, 90, 100, 110, 60, 60, 80, 100, 76,
+      60, 60, 60, 60, 60, 60, 70, 70, 90, 105, 125, 150, 60, 60, 95, 130, 76,
       100, 80, 76, 72, 88, 92, 96, 52, 60, 52, 72, 116, 144, 128, 180,
     ]);
     expect(new Set(RHYTHM_STEPS.map((step) => step.id)).size).toBe(32);
@@ -69,7 +69,10 @@ describe("rhythm course", () => {
         expect(bars.length).toBeGreaterThanOrEqual(8);
         expect(step.melody).toHaveLength(bars.length);
         expect(bars).toEqual([...step.patterns]);
-      } else expect(bars).toHaveLength(4);
+      } else {
+        const lengthByMeter = { 2: 8, 3: 6, 4: 4, 7: 3 };
+        expect(bars).toHaveLength(lengthByMeter[step.beatsPerBar ?? 4]);
+      }
       for (const [index, bar] of bars.entries()) {
         expect(bar).toMatch(/^[wjhdxtfezrs-]+$/);
         expect(bar).toHaveLength((step.beatsPerBar ?? 4) * slotsPerBeat);
@@ -311,16 +314,34 @@ describe("rhythm course", () => {
     expect(targets.filter((target) => target.downbeat)).toHaveLength(2);
   });
 
-  test("shows eighth rests at the untapped beats in the offbeat chapter", () => {
-    const patterns = new Set(
-      RHYTHM_STEPS.filter((step) => step.chapter === 3).flatMap(
-        (step) => step.patterns,
-      ),
-    );
-    expect([...patterns]).toEqual(["sesesese", "x-x-sese", "sesex-x-"]);
+  test("starts the offbeat chapter with eighth rests on every beat", () => {
+    const first = RHYTHM_STEPS.find((step) => step.id === "3-1");
+    if (!first) throw new Error("Missing offbeat introduction");
+    expect(first.patterns).toEqual(["sesesese"]);
     expect(
-      createRhythmTargets(["sesesese"], 60, 0).map((target) => target.timeMs),
+      createRhythmTargets(first.patterns, 60, 0).map((target) => target.timeMs),
     ).toEqual([500, 1500, 2500, 3500]);
+  });
+
+  test("practices isolated and held offbeats in 3/4 before the song", () => {
+    const step = RHYTHM_STEPS.find((item) => item.id === "3-3");
+    const song = RHYTHM_STEPS.find((item) => item.id === "4-3");
+    if (!step || !song) throw new Error("Missing 3/4 offbeat steps");
+    const bars = createRhythmBars(step);
+    expect(step.beatsPerBar).toBe(3);
+    expect(bars).toEqual([...step.patterns]);
+    expect(bars[4]).toBe(song.patterns[1]);
+    expect(
+      createRhythmTargets([bars[2]], step.bpm, 0).map(({ pulse }) => pulse),
+    ).toEqual([1.5, 2]);
+    expect(
+      createRhythmTargets([bars[5]], step.bpm, 0).map(
+        ({ pulse, noteValue }) => [pulse, noteValue],
+      ),
+    ).toEqual([
+      [0.5, "dotted-quarter"],
+      [2, "quarter"],
+    ]);
   });
 
   test("maps eighth slots and bar boundaries to the common time axis", () => {
@@ -341,6 +362,13 @@ describe("rhythm course", () => {
     expect(targets.map((target) => target.timeMs)).toEqual([1000, 2000, 4000]);
     expect(judgeRhythmTap(targets, 3000).reason).toBe("extra");
   });
+});
+
+test("introduces two- and three-beat measures before the fastest steps", () => {
+  const steps = RHYTHM_STEPS.filter((step) => step.chapter === 2);
+  expect(steps.map((step) => step.beatsPerBar ?? 4)).toEqual([
+    4, 4, 2, 3, 4, 4,
+  ]);
 });
 
 test("timestamps gamepad press edges and falls back to the current poll time", () => {

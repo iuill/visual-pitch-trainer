@@ -106,11 +106,11 @@ const wholes = ["w-------", "h---x-x-"];
 const eighths = ["eeeeeeee", "x-x-eeee"];
 const rests = ["x-x-r-x-", "r-x-x-x-"];
 const offbeats = ["sesesese"];
-const alternating = ["x-x-sese", "sesex-x-"];
+const alternating = ["x-x-sese", "sesex-x-", "x-r-sese", "sesseex-"];
 const longerNotes = [...quarters, ...halves, ...wholes];
 const shortNotesAndRests = [...eighths, ...rests];
 const basics = [...longerNotes, ...shortNotesAndRests];
-const offbeatMix = [...offbeats, ...alternating];
+const offbeatMix = [...offbeats, ...alternating, "x-seeese", "sd--x-x-"];
 
 export const RHYTHM_STEPS: readonly RhythmStep[] = [
   {
@@ -190,9 +190,33 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
     countSubdivision: "eighth",
     mixed: true,
   },
-  ...[80, 90, 100, 110].map(
+  {
+    id: "2-3",
+    chapter: 2,
+    title: "2拍子のテンポアップ",
+    hint: "強・弱の2拍を繰り返します。毎回ワンに戻るところを意識しましょう。",
+    bpm: 90,
+    beatsPerBar: 2,
+    patterns: ["x-x-", "h---", "eex-", "x-ee", "x-r-", "r-x-"],
+    requiredStreak: 2,
+    countSubdivision: "eighth",
+    mixed: true,
+  },
+  {
+    id: "2-4",
+    chapter: 2,
+    title: "3拍子のテンポアップ",
+    hint: "強・弱・弱のまとまりを感じながら、足の速さを一定に保ちます。",
+    bpm: 105,
+    beatsPerBar: 3,
+    patterns: ["x-x-x-", "h---x-", "j-----", "x-eex-", "eex-x-", "x-r-x-"],
+    requiredStreak: 2,
+    countSubdivision: "eighth",
+    mixed: true,
+  },
+  ...[125, 150].map(
     (bpm, index): RhythmStep => ({
-      id: `2-${index + 3}`,
+      id: `2-${index + 5}`,
       chapter: 2,
       title: "テンポアップ",
       hint: "小節ごとに変わるリズムを、同じ速さの足に合わせて叩きます。",
@@ -217,7 +241,7 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
     id: "3-2",
     chapter: 3,
     title: "表と裏の切り替え",
-    hint: "足は毎拍刻み、手は表と裏を行き来します。",
+    hint: "足は毎拍刻み、手は表と裏を行き来します。休符のあとの裏拍も、足と足の真ん中です。",
     bpm: 60,
     patterns: alternating,
     requiredStreak: 2,
@@ -226,20 +250,20 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
   {
     id: "3-3",
     chapter: 3,
-    title: "裏拍のテンポアップ",
-    hint: "テンポが速くなっても、足と足の真ん中を狙います。",
-    bpm: 80,
-    patterns: offbeatMix,
+    title: "3拍子の裏拍",
+    hint: "足は3拍でひとまとまりです。休符のあとの裏拍や、裏拍から次の表拍まで続く音も、音の頭で一度だけ叩きます。",
+    bpm: 95,
+    beatsPerBar: 3,
+    patterns: ["sesese", "x-x-se", "r-sex-", "sex-se", "d--ex-", "sd--x-"],
     requiredStreak: 2,
     countSubdivision: "eighth",
-    mixed: true,
   },
   {
     id: "3-4",
     chapter: 3,
     title: "裏拍のテンポアップ",
-    hint: "表と裏が切り替わっても、足の拍を保ちます。",
-    bpm: 100,
+    hint: "休符、連続する8分音符、裏拍から伸ばす音が混ざります。手のリズムが変わっても足の拍を保ちます。",
+    bpm: 130,
     patterns: offbeatMix,
     requiredStreak: 2,
     countSubdivision: "eighth",
@@ -534,7 +558,8 @@ export function createRhythmBars(
 ): string[] {
   if (step.melody) return [...step.patterns];
   const bars: string[] = [];
-  for (let index = 0; index < RHYTHM_BARS; index++) {
+  const barCount = Math.ceil((RHYTHM_BARS * 4) / (step.beatsPerBar ?? 4));
+  for (let index = 0; index < barCount; index++) {
     const choices =
       step.mixed && step.patterns.length > 1
         ? step.patterns.filter((pattern) => pattern !== bars.at(-1))

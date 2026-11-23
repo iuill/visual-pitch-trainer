@@ -63,6 +63,7 @@ import {
   type RhythmCue,
   RhythmScheduler,
 } from "./rhythmScheduler";
+import { setupSettingsDialog } from "./settingsDialog";
 
 const gradeLabels = {
   perfect: "◎ ぴったり",
@@ -243,6 +244,10 @@ export function setupRhythmPractice(
 ) {
   const root = queryElement<HTMLElement>("#rhythmPracticeView");
   const setup = queryElement<HTMLElement>("#rhythmSetup");
+  const settingsDialog = queryElement<HTMLDialogElement>("#rhythmSettings");
+  const openSettings = queryElement<HTMLButtonElement>("#openRhythmSettings");
+  const settingsSummary = queryElement<HTMLElement>("#rhythmSettingsSummary");
+  setupSettingsDialog(settingsDialog, openSettings);
   const stepSelect = queryElement<HTMLSelectElement>("#rhythmStep");
   const stepInfo = queryElement<HTMLElement>("#rhythmStepInfo");
   const sectionField = queryElement<HTMLElement>("#rhythmSectionField");
@@ -373,6 +378,7 @@ export function setupRhythmPractice(
     setup.hidden = false;
     stage.hidden = true;
     sound.value = settings.sound;
+    settingsSummary.textContent = `カウント ${sound.selectedOptions[0]?.textContent}・足の判定 ${settings.judgeFeet ? "オン" : "オフ"}`;
     countVoice.value = settings.countVoice;
     countVoice.disabled = settings.sound !== "voice" && !settings.exampleVoice;
     volume.value = String(settings.volume * 100);
@@ -909,6 +915,7 @@ export function setupRhythmPractice(
   function openStage(mode: RhythmGuide | null) {
     stopExample();
     stopPreview();
+    settingsDialog.close();
     setup.hidden = true;
     resultPanel.hidden = true;
     stage.hidden = false;
@@ -1032,7 +1039,6 @@ export function setupRhythmPractice(
     showSetup();
     if (settings.guide !== previousGuide) store.saveSettings(settings);
     (mode === "visual" ? visualCalibration : audioCalibration).focus();
-    feedback.textContent = `${mode === "visual" ? "画面" : "音"}の補正を解除しました。`;
   }
 
   async function calibrate(mode: RhythmGuide) {
@@ -1100,8 +1106,7 @@ export function setupRhythmPractice(
         measured === null
           ? `${CALIBRATION_TAPS}回分のタイミングがそろいませんでした。もう一度測定してください。`
           : `${mode === "visual" ? "画面" : "音"}の補正を記録しました。`;
-      if (measured === null)
-        (mode === "audio" ? audioCalibration : visualCalibration).focus();
+      if (measured === null) openSettings.focus();
       else start.focus();
     });
   }
@@ -1831,11 +1836,13 @@ export function setupRhythmPractice(
       return;
     progress = newRhythmProgress();
     selectStep(progress.currentStepId);
+    settingsDialog.close();
     feedback.textContent = "リズム練習の進捗をリセットしました。";
   });
 
   return {
     show(visible: boolean) {
+      if (!visible) settingsDialog.close();
       root.hidden = !visible;
       if (!visible) return;
       if (!loadedProgress) {
@@ -1846,6 +1853,7 @@ export function setupRhythmPractice(
     },
     stop,
     dispose() {
+      settingsDialog.close();
       stop();
       document.removeEventListener("keydown", handleKey);
       document.removeEventListener("keyup", handleKeyUp);
