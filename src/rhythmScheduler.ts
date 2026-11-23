@@ -178,11 +178,13 @@ export class RhythmScheduler {
           const source = this.context.createBufferSource();
           source.buffer = sample.buffer;
           source.playbackRate.setValueAtTime(rate, when);
+          const voiceLevel =
+            pulseLevel === 0.5 ? 0.32 : 0.34 + 0.66 * pulseLevel;
           this.play(
             source,
             when,
             sample.buffer.duration / rate,
-            level * sample.gain * (0.42 + 0.58 * pulseLevel),
+            level * sample.gain * voiceLevel,
           );
         } else {
           this.tone(
