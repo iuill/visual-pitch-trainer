@@ -25,23 +25,46 @@ export function getToneScaleSize(patternId: string): number {
   return pattern && "tones" in pattern ? pattern.tones : 0;
 }
 
-export function getLastToneScaleStart(tones: number): number {
-  return MAJOR_OFFSETS.length - tones;
+export function getToneScaleStartBounds(tones: number, offsets?: number[]) {
+  return {
+    first: offsets ? -Math.min(...offsets) : 0,
+    last:
+      MAJOR_OFFSETS.length - 1 - (offsets ? Math.max(...offsets) : tones - 1),
+  };
 }
 
-export function pickToneScaleStart(
+export function pickToneScalePattern(
   tones: number,
-  current: number,
   maxSteps: number,
+  currentOffsets?: number[],
   random = Math.random,
-): number {
-  const first = Math.max(0, current - maxSteps);
-  const last = Math.min(getLastToneScaleStart(tones), current + maxSteps);
-  const candidates = [];
-  for (let degree = first; degree <= last; degree++) {
-    if (degree !== current) candidates.push(degree);
+) {
+  const candidates: { startDegree: number; offsets: number[] }[] = [];
+  function addPatterns(degrees: number[]) {
+    if (degrees.length === tones) {
+      const startDegree = degrees[0];
+      const offsets = degrees.map((degree) => degree - startDegree);
+      if (
+        offsets.some(
+          (offset, index) => offset !== (currentOffsets?.[index] ?? index),
+        )
+      ) {
+        candidates.push({ startDegree, offsets });
+      }
+      return;
+    }
+    const previous = degrees.at(-1);
+    for (let degree = 0; degree < MAJOR_OFFSETS.length; degree++) {
+      if (
+        previous !== undefined &&
+        (degrees.includes(degree) || Math.abs(degree - previous) > maxSteps)
+      )
+        continue;
+      addPatterns([...degrees, degree]);
+    }
   }
-  return candidates[Math.floor(random() * candidates.length)] ?? current;
+  addPatterns([]);
+  return candidates[Math.floor(random() * candidates.length)];
 }
 
 export function buildMelody(
@@ -49,19 +72,24 @@ export function buildMelody(
   custom: string,
   startMidi: number,
   startDegree = 0,
+  toneScaleOffsets?: number[],
 ): Note[] {
   const range = buildNoteRange(startMidi);
   const pattern = MELODY_PATTERNS.find((item) => item.id === patternId);
   if (pattern && "tones" in pattern) {
-    const start = Math.max(
-      0,
-      Math.min(startDegree, getLastToneScaleStart(pattern.tones)),
+    const { first, last } = getToneScaleStartBounds(
+      pattern.tones,
+      toneScaleOffsets,
     );
-    const ascending = MAJOR_OFFSETS.slice(start, start + pattern.tones).map(
-      (offset) => range[offset],
+    const start = Math.max(first, Math.min(startDegree, last));
+    const offsets =
+      toneScaleOffsets ??
+      Array.from({ length: pattern.tones }, (_, index) => index);
+    const outward = offsets.map(
+      (offset) => range[MAJOR_OFFSETS[start + offset]],
     );
     // The turn plays once, and the next lap supplies the return to the start.
-    return [...ascending, ...ascending.slice(1, -1).reverse()];
+    return [...outward, ...outward.slice(1, -1).reverse()];
   }
   if (pattern) return pattern.offsets.map((offset) => range[offset]);
   if (patternId !== "custom") throw new Error("メロディを選んでください。");

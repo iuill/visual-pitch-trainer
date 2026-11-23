@@ -9,16 +9,16 @@ import { drawMelodyGraph, type MelodyGraphData } from "./melodyGraph";
 import { followMelodyKeyboard, renderMelodyKeyboard } from "./melodyKeyboard";
 import {
   buildMelody,
-  getLastToneScaleStart,
   getMelodyAssessedSeconds,
   getMelodyPosition,
   getToneScaleSize,
+  getToneScaleStartBounds,
   MELODY_COUNTDOWN_SECONDS,
   MELODY_GRACE_SECONDS,
   MELODY_PATTERNS,
   type MelodyNoteResult,
   type MelodyObservation,
-  pickToneScaleStart,
+  pickToneScalePattern,
   recordMelodyObservation,
 } from "./melodyPractice";
 import { formatMicrophoneError, type MicrophoneCapture } from "./microphone";
@@ -83,11 +83,10 @@ export function createMelodyPracticeView(
     ),
     toneScaleControls: queryElement<HTMLDivElement>("#toneScaleControls"),
     toneScaleStart: queryElement<HTMLParagraphElement>("#toneScaleStart"),
-    toneScaleManual: queryElement<HTMLDivElement>("#toneScaleManual"),
     toneScaleDown: queryElement<HTMLButtonElement>("#toneScaleDown"),
     toneScaleUp: queryElement<HTMLButtonElement>("#toneScaleUp"),
-    toneScaleRandomControls: queryElement<HTMLDivElement>(
-      "#toneScaleRandomControls",
+    toneScaleRandomSetting: queryElement<HTMLDivElement>(
+      "#toneScaleRandomSetting",
     ),
     toneScaleRandom: queryElement<HTMLSelectElement>("#toneScaleRandom"),
     toneScaleNext: queryElement<HTMLButtonElement>("#toneScaleNext"),
@@ -135,6 +134,7 @@ export function createMelodyPracticeView(
     );
     elements.melodyPatternSelect.addEventListener("change", () => {
       toneScaleStartDegree = 0;
+      toneScaleOffsets = undefined;
       renderMelodyPreview();
     });
     elements.toneScaleDown.addEventListener("click", () =>
@@ -149,18 +149,43 @@ export function createMelodyPracticeView(
     );
     elements.toneScaleRandom.addEventListener("change", () => {
       const steps = Number(elements.toneScaleRandom.value);
-      if (steps > 0 && toneScaleRandomSteps === 0) setToneScaleStart(0);
+      const enabling = steps > 0 && toneScaleRandomSteps === 0;
       toneScaleRandomSteps = steps;
-      updateToneScaleControls();
+      if (
+        (enabling && toneScaleStartDegree !== 0) ||
+        toneScaleOffsets?.some(
+          (offset, index, offsets) =>
+            index > 0 && Math.abs(offset - offsets[index - 1]) > steps,
+        )
+      ) {
+        toneScaleOffsets = undefined;
+        const tones = getToneScaleSize(elements.melodyPatternSelect.value);
+        const { last } = getToneScaleStartBounds(tones);
+        toneScaleStartDegree = enabling
+          ? 0
+          : Math.min(toneScaleStartDegree, last);
+        renderMelodyPreview();
+      } else {
+        updateToneScaleControls();
+      }
     });
     elements.toneScaleNext.addEventListener("click", () => {
-      setToneScaleStart(
-        pickToneScaleStart(
-          getToneScaleSize(elements.melodyPatternSelect.value),
-          toneScaleStartDegree,
-          toneScaleRandomSteps,
-        ),
+      const run = melodyRun;
+      if (running && !run) return;
+      if (run) updatePosition();
+      const pattern = pickToneScalePattern(
+        getToneScaleSize(elements.melodyPatternSelect.value),
+        toneScaleRandomSteps,
+        toneScaleOffsets,
       );
+      if (!pattern) return;
+      if (run) {
+        queueToneScaleChange(run, pattern.startDegree, pattern.offsets);
+        return;
+      }
+      toneScaleStartDegree = pattern.startDegree;
+      toneScaleOffsets = pattern.offsets;
+      renderMelodyPreview();
     });
     elements.customMelodyInput.addEventListener("input", renderMelodyPreview);
     elements.melodySecondsSelect.addEventListener(
@@ -276,6 +301,7 @@ export function createMelodyPracticeView(
 
   let toneScaleStartDegree = 0;
   let toneScaleRandomSteps = 0;
+  let toneScaleOffsets: number[] | undefined;
   type MelodyResultSection = {
     notes: Note[];
     results: MelodyNoteResult[];
@@ -294,29 +320,36 @@ export function createMelodyPracticeView(
     history: MelodyResultSection[];
     pending: {
       degree: number;
+      offsets: number[] | undefined;
       lap: number;
       notes: Note[];
     } | null;
   };
   let melodyRun: MelodyRun | null = null;
 
-  function selectedMelody(degree = toneScaleStartDegree): Note[] {
+  function selectedMelody(
+    degree = toneScaleStartDegree,
+    offsets = toneScaleOffsets,
+  ): Note[] {
     return buildMelody(
       elements.melodyPatternSelect.value,
       elements.customMelodyInput.value,
       settings.getSettings().startMidi,
       degree,
+      offsets,
     );
   }
 
   function setToneScaleStart(degree: number) {
     const tones = getToneScaleSize(elements.melodyPatternSelect.value);
-    const next = Math.max(0, Math.min(degree, getLastToneScaleStart(tones)));
     const run = melodyRun;
+    const offsets = run?.pending?.offsets ?? toneScaleOffsets;
+    const { first, last } = getToneScaleStartBounds(tones, offsets);
+    const next = Math.max(first, Math.min(degree, last));
     if (!tones || next === (run?.pending?.degree ?? toneScaleStartDegree))
       return;
     if (run) {
-      queueMelodyStart(run, next);
+      queueToneScaleChange(run, next, offsets);
       return;
     }
     if (running) return;
@@ -324,10 +357,14 @@ export function createMelodyPracticeView(
     renderMelodyPreview();
   }
 
-  function queueMelodyStart(run: MelodyRun, degree: number) {
+  function queueToneScaleChange(
+    run: MelodyRun,
+    degree: number,
+    offsets: number[] | undefined,
+  ) {
     const player = playback.getCurrentPlayer();
     if (!player) return;
-    const notes = selectedMelody(degree);
+    const notes = selectedMelody(degree, offsets);
     const frequencies = notes.map((note) => note.frequency);
     // If the audio clock reaches the boundary while updating the display, use the following lap.
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -335,8 +372,11 @@ export function createMelodyPracticeView(
       if (!position) return;
       const lap = position.phase === "countdown" ? 0 : position.lap + 1;
       if (!player.replaceScaleLap(lap, frequencies)) continue;
-      run.pending =
-        degree === toneScaleStartDegree ? null : { degree, lap, notes };
+      run.pending = notes.every(
+        (note, index) => note.frequency === run.notes[index].frequency,
+      )
+        ? null
+        : { degree, offsets, lap, notes };
       if (lap === 0) {
         applyMelodyLapChange(run);
         updatePosition();
@@ -360,26 +400,40 @@ export function createMelodyPracticeView(
     const locked = running;
     const pending = melodyRun?.pending;
     const degree = pending?.degree ?? toneScaleStartDegree;
-    const manualLocked = locked && !melodyRun;
+    const { first, last } = getToneScaleStartBounds(
+      tones,
+      pending?.offsets ?? toneScaleOffsets,
+    );
+    const preparing = locked && !melodyRun;
     elements.toneScaleControls.hidden = !tones;
-    elements.toneScaleManual.hidden = random && !locked;
-    elements.toneScaleRandomControls.hidden = locked;
+    elements.toneScaleDown.hidden = random && !locked;
+    elements.toneScaleUp.hidden = random && !locked;
+    elements.toneScaleRandomSetting.hidden = locked;
     elements.toneScaleNext.hidden = !random;
     elements.toneScaleRandom.disabled = locked;
-    elements.toneScaleDown.disabled = manualLocked;
-    elements.toneScaleUp.disabled = manualLocked;
+    elements.toneScaleDown.disabled = preparing;
+    elements.toneScaleUp.disabled = preparing;
     elements.toneScaleDown.setAttribute(
       "aria-disabled",
-      String(manualLocked || degree === 0),
+      String(preparing || degree === first),
     );
     elements.toneScaleUp.setAttribute(
       "aria-disabled",
-      String(manualLocked || degree === getLastToneScaleStart(tones)),
+      String(preparing || degree === last),
     );
-    elements.toneScaleNext.disabled = locked;
+    elements.toneScaleNext.disabled = preparing;
     if (tones && start) {
-      const next = pending?.notes[0];
-      const label = `開始音：${start.solfege}（${start.name}）${pending && next ? ` · ${pending.lap + 1}周目から${next.solfege}（${next.name}）` : ""}`;
+      let label = `開始音：${start.solfege}（${start.name}）`;
+      if (pending) {
+        const next = pending.notes[0];
+        const queued = random
+          ? pending.notes
+              .slice(0, tones)
+              .map((note) => note.name)
+              .join(" → ")
+          : `${next.solfege}（${next.name}）`;
+        label += ` · ${pending.lap + 1}周目から${queued}`;
+      }
       if (elements.toneScaleStart.textContent !== label)
         elements.toneScaleStart.textContent = label;
     }
@@ -521,6 +575,7 @@ export function createMelodyPracticeView(
       });
     }
     toneScaleStartDegree = pending.degree;
+    toneScaleOffsets = pending.offsets;
     run.firstLap = pending.lap;
     run.notes = pending.notes;
     run.results = pending.notes.map(() => ({ detectedMs: 0, inTuneMs: 0 }));
