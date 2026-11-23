@@ -8,6 +8,7 @@
 
 ```text
 index.html
+model-comparison.html
 styles.css
 package.json
 bun.lock
@@ -21,9 +22,16 @@ src/melodyPracticeView.ts
 src/gamePractice.ts
 src/voiceRangeCheck.ts
 src/microphone.ts
+src/audioContext.ts
 src/audioFileView.ts
 src/audioAnalysisPipeline.ts
+src/audioAnalysisProgress.ts
+src/audioDownloads.ts
 src/audioFileAnalysis.ts
+src/audioRangeGraph.ts
+src/singlePracticeGraph.ts
+src/modelComparisonTool.ts
+src/dom.ts
 src/pitchMath.ts
 src/pitchDetection.ts
 src/graphModel.ts

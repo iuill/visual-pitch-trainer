@@ -107,7 +107,6 @@ describe("pitch detection", () => {
     const targetFrequency = 440;
     const detector = PitchDetector.forFloat32Array(bufferSize);
     detector.clarityThreshold = 0.93;
-    detector.minVolumeAbsolute = 0.006;
 
     const detection = detectPitchWithLibraries(
       createSineBuffer(targetFrequency, TEST_SAMPLE_RATE, bufferSize),

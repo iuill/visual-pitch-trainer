@@ -18,7 +18,10 @@
   - `src/practiceView.ts` / `src/melodyPracticeView.ts`: 共通設定、単音・メロディ練習。
   - `src/gamePractice.ts` / `src/voiceRangeCheck.ts`: ゲームと自分の声域チェック。
   - `src/microphone.ts`: マイク入力の取得・波形の読み取り・解放。
+  - `src/audioContext.ts`: AudioContext の生成と共有コンテキストの管理。
   - `src/audioFileView.ts` / `src/audioAnalysisPipeline.ts`: 音源の声域確認と解析の流れ。
+  - `src/audioRangeGraph.ts` / `src/singlePracticeGraph.ts`: 音源の声域と単音練習のグラフ描画。
+  - `model-comparison.html` / `src/modelComparisonTool.ts`: 開発用の音源解析モデル比較。
   - `src/pitchMath.ts`: 音名、MIDI、周波数、音程差などの計算。
   - `src/pitchDetection.ts`: `pitchy` を使った音程検出。
   - `src/graphModel.ts`: グラフ描画用の座標・表示範囲計算。
