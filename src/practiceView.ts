@@ -109,25 +109,19 @@ export function setupPracticeView(
   let lastMelodySample: PitchSample | null = null;
   let singleStatus = "稽古を開始してください";
 
-  const melody = createMelodyPracticeView({
-    getSettings: settings.getSettings,
-    getPlayer: playback.getPlayer,
-    getCurrentPlayer: playback.getCurrentPlayer,
-    prepareInput() {
+  const melody = createMelodyPracticeView(settings, playback, {
+    prepare() {
       stopMicrophone();
       settings.stopPreview();
       stopReferenceTone();
     },
-    startInput: startMicrophone,
-    stopInput: stopMicrophone,
-    inputIsStarting: () => state.isMicStarting,
-    reportInputStatus: (message) => {
+    start: startMicrophone,
+    stop: stopMicrophone,
+    isStarting: () => state.isMicStarting,
+    reportStatus: (message) => {
       elements.analysisStatus.textContent = message;
     },
-    prepareReferenceStatus: settings.showReferencePreparing,
-    updateReferenceInstrumentDescription: settings.resetReferenceStatus,
-    showReferenceAudioError: settings.reportReferenceError,
-    setSharedControlsLocked(locked) {
+    setControlsLocked(locked) {
       elements.graphPanel.classList.toggle("is-melody-running", locked);
       settings.lockInputControls(locked);
       elements.clearGraphButton.disabled = locked;
@@ -553,11 +547,8 @@ export function setupPracticeView(
     now: number,
     target: Note,
   ) {
-    const status = resolveAnalysisStatus(
-      sample,
-      settings.getSettings().minRms,
-      settings.getSettings().tolerance,
-    );
+    const { minRms, tolerance } = settings.getSettings();
+    const status = resolveAnalysisStatus(sample, minRms, tolerance);
     updateGameEffects(sample, status, now);
     elements.analysisStatus.textContent = formatAnalysisStatus(status);
     elements.graphDescription.textContent = formatGraphDescription(
@@ -768,10 +759,11 @@ export function setupPracticeView(
       }です。`;
     }
 
+    const { tolerance } = settings.getSettings();
     const direction =
-      sample.centsFromTarget > settings.getSettings().tolerance
+      sample.centsFromTarget > tolerance
         ? "高め"
-        : sample.centsFromTarget < -settings.getSettings().tolerance
+        : sample.centsFromTarget < -tolerance
           ? "低め"
           : "範囲内";
 

@@ -3,6 +3,7 @@ import {
   isAudioContextSupported,
   peekAudioContext,
 } from "./audioContext";
+import type { CommonSettings, ReferencePlayback } from "./commonSettings";
 import { queryElement } from "./dom";
 import { drawMelodyGraph, type MelodyGraphData } from "./melodyGraph";
 import { followMelodyKeyboard, renderMelodyKeyboard } from "./melodyKeyboard";
@@ -23,8 +24,6 @@ import {
 import { formatMicrophoneError } from "./microphone";
 import { formatPitchMovement, type Note } from "./pitchMath";
 import { getPitchMovementIcon } from "./pitchMovementVisual";
-import type { ReferenceInstrumentId } from "./referenceInstruments";
-import type { ReferencePlayer } from "./referencePlayer";
 import type { PitchSample } from "./session";
 import { setupSettingsDialog } from "./settingsDialog";
 
@@ -32,26 +31,26 @@ export type PracticeInputStartResult =
   | { ok: true }
   | { ok: false; message?: string };
 
-type MelodyDependencies = {
-  getSettings(): {
-    startMidi: number;
-    tolerance: number;
-    instrument: ReferenceInstrumentId;
-  };
-  getPlayer(): ReferencePlayer;
-  getCurrentPlayer(): ReferencePlayer | null;
-  prepareInput(): void;
-  startInput(): Promise<PracticeInputStartResult>;
-  stopInput(): void;
-  inputIsStarting(): boolean;
-  reportInputStatus(message: string): void;
-  prepareReferenceStatus(): void;
-  updateReferenceInstrumentDescription(): void;
-  showReferenceAudioError(error: unknown): void;
-  setSharedControlsLocked(locked: boolean): void;
+type MelodyInput = {
+  prepare(): void;
+  start(): Promise<PracticeInputStartResult>;
+  stop(): void;
+  isStarting(): boolean;
+  reportStatus(message: string): void;
+  setControlsLocked(locked: boolean): void;
 };
 
-export function createMelodyPracticeView(deps: MelodyDependencies) {
+export function createMelodyPracticeView(
+  settings: Pick<
+    CommonSettings,
+    | "getSettings"
+    | "showReferencePreparing"
+    | "resetReferenceStatus"
+    | "reportReferenceError"
+  >,
+  playback: ReferencePlayback,
+  input: MelodyInput,
+) {
   const elements = {
     melodySection: queryElement<HTMLElement>(".melody-practice"),
     melodySetup: queryElement<HTMLDialogElement>("#melodySetup"),
@@ -210,7 +209,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
         melodyRun.previous,
         observation,
         melodyRun.seconds,
-        deps.getSettings().tolerance,
+        settings.getSettings().tolerance,
       );
       melodyRun.previous = observation;
       if (
@@ -256,7 +255,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
     return buildMelody(
       elements.melodyPatternSelect.value,
       elements.customMelodyInput.value,
-      deps.getSettings().startMidi,
+      settings.getSettings().startMidi,
       degree,
     );
   }
@@ -277,7 +276,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
   }
 
   function queueMelodyStart(run: MelodyRun, degree: number) {
-    const player = deps.getCurrentPlayer();
+    const player = playback.getCurrentPlayer();
     if (!player) return;
     const notes = selectedMelody(degree);
     const frequencies = notes.map((note) => note.frequency);
@@ -383,7 +382,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
 
   function melodyGraphMidiRange(): readonly [number, number] | undefined {
     if (!getToneScaleSize(elements.melodyPatternSelect.value)) return;
-    const start = deps.getSettings().startMidi;
+    const start = settings.getSettings().startMidi;
     return [start, start + 12];
   }
 
@@ -407,7 +406,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
         notes,
         midiRange: melodyGraphMidiRange(),
         seconds: Number(elements.melodySecondsSelect.value),
-        tolerance: deps.getSettings().tolerance,
+        tolerance: settings.getSettings().tolerance,
         phase: "ready",
         cursor: 0,
         samples: [],
@@ -439,7 +438,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
 
   function setMelodyControlsLocked(locked: boolean) {
     document.body.classList.toggle("is-melody-running", locked);
-    deps.setSharedControlsLocked(locked);
+    input.setControlsLocked(locked);
     elements.playScaleButton
       .closest(".melody-practice")
       ?.classList.toggle("is-running", locked);
@@ -580,7 +579,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
     elapsed: number,
   ) {
     const heading = document.createElement("p");
-    heading.textContent = `練習全体の集計です。グラフは停止した周回の声です。判定幅は半音の${melodyGraphData?.tolerance ?? deps.getSettings().tolerance}%です。各周回の最初の${MELODY_GRACE_SECONDS}秒だけが周回開始の猶予です。途中の音の切り替わりには猶予を設けません。「合った割合」は停止までの判定対象時間に対する割合で、無音・検出不能も含みます。`;
+    heading.textContent = `練習全体の集計です。グラフは停止した周回の声です。判定幅は半音の${melodyGraphData?.tolerance ?? settings.getSettings().tolerance}%です。各周回の最初の${MELODY_GRACE_SECONDS}秒だけが周回開始の猶予です。途中の音の切り替わりには猶予を設けません。「合った割合」は停止までの判定対象時間に対する割合で、無音・検出不能も含みます。`;
     const table = document.createElement("table");
     const caption = table.createCaption();
     caption.textContent = "音ごとの判定（マイクに入った音の目安）";
@@ -647,8 +646,8 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
       return;
     }
 
-    if (deps.inputIsStarting()) {
-      deps.reportInputStatus(
+    if (input.isStarting()) {
+      input.reportStatus(
         "マイクの準備中です。少し待ってからメロディ稽古を始めてください。",
       );
       return;
@@ -661,7 +660,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
       renderMelodyPreview();
       return;
     }
-    deps.prepareInput();
+    input.prepare();
     running = true;
     setMelodyControlsLocked(true);
     elements.melodyResults.hidden = true;
@@ -670,16 +669,16 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
       "マイクとお手本音を準備しています。マイクの利用を許可してください。";
 
     const requestId = ++scalePlaybackRequestId;
-    const { instrument } = deps.getSettings();
-    deps.prepareReferenceStatus();
+    const { instrument } = settings.getSettings();
+    settings.showReferencePreparing();
     try {
       const context = getAudioContext();
-      const player = deps.getPlayer();
+      const player = playback.getPlayer();
       await player.prepare(instrument);
       if (requestId !== scalePlaybackRequestId) return;
-      let input: PracticeInputStartResult;
+      let startResult: PracticeInputStartResult;
       try {
-        input = await deps.startInput();
+        startResult = await input.start();
       } catch (error) {
         if (requestId !== scalePlaybackRequestId) return;
         stopScalePlayback();
@@ -688,9 +687,10 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
         return;
       }
       if (requestId !== scalePlaybackRequestId) return;
-      if (!input.ok) {
+      if (!startResult.ok) {
         stopScalePlayback();
-        if (input.message) elements.melodyStatus.textContent = input.message;
+        if (startResult.message)
+          elements.melodyStatus.textContent = startResult.message;
         return;
       }
       await context.resume();
@@ -714,7 +714,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
         notes,
         midiRange: melodyGraphMidiRange(),
         seconds,
-        tolerance: deps.getSettings().tolerance,
+        tolerance: settings.getSettings().tolerance,
         phase: "ready",
         cursor: 0,
         samples: [],
@@ -732,12 +732,12 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
         },
       );
       updateToneScaleControls(notes[0]);
-      deps.updateReferenceInstrumentDescription();
+      settings.resetReferenceStatus();
       tickMelody();
     } catch (error) {
       if (requestId !== scalePlaybackRequestId) return;
       stopScalePlayback();
-      deps.showReferenceAudioError(error);
+      settings.reportReferenceError(error);
       elements.melodyStatus.textContent =
         "開始できませんでした。マイクの許可とお手本音の読み込みを確認して、もう一度お試しください。";
     }
@@ -752,7 +752,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
       tickMelody(false, elapsed);
     elements.melodyCountdown.hidden = true;
     scalePlaybackRequestId++;
-    deps.getCurrentPlayer()?.stopScale();
+    playback.getCurrentPlayer()?.stopScale();
     if (timer !== null) {
       window.clearTimeout(timer);
       timer = null;
@@ -762,7 +762,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
     melodyRun = null;
     elements.playScaleButton.disabled = !isAudioContextSupported();
     if (melodyGraphData) melodyGraphData.phase = "stopped";
-    deps.stopInput();
+    input.stop();
     setMelodyControlsLocked(false);
     updateToneScaleControls(run?.notes[0]);
     for (const item of elements.melodyNotes.children)
@@ -779,7 +779,7 @@ export function createMelodyPracticeView(deps: MelodyDependencies) {
       );
     elements.melodyStatus.textContent =
       "メロディ稽古を停止しました。もう一度始めると最初から練習できます。";
-    deps.updateReferenceInstrumentDescription();
+    settings.resetReferenceStatus();
     draw();
   }
 
