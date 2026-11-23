@@ -88,6 +88,14 @@ describe("graph model", () => {
       100 / 52,
     );
   });
+  test("keeps the same vertical position when a tone scale changes its starting note", () => {
+    const range = [48, 60] as const;
+    const doRe = createMelodyGraphLayout([130.81, 146.83], 2, 390, 300, range);
+    const reMi = createMelodyGraphLayout([146.83, 164.81], 2, 390, 300, range);
+    expect(doRe.y(50)).toBe(reMi.y(50));
+    expect([reMi.minMidi, reMi.maxMidi]).toEqual([46, 62]);
+  });
+
   test("keeps the full melody range and maps each note to its fixed timeline segment", () => {
     const frequencies = [
       261.625565, 293.664768, 329.627557, 349.228231, 391.995436, 440,

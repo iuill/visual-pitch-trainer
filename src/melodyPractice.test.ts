@@ -150,6 +150,14 @@ describe("melody practice", () => {
     expect(getMelodyAssessedSeconds(4.2, 2, 0.5, 0)).toBeCloseTo(0.1);
     expect(getMelodyAssessedSeconds(4.2, 2, 0.5, 1)).toBeCloseTo(0.5);
   });
+  test("assesses only the laps in a section after a starting-note change", () => {
+    const firstLap = 2;
+    expect(getMelodyAssessedSeconds(7.4, 2, 1, 0, firstLap)).toBeCloseTo(0);
+    expect(getMelodyAssessedSeconds(8.25, 2, 1, 0, firstLap)).toBeCloseTo(0.6);
+    expect(getMelodyAssessedSeconds(8.25, 2, 1, 1, firstLap)).toBeCloseTo(0.25);
+    expect(getMelodyAssessedSeconds(11, 2, 1, 0, firstLap)).toBeCloseTo(1.2);
+  });
+
   test("scores the second note immediately while excluding grace at the start of each lap", () => {
     const results = [
       { detectedMs: 0, inTuneMs: 0 },

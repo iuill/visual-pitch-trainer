@@ -310,6 +310,44 @@ describe("reference player", () => {
     expect(h.oscillators).toHaveLength(4);
   });
 
+  test("replaces a reserved lap without cancelling the countdown or changing note times", () => {
+    const h = createHarness();
+    h.player.playScale("sine", [260, 290], {
+      startAt: 1,
+      countdownSeconds: 3,
+      countdownSound: true,
+      noteSeconds: 0.5,
+      loop: true,
+    });
+    h.context.currentTime = 3.85;
+    h.tick();
+    const cue = h.oscillators[3];
+    const first = h.oscillators[4];
+    expect(h.player.replaceScaleLap(0, [290, 330])).toBe(true);
+    expect(cue.stops).toHaveLength(1);
+    expect(first.stops.at(-1)).toBeCloseTo(3.85);
+    expect(h.oscillators[5].startedAt).toBe(4);
+    expect(h.oscillators[5].frequency.value).toBe(290);
+
+    h.context.currentTime = 4.38;
+    h.tick();
+    const current = h.oscillators.at(-1);
+    h.context.currentTime = 4.85;
+    h.tick();
+    const reserved = h.oscillators.at(-1);
+    expect(h.player.replaceScaleLap(0, [330, 350])).toBe(false);
+    expect(h.player.replaceScaleLap(1, [330])).toBe(false);
+    expect(h.player.replaceScaleLap(1, [330, 350])).toBe(true);
+    expect(current?.stops).toHaveLength(1);
+    expect(reserved?.startedAt).toBe(5);
+    expect(reserved?.stops.at(-1)).toBeCloseTo(4.85);
+    expect(h.oscillators.at(-1)?.startedAt).toBe(5);
+    expect(h.oscillators.at(-1)?.frequency.value).toBe(330);
+    expect(h.player.replaceScaleLap(1, [290, 330])).toBe(true);
+    expect(h.oscillators.at(-1)?.startedAt).toBe(5);
+    expect(h.oscillators.at(-1)?.frequency.value).toBe(290);
+  });
+
   test("plays the preview in the selected range with its original rhythm and cancels future notes", () => {
     const h = createHarness();
     const seconds = h.player.playPhrase("sine", buildInstrumentPreview(60));
