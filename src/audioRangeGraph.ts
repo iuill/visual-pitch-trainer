@@ -459,6 +459,7 @@ function drawAudioPitchTrend(
   context.restore();
 }
 
+/** The analysis points must be in ascending time order. */
 export function audioPitchLabelAt(
   points: readonly AudioPitchPoint[],
   timeMs: number,
