@@ -5,11 +5,18 @@ import {
   summarizeVoiceRange,
 } from "./audioFileAnalysis";
 import { resampleAudioForPitchModel } from "./crepePitchDetection";
-import { assertModelUrlAccessible } from "./modelAccess";
-import { configureOnnxRuntimeWebGpu } from "./onnxRuntimeConfig";
+import {
+  assertModelUrlAccessible,
+  PITCH_MODEL_SETUP_HINT,
+} from "./modelAccess";
+import {
+  assertWebGpuSupported,
+  createPitchModelSession,
+  disposeTensors,
+  getWebGpuSupportMessage,
+  type PitchModelSession,
+} from "./onnxRuntime";
 import { getRms, hzToMidi } from "./pitchMath";
-
-type OnnxRuntimeWebGpu = typeof import("onnxruntime-web/webgpu");
 
 export type RmvpeAnalysisProgress = {
   phase:
@@ -46,10 +53,7 @@ const WEIGHTED_ARGMAX_RADIUS = 4;
 const RMVPE_MODEL_URL =
   import.meta.env.VITE_RMVPE_MODEL_URL || "models/rmvpe.onnx";
 
-let rmvpeSessionPromise: Promise<{
-  ort: OnnxRuntimeWebGpu;
-  session: Awaited<ReturnType<OnnxRuntimeWebGpu["InferenceSession"]["create"]>>;
-}> | null = null;
+let rmvpeSessionPromise: Promise<PitchModelSession> | null = null;
 
 let rmvpeMelBasis: Float32Array | null = null;
 
@@ -140,8 +144,7 @@ export async function analyzeAudioDataWithRmvpe(
       });
     }
   } finally {
-    disposeTensor(input);
-    disposeTensors(Object.values(output));
+    disposeTensors(input, ...Object.values(output));
   }
 
   options.onProgress?.({
@@ -163,41 +166,20 @@ export async function analyzeAudioDataWithRmvpe(
 }
 
 export function getRmvpePitchDetectionSupportMessage(): string | null {
-  if (!window.isSecureContext) {
-    return "RMVPE推定にはHTTPSまたはlocalhostの安全な接続が必要です。";
-  }
-
-  if (!getNavigatorGpu()) {
-    return "このブラウザではWebGPUが使えないため、RMVPE推定はPC版Chrome/Edgeなどで試してください。";
-  }
-
-  return null;
+  return getWebGpuSupportMessage("RMVPE推定");
 }
-
 export async function assertRmvpeModelAccessible(): Promise<void> {
   await assertModelUrlAccessible({
     label: "RMVPE",
     modelUrl: RMVPE_MODEL_URL,
     minBytes: 16 * 1024 * 1024,
-    setupHint:
-      "ローカル開発や Cloudflare Pages など GitHub Pages 以外の配信では、build 前に bun run download:pitch-models を実行して public/models/ にモデルを取得してください。",
+    setupHint: PITCH_MODEL_SETUP_HINT,
   });
 }
 
-export async function assertRmvpePitchDetectionSupported(): Promise<void> {
-  const supportMessage = getRmvpePitchDetectionSupportMessage();
-  if (supportMessage) {
-    throw new Error(supportMessage);
-  }
-
-  const adapter = await getNavigatorGpu()?.requestAdapter?.();
-  if (!adapter) {
-    throw new Error(
-      "この環境ではWebGPUアダプタを取得できないため、RMVPE推定を使えません。",
-    );
-  }
+export function assertRmvpePitchDetectionSupported(): Promise<void> {
+  return assertWebGpuSupported("RMVPE推定");
 }
-
 export function decodeRmvpeFrame(
   activation: Float32Array,
   frameIndex: number,
@@ -473,13 +455,15 @@ export async function releaseRmvpeSession() {
   }
 }
 
-async function getRmvpeSession(onCreate?: () => void): Promise<{
-  ort: OnnxRuntimeWebGpu;
-  session: Awaited<ReturnType<OnnxRuntimeWebGpu["InferenceSession"]["create"]>>;
-}> {
+async function getRmvpeSession(
+  onCreate?: () => void,
+): Promise<PitchModelSession> {
   if (!rmvpeSessionPromise) {
     onCreate?.();
-    const sessionPromise = createRmvpeSession().catch((error) => {
+    const sessionPromise = createPitchModelSession(
+      "RMVPE",
+      RMVPE_MODEL_URL,
+    ).catch((error) => {
       if (rmvpeSessionPromise === sessionPromise) {
         rmvpeSessionPromise = null;
       }
@@ -489,75 +473,4 @@ async function getRmvpeSession(onCreate?: () => void): Promise<{
   }
 
   return rmvpeSessionPromise;
-}
-
-async function createRmvpeSession(): Promise<{
-  ort: OnnxRuntimeWebGpu;
-  session: Awaited<ReturnType<OnnxRuntimeWebGpu["InferenceSession"]["create"]>>;
-}> {
-  const ort = await import("onnxruntime-web/webgpu");
-  configureOnnxRuntime(ort);
-
-  let session: Awaited<
-    ReturnType<OnnxRuntimeWebGpu["InferenceSession"]["create"]>
-  >;
-  try {
-    session = await ort.InferenceSession.create(RMVPE_MODEL_URL, {
-      executionProviders: ["webgpu"],
-      graphOptimizationLevel: "all",
-    });
-  } catch (error) {
-    throw createOnnxModelLoadError("RMVPE", RMVPE_MODEL_URL, error);
-  }
-
-  return { ort, session };
-}
-
-function createOnnxModelLoadError(
-  label: string,
-  modelUrl: string,
-  error: unknown,
-) {
-  const message = error instanceof Error ? error.message : "";
-  if (
-    !message.includes("protobuf parsing failed") &&
-    !message.includes("Failed to load model")
-  ) {
-    return error;
-  }
-
-  return new Error(
-    `${label}モデルを読み込めませんでした。${modelUrl} が有効な ONNX モデルとして配信されているか確認してください。ローカル開発や Cloudflare Pages など GitHub Pages 以外の配信では、build 前に bun run download:pitch-models を実行して public/models/ にモデルを取得してください。元のエラー: ${message}`,
-  );
-}
-
-function configureOnnxRuntime(ort: OnnxRuntimeWebGpu) {
-  configureOnnxRuntimeWebGpu(ort, {
-    numThreads: 1,
-    powerPreference: "high-performance",
-  });
-}
-
-function getNavigatorGpu():
-  | {
-      requestAdapter?: () => Promise<unknown>;
-    }
-  | undefined {
-  return (
-    navigator as Navigator & {
-      gpu?: {
-        requestAdapter?: () => Promise<unknown>;
-      };
-    }
-  ).gpu;
-}
-
-function disposeTensor(tensor: { dispose?: () => void }) {
-  tensor.dispose?.();
-}
-
-function disposeTensors(tensors: Array<{ dispose?: () => void } | undefined>) {
-  for (const tensor of tensors) {
-    tensor?.dispose?.();
-  }
 }

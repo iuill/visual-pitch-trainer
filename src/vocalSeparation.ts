@@ -1,6 +1,15 @@
-import type { DecodedMediaAudio } from "./mediaAudioExtraction";
+import {
+  type DecodedMediaAudio,
+  resampleToStereo,
+} from "./mediaAudioExtraction";
 import { assertModelUrlAccessible } from "./modelAccess";
-import { configureOnnxRuntimeWebGpu } from "./onnxRuntimeConfig";
+import {
+  assertWebGpuSupported,
+  configureOnnxRuntimeWebGpu,
+  disposeTensors,
+  getWebGpuSupportMessage,
+  type OnnxRuntimeWebGpu,
+} from "./onnxRuntime";
 import {
   assertRoformerModelAccessible,
   extractVocalsWithRoformer,
@@ -9,7 +18,6 @@ import {
 } from "./roformerVocalSeparation";
 
 type DemucsModule = typeof import("demucs-web");
-type OnnxRuntimeWebGpu = typeof import("onnxruntime-web/webgpu");
 type DemucsProcessor = InstanceType<DemucsModule["DemucsProcessor"]>;
 type DemucsModelInput = ReturnType<DemucsModule["prepareModelInput"]>;
 
@@ -71,7 +79,11 @@ export async function extractVocals(
   options.onProgress?.({ phase: "loading-runtime", modelLabel });
   const ort = await import("onnxruntime-web/webgpu");
 
-  configureOnnxRuntime(ort);
+  configureOnnxRuntimeWebGpu(ort, {
+    numThreads: window.crossOriginIsolated
+      ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
+      : 1,
+  });
 
   if (modelId !== "demucs") {
     return extractVocalsWithRoformer(decodedAudio, modelId, ort, {
@@ -92,7 +104,10 @@ export async function extractVocals(
 
   try {
     options.onProgress?.({ phase: "separating", progress: 0, modelLabel });
-    const stereoAudio = await resampleToDemucsStereo(decodedAudio);
+    const stereoAudio = await resampleToStereo(
+      decodedAudio,
+      DEMUCS_SAMPLE_RATE,
+    );
     const vocals = await separateVocalsWithDemucsProcessors(
       demucs,
       ort,
@@ -114,33 +129,15 @@ export async function extractVocals(
 }
 
 export function getVocalSeparationSupportMessage(): string | null {
-  if (!window.isSecureContext) {
-    return "ボーカル抽出にはHTTPSまたはlocalhostの安全な接続が必要です。";
-  }
-
-  if (!window.crossOriginIsolated || typeof SharedArrayBuffer === "undefined") {
-    return "ボーカル抽出にはCross-Origin-Opener-PolicyとCross-Origin-Embedder-Policyが有効な配信環境が必要です。";
-  }
-
-  if (!getNavigatorGpu()) {
-    return "このブラウザではWebGPUが使えないため、ボーカル抽出はPC版Chrome/Edgeなどで試してください。";
-  }
-
-  return null;
+  return getWebGpuSupportMessage("ボーカル抽出", {
+    requiresCrossOriginIsolation: true,
+  });
 }
 
-export async function assertVocalSeparationSupported(): Promise<void> {
-  const supportMessage = getVocalSeparationSupportMessage();
-  if (supportMessage) {
-    throw new Error(supportMessage);
-  }
-
-  const adapter = await getNavigatorGpu()?.requestAdapter?.();
-  if (!adapter) {
-    throw new Error(
-      "この環境ではWebGPUアダプタを取得できないため、ボーカル抽出を使えません。",
-    );
-  }
+export function assertVocalSeparationSupported(): Promise<void> {
+  return assertWebGpuSupported("ボーカル抽出", {
+    requiresCrossOriginIsolation: true,
+  });
 }
 
 export async function assertVocalSeparationModelAccessible(
@@ -439,9 +436,11 @@ async function runDemucsSegment(
       }
     }
   } finally {
-    disposeTensor(waveformTensor);
-    disposeTensor(magSpecTensor);
-    disposeTensors(Object.values(inferResults));
+    disposeTensors(
+      waveformTensor,
+      magSpecTensor,
+      ...Object.values(inferResults),
+    );
   }
 
   return { left, right };
@@ -457,14 +456,6 @@ function createDemucsOverlapWindow(segmentLength: number, stride: number) {
   }
 
   return overlapWindow;
-}
-
-function configureOnnxRuntime(ort: OnnxRuntimeWebGpu) {
-  configureOnnxRuntimeWebGpu(ort, {
-    numThreads: window.crossOriginIsolated
-      ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
-      : 1,
-  });
 }
 
 function getDemucsModelUrl(): string {
@@ -527,75 +518,4 @@ async function fetchDemucsModelBuffer(options: VocalSeparationOptions) {
   }
 
   return combined.buffer;
-}
-
-function getNavigatorGpu():
-  | {
-      requestAdapter?: () => Promise<unknown>;
-    }
-  | undefined {
-  return (
-    navigator as Navigator & {
-      gpu?: {
-        requestAdapter?: () => Promise<unknown>;
-      };
-    }
-  ).gpu;
-}
-
-function disposeTensors(tensors: Array<{ dispose?: () => void } | undefined>) {
-  for (const tensor of tensors) {
-    disposeTensor(tensor);
-  }
-}
-
-function disposeTensor(tensor: { dispose?: () => void } | undefined) {
-  tensor?.dispose?.();
-}
-
-async function resampleToDemucsStereo(
-  decodedAudio: DecodedMediaAudio,
-): Promise<{
-  left: Float32Array;
-  right: Float32Array;
-}> {
-  const left = decodedAudio.channels[0] ?? new Float32Array(0);
-  const right = decodedAudio.channels[1] ?? left;
-
-  if (decodedAudio.sampleRate === DEMUCS_SAMPLE_RATE) {
-    return {
-      left: new Float32Array(left),
-      right: new Float32Array(right),
-    };
-  }
-
-  const frameCount = Math.max(
-    1,
-    Math.ceil((left.length / decodedAudio.sampleRate) * DEMUCS_SAMPLE_RATE),
-  );
-  const offlineContext = new OfflineAudioContext(
-    2,
-    frameCount,
-    DEMUCS_SAMPLE_RATE,
-  );
-  const buffer = offlineContext.createBuffer(
-    2,
-    Math.max(left.length, right.length, 1),
-    decodedAudio.sampleRate,
-  );
-
-  buffer.copyToChannel(new Float32Array(left), 0);
-  buffer.copyToChannel(new Float32Array(right), 1);
-
-  const source = offlineContext.createBufferSource();
-  source.buffer = buffer;
-  source.connect(offlineContext.destination);
-  source.start();
-
-  const rendered = await offlineContext.startRendering();
-
-  return {
-    left: new Float32Array(rendered.getChannelData(0)),
-    right: new Float32Array(rendered.getChannelData(1)),
-  };
 }
