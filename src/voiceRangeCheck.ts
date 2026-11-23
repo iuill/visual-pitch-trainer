@@ -1,4 +1,5 @@
 import { createAudioContext } from "./audioContext";
+import { queryElement } from "./dom";
 import { observeGraphResize } from "./graphCanvas";
 import { VOICE_RANGE_GRAPH_MS, type VoiceRangeGraphSample } from "./graphModel";
 import {
@@ -23,231 +24,213 @@ import {
   type VoiceRangeGraphNotation,
 } from "./voiceRangeGraph";
 
-export class VoiceRangeCheck {
-  private range = createVoiceRange();
-  private context: AudioContext | null = null;
-  private readonly microphone = new MicrophoneInput();
-  private active = false;
-  private samples: VoiceRangeGraphSample[] = [];
-  private readonly root: HTMLElement;
-  private readonly stopObservingGraph: () => void;
-  private pendingMessage = "";
-  private pendingMessageAt = 0;
+export function setupVoiceRangeCheck(
+  getSettings: () => { deviceId: string; minRms: number },
+  beforeStart: () => void,
+) {
+  const root = queryElement<HTMLElement>("#voiceRangeView");
+  const elements = {
+    hold: queryElement<HTMLProgressElement>("#voiceRangeHold"),
+    start: queryElement<HTMLButtonElement>("#voiceRangeStart"),
+    stop: queryElement<HTMLButtonElement>("#voiceRangeStop"),
+    reset: queryElement<HTMLButtonElement>("#voiceRangeReset"),
+    graphNotation: queryElement<HTMLSelectElement>("#voiceRangeGraphNotation"),
+    canvas: queryElement<HTMLCanvasElement>("#voiceRangeCanvas"),
+    status: queryElement<HTMLElement>("#voiceRangeStatus"),
+    current: queryElement<HTMLElement>("#voiceRangeCurrent"),
+    rangeDescription: queryElement<HTMLElement>("#voiceRangeSpan"),
+    notes: queryElement<HTMLElement>("#voiceRangeNotes"),
+    solfege: queryElement<HTMLElement>("#voiceRangeSolfege"),
+    scientific: queryElement<HTMLElement>("#voiceRangeScientific"),
+    karaoke: queryElement<HTMLElement>("#voiceRangeKaraoke"),
+  };
+  let range = createVoiceRange();
+  let audioContext: AudioContext | null = null;
+  const microphone = new MicrophoneInput();
+  let active = false;
+  let samples: VoiceRangeGraphSample[] = [];
+  let pendingMessage = "";
+  let pendingMessageAt = 0;
 
-  constructor(
-    private readonly settings: () => { deviceId: string; minRms: number },
-    private readonly beforeStart: () => void,
-  ) {
-    const root = document.querySelector<HTMLElement>("#voiceRangeView");
-    if (!root) throw new Error("声域チェック画面がありません。");
-    this.root = root;
-    this.el<HTMLProgressElement>("voiceRangeHold").max = RANGE_HOLD_MS;
-    this.el<HTMLButtonElement>("voiceRangeStart").addEventListener(
-      "click",
-      () => void this.start(),
-    );
-    this.el<HTMLButtonElement>("voiceRangeStop").addEventListener("click", () =>
-      this.stop(),
-    );
-    this.el<HTMLButtonElement>("voiceRangeReset").addEventListener(
-      "click",
-      () => {
-        this.stop();
-        this.range = createVoiceRange();
-        this.samples = [];
-        this.render();
-        this.message("記録を消しました。もう一度チェックできます。");
-      },
-    );
-    this.el<HTMLSelectElement>("voiceRangeGraphNotation").addEventListener(
-      "change",
-      () => this.drawGraph(),
-    );
-    this.stopObservingGraph = observeGraphResize(
-      [this.el("voiceRangeCanvas")],
-      () => this.drawGraph(),
-    );
-    this.render();
-  }
+  elements.hold.max = RANGE_HOLD_MS;
+  elements.start.addEventListener("click", () => void start());
+  elements.stop.addEventListener("click", () => stop());
+  elements.reset.addEventListener("click", () => {
+    stop();
+    range = createVoiceRange();
+    samples = [];
+    render();
+    message("記録を消しました。もう一度チェックできます。");
+  });
+  elements.graphNotation.addEventListener("change", drawGraph);
+  const stopObservingGraph = observeGraphResize([elements.canvas], drawGraph);
+  render();
 
-  private el<T extends HTMLElement>(id: string): T {
-    const element = this.root.querySelector<T>(`#${id}`);
-    if (!element) throw new Error(`声域チェックの要素がありません：${id}`);
-    return element;
-  }
+  return { show, stop, settingsChanged: stop, dispose };
 
-  private message(text: string, now?: number) {
+  function message(text: string, now?: number) {
     if (now !== undefined) {
-      if (text !== this.pendingMessage) {
-        this.pendingMessage = text;
-        this.pendingMessageAt = now;
+      if (text !== pendingMessage) {
+        pendingMessage = text;
+        pendingMessageAt = now;
       }
-      if (now - this.pendingMessageAt < 200) return;
-    } else this.pendingMessage = "";
-    const element = this.el("voiceRangeStatus");
+      if (now - pendingMessageAt < 200) return;
+    } else pendingMessage = "";
+    const element = elements.status;
     if (element.textContent !== text) element.textContent = text;
   }
 
-  show(visible: boolean) {
-    this.root.hidden = !visible;
-    if (visible) requestAnimationFrame(() => this.drawGraph());
+  function show(visible: boolean) {
+    root.hidden = !visible;
+    if (visible) requestAnimationFrame(drawGraph);
   }
 
-  settingsChanged() {
-    this.stop();
+  function dispose() {
+    stop();
+    stopObservingGraph();
   }
 
-  dispose() {
-    this.stop();
-    this.stopObservingGraph();
-  }
-
-  stop() {
-    const wasActive = this.active;
-    this.active = false;
-    this.microphone.stop();
-    if (this.context && this.context.state !== "closed")
-      void this.context.close().catch(() => {});
-    this.context = null;
-    this.range.candidate = null;
-    this.range.heldMs = 0;
-    this.range.previousAt = null;
-    this.el<HTMLButtonElement>("voiceRangeStart").disabled = false;
-    this.el<HTMLButtonElement>("voiceRangeStop").disabled = true;
-    this.root.removeAttribute("data-running");
-    this.el("voiceRangeCurrent").textContent = "—";
-    this.el<HTMLProgressElement>("voiceRangeHold").value = 0;
-    const last = this.samples.at(-1);
+  function stop() {
+    const wasActive = active;
+    active = false;
+    microphone.stop();
+    if (audioContext && audioContext.state !== "closed")
+      void audioContext.close().catch(() => {});
+    audioContext = null;
+    range.candidate = null;
+    range.heldMs = 0;
+    range.previousAt = null;
+    elements.start.disabled = false;
+    elements.stop.disabled = true;
+    root.removeAttribute("data-running");
+    elements.current.textContent = "—";
+    elements.hold.value = 0;
+    const last = samples.at(-1);
     if (wasActive && last && last.midi !== null)
-      this.samples.push({ timeMs: last.timeMs, midi: null });
-    this.render();
+      samples.push({ timeMs: last.timeMs, midi: null });
+    render();
     if (wasActive)
-      this.message(
-        this.range.notes.length
+      message(
+        range.notes.length
           ? "停止しました。記録した声域を確認できます。続けて測ることもできます。"
           : "停止しました。安定した音はまだ記録されていません。",
       );
   }
 
-  private async start() {
-    this.stop();
-    this.beforeStart();
-    this.active = true;
-    this.render();
-    this.el<HTMLButtonElement>("voiceRangeStart").disabled = true;
-    this.el<HTMLButtonElement>("voiceRangeStop").disabled = false;
-    this.root.setAttribute("data-running", "");
-    this.message("マイクの利用を許可してください。");
+  async function start() {
+    stop();
+    beforeStart();
+    active = true;
+    render();
+    elements.start.disabled = true;
+    elements.stop.disabled = false;
+    root.setAttribute("data-running", "");
+    message("マイクの利用を許可してください。");
     let context: AudioContext | null = null;
     try {
-      const audioContext = createAudioContext();
-      this.context = context = audioContext;
-      await audioContext.resume();
-      if (this.context !== context) return;
-      const { deviceId, minRms } = this.settings();
-      await this.microphone.start(() => audioContext, {
+      const nextContext = createAudioContext();
+      audioContext = nextContext;
+      context = nextContext;
+      await nextContext.resume();
+      if (audioContext !== context) return;
+      const { deviceId, minRms } = getSettings();
+      await microphone.start(() => nextContext, {
         deviceId,
         fftSize: 8192,
         onEnded: () => {
-          this.stop();
-          this.message(
-            "マイクが切断されました。接続を確認して、再開してください。",
-          );
+          stop();
+          message("マイクが切断されました。接続を確認して、再開してください。");
         },
-        onFrame: (now, capture) => this.onFrame(now, capture, minRms),
+        onFrame: (now, capture) => onFrame(now, capture, minRms),
       });
     } catch (error) {
-      if (this.context !== context) return;
-      this.stop();
-      this.message(formatMicrophoneError(error));
+      if (audioContext !== context) return;
+      stop();
+      message(formatMicrophoneError(error));
     }
   }
 
-  private onFrame(now: number, capture: MicrophoneCapture, minRms: number) {
+  function onFrame(now: number, capture: MicrophoneCapture, minRms: number) {
     const detection = capture.sampleVoiceRange(minRms);
-    const before = this.range.notes.length;
-    observeVoiceRange(this.range, detection.frequency, now);
-    if (now - (this.samples.at(-1)?.timeMs ?? -Infinity) >= 40) {
-      this.samples.push({
+    const before = range.notes.length;
+    observeVoiceRange(range, detection.frequency, now);
+    if (now - (samples.at(-1)?.timeMs ?? -Infinity) >= 40) {
+      samples.push({
         timeMs: now,
         midi:
           detection.frequency === null ? null : hzToMidi(detection.frequency),
       });
-      this.samples = this.samples.filter(
+      samples = samples.filter(
         (sample) => sample.timeMs >= now - VOICE_RANGE_GRAPH_MS,
       );
-      this.drawGraph();
+      drawGraph();
     }
-    const note = this.range.candidate;
-    this.el("voiceRangeCurrent").textContent =
+    const note = range.candidate;
+    elements.current.textContent =
       note === null
         ? "—"
         : `${midiToSolfegeWithOctave(note)} / ${midiToNoteName(note)} / ${midiToKaraokeName(note)}`;
-    this.el<HTMLProgressElement>("voiceRangeHold").value = Math.min(
-      RANGE_HOLD_MS,
-      this.range.heldMs,
-    );
-    this.message(
+    elements.hold.value = Math.min(RANGE_HOLD_MS, range.heldMs);
+    message(
       note === null
         ? "声が小さいか、音程を確認できません。同じ高さでゆっくり伸ばしてください。"
-        : this.range.heldMs >= RANGE_HOLD_MS
+        : range.heldMs >= RANGE_HOLD_MS
           ? "この音を記録しました。無理のない範囲で低い音・高い音も試せます。"
           : "その高さを少し保ってください…",
       now,
     );
-    if (before !== this.range.notes.length) this.render();
+    if (before !== range.notes.length) render();
   }
 
-  private render() {
-    const low = this.range.notes[0];
-    const high = this.range.notes.at(-1);
-    for (const [id, format] of [
-      ["voiceRangeSolfege", midiToSolfegeWithOctave],
-      ["voiceRangeScientific", midiToNoteName],
-      ["voiceRangeKaraoke", midiToKaraokeName],
+  function render() {
+    const low = range.notes[0];
+    const high = range.notes.at(-1);
+    for (const [element, format] of [
+      [elements.solfege, midiToSolfegeWithOctave],
+      [elements.scientific, midiToNoteName],
+      [elements.karaoke, midiToKaraokeName],
     ] as const)
-      this.el(id).textContent =
+      element.textContent =
         low === undefined || high === undefined
           ? "—"
           : `${format(low)} 〜 ${format(high)}`;
-    this.el("voiceRangeSpan").textContent =
+    elements.rangeDescription.textContent =
       low === undefined || high === undefined
         ? "同じ高さの声を保つと記録されます。"
-        : `${this.range.notes.length}音を記録・最低音と最高音の幅は${high - low}半音です。間のすべての音を確認したわけではありません。`;
-    this.el("voiceRangeNotes").replaceChildren(
-      ...this.range.notes.map((midi) => {
+        : `${range.notes.length}音を記録・最低音と最高音の幅は${high - low}半音です。間のすべての音を確認したわけではありません。`;
+    elements.notes.replaceChildren(
+      ...range.notes.map((midi) => {
         const item = document.createElement("li");
         const button = document.createElement("button");
         button.type = "button";
         button.className = "voice-range-recorded-note";
-        button.disabled = this.active;
+        button.disabled = active;
         const label = `${midiToSolfegeWithOctave(midi)} / ${midiToNoteName(midi)} / ${midiToKaraokeName(midi)}`;
         button.textContent = `${label} ×`;
         button.setAttribute("aria-label", `${label}を記録から削除`);
         button.addEventListener("click", () => {
-          removeVoiceRangeNote(this.range, midi);
-          this.render();
-          this.message(`${label}の記録を削除しました。`);
+          removeVoiceRangeNote(range, midi);
+          render();
+          message(`${label}の記録を削除しました。`);
           (
-            this.root.querySelector<HTMLButtonElement>(
+            root.querySelector<HTMLButtonElement>(
               ".voice-range-recorded-note",
-            ) ?? this.el<HTMLButtonElement>("voiceRangeReset")
+            ) ?? elements.reset
           ).focus();
         });
         item.append(button);
         return item;
       }),
     );
-    this.drawGraph();
+    drawGraph();
   }
 
-  private drawGraph() {
+  function drawGraph() {
     drawVoiceRangeGraph(
-      this.el<HTMLCanvasElement>("voiceRangeCanvas"),
-      this.samples,
-      this.range.notes,
-      this.el<HTMLSelectElement>("voiceRangeGraphNotation")
-        .value as VoiceRangeGraphNotation,
+      elements.canvas,
+      samples,
+      range.notes,
+      elements.graphNotation.value as VoiceRangeGraphNotation,
     );
   }
 }

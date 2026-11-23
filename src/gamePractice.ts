@@ -1,5 +1,7 @@
 import { AnimationLoop } from "./animationLoop";
 import { createAudioContext } from "./audioContext";
+import type { CommonSettings } from "./commonSettings";
+import { queryElement } from "./dom";
 import {
   getGraphTheme,
   observeGraphResize,
@@ -31,17 +33,9 @@ import {
   midiToNoteName,
   type Note,
 } from "./pitchMath";
-import type { ReferenceInstrumentId } from "./referenceInstruments";
 import { ReferencePlayer } from "./referencePlayer";
 
-type Settings = {
-  startMidi: number;
-  instrument: ReferenceInstrumentId;
-  volume: number;
-  deviceId: string;
-  minRms: number;
-  tolerance: number;
-};
+type Settings = ReturnType<CommonSettings["getSettings"]>;
 type Phase =
   | "idle"
   | "preparing"
@@ -57,462 +51,469 @@ const CELEBRATION_COLORS = [
   "#ce5591",
 ];
 
-export class GamePractice {
-  private readonly root: HTMLElement;
-  private readonly stopObservingGraph: () => void;
-  private active = false;
-  private audioReady = false;
-  private generation = 0;
-  private context: AudioContext | null = null;
-  private player: ReferencePlayer | null = null;
-  private readonly microphone = new MicrophoneInput();
-  private readonly earLoop = new AnimationLoop();
-  private phase: Phase = "idle";
-  private mode = "voice";
-  private settings: Settings | null = null;
-  private notes: Note[] = [];
-  private choices: Note[] = [];
-  private target: Note | null = null;
-  private previousIndex: number | null = null;
-  private challenge: Challenge | null = null;
-  private until = 0;
-  private round = 0;
-  private rounds = 5;
-  private correct = 0;
-  private score: PitchGameScore = { points: 0, streak: 0, bestStreak: 0 };
-  private best = 0;
-  private bestKey = "";
-  private effectTimer: ReturnType<typeof setTimeout> | null = null;
-  private trace: { time: number; hz: number | null }[] = [];
+export function setupGamePractice(
+  getSettings: () => Settings,
+  beforeStart: () => void,
+) {
+  const root = queryElement<HTMLElement>("#gamePracticeView");
+  const elements = {
+    start: queryElement<HTMLButtonElement>("#gameStart"),
+    stop: queryElement<HTMLButtonElement>("#gameStop"),
+    replay: queryElement<HTMLButtonElement>("#gameReplay"),
+    next: queryElement<HTMLButtonElement>("#gameNext"),
+    mode: queryElement<HTMLElement>("#gameMode"),
+    canvas: queryElement<HTMLCanvasElement>("#gameCanvas"),
+    feedback: queryElement<HTMLElement>("#gameFeedback"),
+    voiceGameSettings: queryElement<HTMLElement>("#voiceGameSettings"),
+    earGameSettings: queryElement<HTMLElement>("#earGameSettings"),
+    voiceStage: queryElement<HTMLElement>("#gameVoiceStage"),
+    earStage: queryElement<HTMLElement>("#gameEarStage"),
+    instructions: queryElement<HTMLElement>("#gameInstructions"),
+    settings: queryElement<HTMLFieldSetElement>("#gameSettings"),
+    countdown: queryElement<HTMLElement>("#gameCountdown"),
+    result: queryElement<HTMLElement>("#gameResult"),
+    holdProgress: queryElement<HTMLProgressElement>("#gameHoldProgress"),
+    history: queryElement<HTMLElement>("#gameHistory"),
+    target: queryElement<HTMLElement>("#gameTarget"),
+    voice: queryElement<HTMLElement>("#gameVoice"),
+    gap: queryElement<HTMLElement>("#gameGap"),
+    choices: queryElement<HTMLElement>("#gameChoices"),
+    metric: queryElement<HTMLElement>("#gameMetric"),
+    setup: queryElement<HTMLDetailsElement>("#gameSetup"),
+    score: queryElement<HTMLElement>("#gameScore"),
+    points: queryElement<HTMLElement>("#gamePoints"),
+    streak: queryElement<HTMLElement>("#gameStreak"),
+    best: queryElement<HTMLElement>("#gameBest"),
+    roundProgress: queryElement<HTMLProgressElement>("#gameRoundProgress"),
+    effectSound: queryElement<HTMLInputElement>("#gameEffectSound"),
+    celebration: queryElement<HTMLElement>("#gameCelebration"),
+  };
+  const options = Array.from(
+    root.querySelectorAll<HTMLInputElement>('input[type="radio"]'),
+  );
+  let active = false;
+  let audioReady = false;
+  let runGeneration = 0;
+  let audioContext: AudioContext | null = null;
+  let referencePlayer: ReferencePlayer | null = null;
+  const microphone = new MicrophoneInput();
+  const earLoop = new AnimationLoop();
+  let phase: Phase = "idle";
+  let mode = "voice";
+  let settings: Settings | null = null;
+  let notes: Note[] = [];
+  let choices: Note[] = [];
+  let target: Note | null = null;
+  let previousIndex: number | null = null;
+  let challenge: Challenge | null = null;
+  let until = 0;
+  let round = 0;
+  let rounds = 5;
+  let correct = 0;
+  let score: PitchGameScore = { points: 0, streak: 0, bestStreak: 0 };
+  let best = 0;
+  let bestKey = "";
+  let effectTimer: ReturnType<typeof setTimeout> | null = null;
+  let trace: { time: number; hz: number | null }[] = [];
 
-  constructor(
-    private readonly getSettings: () => Settings,
-    private readonly beforeStart: () => void,
-  ) {
-    const root = document.querySelector<HTMLElement>("#gamePracticeView");
-    if (!root) throw new Error("ゲーム画面がありません。");
-    this.root = root;
-    this.el<HTMLButtonElement>("gameStart").addEventListener(
-      "click",
-      () => void this.start(),
-    );
-    this.el<HTMLButtonElement>("gameStop").addEventListener("click", () =>
-      this.stop(),
-    );
-    this.el<HTMLButtonElement>("gameReplay").addEventListener("click", () => {
-      if (this.phase === "question") this.playQuestion();
-    });
-    this.el<HTMLButtonElement>("gameNext").addEventListener("click", () => {
-      if (this.phase !== "feedback") return;
-      if (this.round >= this.rounds) this.finish();
-      else this.nextEarRound();
-    });
-    this.el("gameMode").addEventListener("change", () => this.showMode());
-    this.stopObservingGraph = observeGraphResize([this.el("gameCanvas")], () =>
-      this.draw(),
-    );
-    this.showMode();
+  elements.start.addEventListener("click", () => void start());
+  elements.stop.addEventListener("click", () => stop());
+  elements.replay.addEventListener("click", () => {
+    if (phase === "question") playQuestion();
+  });
+  elements.next.addEventListener("click", () => {
+    if (phase !== "feedback") return;
+    if (round >= rounds) finish();
+    else nextEarRound();
+  });
+  elements.mode.addEventListener("change", () => showMode());
+  const stopObservingGraph = observeGraphResize([elements.canvas], draw);
+  showMode();
+
+  return { show, stop, settingsChanged, dispose };
+
+  function message(text: string) {
+    elements.feedback.textContent = text;
   }
-  private el<T extends HTMLElement>(id: string): T {
-    const element = this.root.querySelector<T>(`#${id}`);
-    if (!element) throw new Error(`ゲームの要素がありません：${id}`);
-    return element;
-  }
-  private message(text: string) {
-    this.el("gameFeedback").textContent = text;
-  }
-  private selected(name: string): string {
-    const input = this.root.querySelector<HTMLInputElement>(
-      `input[name="${name}"]:checked`,
+
+  function selected(name: string): string {
+    const input = options.find(
+      (option) => option.name === name && option.checked,
     );
     if (!input) throw new Error(`ゲームの設定が選択されていません：${name}`);
     return input.value;
   }
-  private showMode() {
-    const voice = this.selected("gameMode") === "voice";
-    this.el("voiceGameSettings").hidden = !voice;
-    this.el("earGameSettings").hidden = voice;
-    this.el("gameVoiceStage").hidden = !voice;
-    this.el("gameEarStage").hidden = voice;
-    this.el("gameInstructions").textContent = voice
+
+  function showMode() {
+    const voice = selected("gameMode") === "voice";
+    elements.voiceGameSettings.hidden = !voice;
+    elements.earGameSettings.hidden = voice;
+    elements.voiceStage.hidden = !voice;
+    elements.earStage.hidden = voice;
+    elements.instructions.textContent = voice
       ? `目標がランダムに変わります。${APPROACH_MS / 1000}秒以内に音を合わせ、その後は指定秒数ずっとキープ。お手本音は鳴らさず、画面を見て挑戦します。`
       : "鳴った音を選択肢から当てます。最初は3半音間隔、上級は半音間隔。何度でも聴き直せます。マイクは使いません。";
-    this.draw();
-  }
-  show(visible: boolean) {
-    this.root.hidden = !visible;
-    if (visible) requestAnimationFrame(() => this.draw());
+    draw();
   }
 
-  settingsChanged() {
-    if (this.active)
-      this.stop(
-        "共通設定が変わったため中止しました。新しい設定で再開できます。",
-      );
-  }
-  dispose() {
-    this.stop();
-    this.stopObservingGraph();
+  function show(visible: boolean) {
+    root.hidden = !visible;
+    if (visible) requestAnimationFrame(draw);
   }
 
-  stop(message = "ゲームを中止しました。最初からやり直せます。") {
-    const wasActive = this.active;
-    this.active = false;
-    this.audioReady = false;
-    ++this.generation;
-    this.phase = "idle";
-    this.earLoop.stop();
-    this.clearCelebration();
-    this.player?.dispose();
-    this.microphone.stop();
-    if (this.context && this.context.state !== "closed")
-      void this.context.close().catch(() => {});
-    this.player = null;
-    this.context = null;
-    this.el<HTMLButtonElement>("gameStart").disabled = false;
-    this.el<HTMLButtonElement>("gameStop").disabled = true;
-    this.el<HTMLFieldSetElement>("gameSettings").disabled = false;
-    this.el<HTMLButtonElement>("gameReplay").disabled = true;
-    this.el("gameNext").hidden = true;
-    this.el("gameCountdown").hidden = true;
-    this.root.classList.remove("game-success", "game-holding");
-    this.setChoicesDisabled(true);
-    if (wasActive) this.message(message);
+  function settingsChanged() {
+    if (active)
+      stop("共通設定が変わったため中止しました。新しい設定で再開できます。");
   }
-  private async start() {
-    this.stop();
-    const generation = this.generation;
-    this.active = true;
-    this.mode = this.selected("gameMode");
-    this.phase = "preparing";
-    this.round = this.correct = 0;
-    this.score = { points: 0, streak: 0, bestStreak: 0 };
-    this.best = 0;
-    this.el("gameResult").hidden = true;
-    this.el<HTMLButtonElement>("gameStart").textContent = "ゲームを始める";
-    this.el<HTMLProgressElement>("gameHoldProgress").value = 0;
-    this.previousIndex = null;
-    this.target = null;
-    this.trace = [];
-    this.rounds = Number(this.selected("gameRounds"));
-    this.el("gameHistory").replaceChildren();
-    this.el("gameTarget").textContent = "—";
-    this.el("gameVoice").textContent = "—";
-    this.el("gameGap").textContent = "—";
-    this.el("gameChoices").replaceChildren();
-    this.el("gameMetric").textContent = "—";
-    this.el<HTMLButtonElement>("gameStart").disabled = true;
-    this.el<HTMLButtonElement>("gameStop").disabled = false;
-    this.el<HTMLFieldSetElement>("gameSettings").disabled = true;
-    this.el<HTMLDetailsElement>("gameSetup").open = false;
-    this.updateScore();
+
+  function dispose() {
+    stop();
+    stopObservingGraph();
+  }
+
+  function stop(reason = "ゲームを中止しました。最初からやり直せます。") {
+    const wasActive = active;
+    active = false;
+    audioReady = false;
+    runGeneration += 1;
+    phase = "idle";
+    earLoop.stop();
+    clearCelebration();
+    referencePlayer?.dispose();
+    microphone.stop();
+    if (audioContext && audioContext.state !== "closed")
+      void audioContext.close().catch(() => {});
+    referencePlayer = null;
+    audioContext = null;
+    elements.start.disabled = false;
+    elements.stop.disabled = true;
+    elements.settings.disabled = false;
+    elements.replay.disabled = true;
+    elements.next.hidden = true;
+    elements.countdown.hidden = true;
+    root.classList.remove("game-success", "game-holding");
+    setChoicesDisabled(true);
+    if (wasActive) message(reason);
+  }
+
+  async function start() {
+    stop();
+    const generation = runGeneration;
+    active = true;
+    mode = selected("gameMode");
+    phase = "preparing";
+    round = correct = 0;
+    score = { points: 0, streak: 0, bestStreak: 0 };
+    best = 0;
+    elements.result.hidden = true;
+    elements.start.textContent = "ゲームを始める";
+    elements.holdProgress.value = 0;
+    previousIndex = null;
+    target = null;
+    trace = [];
+    rounds = Number(selected("gameRounds"));
+    elements.history.replaceChildren();
+    elements.target.textContent = "—";
+    elements.voice.textContent = "—";
+    elements.gap.textContent = "—";
+    elements.choices.replaceChildren();
+    elements.metric.textContent = "—";
+    elements.start.disabled = true;
+    elements.stop.disabled = false;
+    elements.settings.disabled = true;
+    elements.setup.open = false;
+    updateScore();
     let startingMicrophone = false;
     try {
-      this.beforeStart();
-      this.settings = this.getSettings();
-      this.bestKey = `pitch-games:v1:${JSON.stringify([
-        this.mode,
-        this.rounds,
-        this.settings.startMidi,
-        this.settings.tolerance,
-        this.settings.minRms,
-        this.mode === "voice"
-          ? this.selected("voiceGameHold")
-          : this.selected("earGameDifficulty"),
-        this.mode === "ear" ? this.settings.instrument : null,
-        ...(this.mode === "voice" ? [APPROACH_MS] : []),
+      beforeStart();
+      settings = getSettings();
+      bestKey = `pitch-games:v1:${JSON.stringify([
+        mode,
+        rounds,
+        settings.startMidi,
+        settings.tolerance,
+        settings.minRms,
+        mode === "voice"
+          ? selected("voiceGameHold")
+          : selected("earGameDifficulty"),
+        mode === "ear" ? settings.instrument : null,
+        ...(mode === "voice" ? [APPROACH_MS] : []),
       ])}`;
       try {
-        const stored = Number(localStorage.getItem(this.bestKey));
-        this.best = Number.isFinite(stored) && stored >= 0 ? stored : 0;
+        const stored = Number(localStorage.getItem(bestKey));
+        best = Number.isFinite(stored) && stored >= 0 ? stored : 0;
       } catch {
         /* Keep playing when browser storage is unavailable. */
       }
-      this.updateScore();
-      this.notes = buildNoteRange(this.settings.startMidi);
-      if (this.mode === "ear" && this.settings.volume === 0)
+      updateScore();
+      notes = buildNoteRange(settings.startMidi);
+      if (mode === "ear" && settings.volume === 0)
         throw new Error("共通設定のお手本音量を上げてから始めてください。");
-      this.context = createAudioContext();
-      const context = this.context;
+      audioContext = createAudioContext();
+      const context = audioContext;
       await context.resume();
-      if (generation !== this.generation) return;
+      if (generation !== runGeneration) return;
       context.addEventListener("statechange", () => {
         if (
-          generation === this.generation &&
-          this.audioReady &&
+          generation === runGeneration &&
+          audioReady &&
           context.state !== "running"
         )
-          this.stop("音声処理が中断されました。再度開始してください。");
+          stop("音声処理が中断されました。再度開始してください。");
       });
-      this.player = new ReferencePlayer(context);
-      this.player.setVolume(this.settings.volume);
-      if (this.mode === "ear") {
-        this.message("お手本の音色を準備しています。");
-        const player = this.player;
-        await player.prepare(this.settings.instrument);
-        if (generation !== this.generation) return;
-        const step = Number(this.selected("earGameDifficulty")) === 3 ? 3 : 1;
-        this.choices = earChoiceOffsets(step).map(
-          (offset) => this.notes[offset],
-        );
-        this.el("gameChoices").replaceChildren(
-          ...this.choices.map((note, index) => {
+      referencePlayer = new ReferencePlayer(context);
+      referencePlayer.setVolume(settings.volume);
+      if (mode === "ear") {
+        message("お手本の音色を準備しています。");
+        const player = referencePlayer;
+        await player.prepare(settings.instrument);
+        if (generation !== runGeneration) return;
+        const step = Number(selected("earGameDifficulty")) === 3 ? 3 : 1;
+        choices = earChoiceOffsets(step).map((offset) => notes[offset]);
+        elements.choices.replaceChildren(
+          ...choices.map((note, index) => {
             const button = document.createElement("button");
             button.type = "button";
             button.textContent = `${note.solfege} (${note.name})`;
-            button.addEventListener("click", () => this.answer(index));
+            button.addEventListener("click", () => answer(index));
             return button;
           }),
         );
-        this.nextEarRound();
+        nextEarRound();
       } else {
         startingMicrophone = true;
-        this.message("マイクの使用を許可してください。");
-        const capture = await this.microphone.start(() => context, {
-          deviceId: this.settings.deviceId,
+        message("マイクの使用を許可してください。");
+        const capture = await microphone.start(() => context, {
+          deviceId: settings.deviceId,
           fftSize: PRACTICE_MIC_FFT_SIZE,
-          onEnded: () => this.stop("マイクが切断されました。"),
-          onFrame: (_, input) => this.tick(input),
+          onEnded: () => stop("マイクが切断されました。"),
+          onFrame: (_, input) => tick(input),
         });
-        if (!capture || generation !== this.generation) return;
-        this.until = context.currentTime * 1000 + 3000;
-        this.el("gameCountdown").hidden = false;
-        this.message(
-          "3秒後に最初の目標が現れます。画面を見て準備してください。",
-        );
+        if (!capture || generation !== runGeneration) return;
+        until = context.currentTime * 1000 + 3000;
+        elements.countdown.hidden = false;
+        message("3秒後に最初の目標が現れます。画面を見て準備してください。");
       }
       await context.resume();
-      if (generation !== this.generation) return;
-      this.audioReady = true;
-      if (this.mode === "ear") this.earLoop.start(() => this.tick());
-      this.el("gameFeedback").scrollIntoView({
+      if (generation !== runGeneration) return;
+      audioReady = true;
+      if (mode === "ear") earLoop.start(() => tick());
+      elements.feedback.scrollIntoView({
         block: "start",
         behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
           ? "auto"
           : "smooth",
       });
     } catch (error) {
-      if (generation !== this.generation) return;
-      this.stop(
+      if (generation !== runGeneration) return;
+      stop(
         startingMicrophone
           ? formatMicrophoneError(error)
           : `開始できませんでした：${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
-  private nextVoiceRound(now: number) {
-    if (!this.settings) return;
-    if (this.round >= this.rounds) {
-      this.finish();
+
+  function nextVoiceRound(now: number) {
+    if (!settings) return;
+    if (round >= rounds) {
+      finish();
       return;
     }
-    const index = randomNoteIndex(this.notes.length, this.previousIndex);
-    this.previousIndex = index;
-    this.target = this.notes[index];
-    this.round++;
-    this.phase = "challenge";
-    this.trace = [];
-    this.el<HTMLProgressElement>("gameHoldProgress").value = 0;
-    this.root.classList.remove("game-holding");
-    this.challenge = createChallenge(
-      this.target.frequency,
+    const index = randomNoteIndex(notes.length, previousIndex);
+    previousIndex = index;
+    target = notes[index];
+    round++;
+    phase = "challenge";
+    trace = [];
+    elements.holdProgress.value = 0;
+    root.classList.remove("game-holding");
+    challenge = createChallenge(
+      target.frequency,
       now,
-      Number(this.selected("voiceGameHold")) * 1000,
+      Number(selected("voiceGameHold")) * 1000,
     );
-    this.el("gameTarget").textContent =
-      `${this.target.solfege} (${this.target.name})`;
-    this.el("gameCountdown").hidden = true;
-    this.root.classList.remove("game-success");
-    this.message(
-      `第${this.round}問：${APPROACH_MS / 1000}秒以内に${this.target.solfege}へ合わせてください。`,
+    elements.target.textContent = `${target.solfege} (${target.name})`;
+    elements.countdown.hidden = true;
+    root.classList.remove("game-success");
+    message(
+      `第${round}問：${APPROACH_MS / 1000}秒以内に${target.solfege}へ合わせてください。`,
     );
-    this.updateScore();
+    updateScore();
   }
-  private nextEarRound() {
-    this.clearCelebration();
-    const index = randomNoteIndex(this.choices.length, this.previousIndex);
-    this.previousIndex = index;
-    this.target = this.choices[index];
-    this.round++;
-    this.root.classList.remove("game-success");
-    this.el("gameNext").hidden = true;
-    for (const button of this.el("gameChoices").querySelectorAll("button"))
+
+  function nextEarRound() {
+    clearCelebration();
+    const index = randomNoteIndex(choices.length, previousIndex);
+    previousIndex = index;
+    target = choices[index];
+    round++;
+    root.classList.remove("game-success");
+    elements.next.hidden = true;
+    for (const button of elements.choices.querySelectorAll("button"))
       button.removeAttribute("data-result");
-    this.updateScore();
-    this.playQuestion();
+    updateScore();
+    playQuestion();
   }
-  private playQuestion() {
-    if (!this.context || !this.player || !this.settings || !this.target) return;
-    const at = this.context.currentTime + 0.05;
-    this.player.playScale(this.settings.instrument, [this.target.frequency], {
+
+  function playQuestion() {
+    if (!audioContext || !referencePlayer || !settings || !target) return;
+    const at = audioContext.currentTime + 0.05;
+    referencePlayer.playScale(settings.instrument, [target.frequency], {
       startAt: at,
       noteSeconds: 0.8,
     });
-    this.until = (at + 0.9) * 1000;
-    this.phase = "listen";
-    this.setChoicesDisabled(true);
-    this.el<HTMLButtonElement>("gameReplay").disabled = true;
-    this.message(`第${this.round}問：音を聴いてください。`);
+    until = (at + 0.9) * 1000;
+    phase = "listen";
+    setChoicesDisabled(true);
+    elements.replay.disabled = true;
+    message(`第${round}問：音を聴いてください。`);
   }
-  private setChoicesDisabled(disabled: boolean) {
-    for (const button of this.el("gameChoices").querySelectorAll("button"))
+
+  function setChoicesDisabled(disabled: boolean) {
+    for (const button of elements.choices.querySelectorAll("button"))
       button.disabled = disabled;
   }
-  private answer(index: number) {
-    if (this.phase !== "question" || !this.target) return;
-    this.phase = "feedback";
-    const correct = this.choices[index] === this.target;
-    this.reward(correct);
-    this.root.classList.toggle("game-success", correct);
-    this.setChoicesDisabled(true);
-    const buttons = this.el("gameChoices").querySelectorAll("button");
+
+  function answer(index: number) {
+    if (phase !== "question" || !target) return;
+    phase = "feedback";
+    const correct = choices[index] === target;
+    reward(correct);
+    root.classList.toggle("game-success", correct);
+    setChoicesDisabled(true);
+    const buttons = elements.choices.querySelectorAll("button");
     buttons[index].dataset.result = correct ? "correct" : "incorrect";
-    buttons[this.choices.indexOf(this.target)].dataset.result = "correct";
-    const result = `${correct ? "正解！" : "今回は違いました。"} 正解は${this.target.solfege} (${this.target.name})です。`;
-    this.message(result);
-    this.addHistory(result);
-    this.el<HTMLButtonElement>("gameReplay").disabled = true;
-    this.el<HTMLButtonElement>("gameNext").textContent =
-      this.round === this.rounds ? "結果を見る" : "次の問題";
-    this.el("gameNext").hidden = false;
-    this.updateScore();
+    buttons[choices.indexOf(target)].dataset.result = "correct";
+    const result = `${correct ? "正解！" : "今回は違いました。"} 正解は${target.solfege} (${target.name})です。`;
+    message(result);
+    addHistory(result);
+    elements.replay.disabled = true;
+    elements.next.textContent = round === rounds ? "結果を見る" : "次の問題";
+    elements.next.hidden = false;
+    updateScore();
   }
-  private tick(capture?: MicrophoneCapture) {
-    if (!this.audioReady || !this.context) return;
-    const now = this.context.currentTime * 1000;
-    if (this.mode === "ear") {
-      if (this.phase === "listen" && now >= this.until) {
-        this.phase = "question";
-        this.setChoicesDisabled(false);
-        this.el<HTMLButtonElement>("gameReplay").disabled = false;
-        this.message("どの音でしたか？ 選択肢から選んでください。");
+
+  function tick(capture?: MicrophoneCapture) {
+    if (!audioReady || !audioContext) return;
+    const now = audioContext.currentTime * 1000;
+    if (mode === "ear") {
+      if (phase === "listen" && now >= until) {
+        phase = "question";
+        setChoicesDisabled(false);
+        elements.replay.disabled = false;
+        message("どの音でしたか？ 選択肢から選んでください。");
       }
     } else {
-      if (this.phase === "preparing") {
-        this.el("gameCountdown").textContent =
-          `開始まで ${Math.max(1, Math.ceil((this.until - now) / 1000))}`;
-        if (now >= this.until) this.nextVoiceRound(now);
-      } else if (this.phase === "feedback" && now >= this.until)
-        this.nextVoiceRound(now);
-      if (
-        this.phase === "challenge" &&
-        this.challenge &&
-        this.target &&
-        capture &&
-        this.settings
-      ) {
+      if (phase === "preparing") {
+        elements.countdown.textContent = `開始まで ${Math.max(1, Math.ceil((until - now) / 1000))}`;
+        if (now >= until) nextVoiceRound(now);
+      } else if (phase === "feedback" && now >= until) nextVoiceRound(now);
+      if (phase === "challenge" && challenge && target && capture && settings) {
         const detection = capture.sampleTarget({
-          minRms: this.settings.minRms,
+          minRms: settings.minRms,
           minClarity: VOICE_GAME_MIN_CLARITY,
-          targetFrequency: this.target.frequency,
+          targetFrequency: target.frequency,
         });
-        const previous = this.challenge;
-        this.challenge = observeChallenge(
+        const previous = challenge;
+        challenge = observeChallenge(
           previous,
           now,
           detection.frequency,
-          this.settings.tolerance,
+          settings.tolerance,
         );
-        this.el("gameVoice").textContent = detection.frequency
+        elements.voice.textContent = detection.frequency
           ? `${hzToNoteName(detection.frequency)} / ${detection.frequency.toFixed(1)} Hz`
           : "検出できません";
-        this.el("gameGap").textContent = detection.frequency
-          ? `${Math.round(hzToCents(detection.frequency, this.target.frequency))} cents`
+        elements.gap.textContent = detection.frequency
+          ? `${Math.round(hzToCents(detection.frequency, target.frequency))} cents`
           : "—";
-        const approaching = this.challenge.phase === "approach";
+        const approaching = challenge.phase === "approach";
         const remaining = Math.max(
           0,
-          APPROACH_MS - (now - this.challenge.startedAt),
+          APPROACH_MS - (now - challenge.startedAt),
         );
-        this.el("gameMetric").textContent = approaching
+        elements.metric.textContent = approaching
           ? `音に合わせるまで あと${(remaining / 1000).toFixed(1)}秒`
-          : `キープ ${(this.challenge.heldMs / 1000).toFixed(1)} / ${(this.challenge.holdMs / 1000).toFixed(1)}秒`;
-        const progress = this.el<HTMLProgressElement>("gameHoldProgress");
-        progress.max = approaching ? APPROACH_MS : this.challenge.holdMs;
-        progress.value = approaching ? remaining : this.challenge.heldMs;
+          : `キープ ${(challenge.heldMs / 1000).toFixed(1)} / ${(challenge.holdMs / 1000).toFixed(1)}秒`;
+        const progress = elements.holdProgress;
+        progress.max = approaching ? APPROACH_MS : challenge.holdMs;
+        progress.value = approaching ? remaining : challenge.heldMs;
         progress.setAttribute(
           "aria-label",
           approaching ? "音を合わせるまでの残り時間" : "連続キープの進み具合",
         );
-        if (
-          !this.trace.length ||
-          now - this.trace[this.trace.length - 1].time >= 40
-        )
-          this.trace.push({ time: now, hz: detection.frequency });
-        this.trace = this.trace.filter((point) => now - point.time <= 5000);
-        this.root.classList.toggle(
-          "game-holding",
-          this.challenge.phase === "hold",
-        );
-        if (previous.phase === "approach" && this.challenge.phase === "hold") {
-          this.message("合っています。そのままキープ！");
-          this.celebrate("ぴったり！", false);
+        if (!trace.length || now - trace[trace.length - 1].time >= 40)
+          trace.push({ time: now, hz: detection.frequency });
+        trace = trace.filter((point) => now - point.time <= 5000);
+        root.classList.toggle("game-holding", challenge.phase === "hold");
+        if (previous.phase === "approach" && challenge.phase === "hold") {
+          message("合っています。そのままキープ！");
+          celebrate("ぴったり！", false);
         }
-        if (
-          this.challenge.phase === "success" ||
-          this.challenge.phase === "failure"
-        ) {
-          const success = this.challenge.phase === "success";
-          this.reward(success);
+        if (challenge.phase === "success" || challenge.phase === "failure") {
+          const success = challenge.phase === "success";
+          reward(success);
           const result = success
             ? "成功！ 指定時間キープできました。"
             : previous.phase === "approach"
               ? `時間切れ。${APPROACH_MS / 1000}秒以内に合わせられませんでした。`
               : "キープが途切れました。";
-          this.message(`${result} 次の目標を準備します。`);
-          this.addHistory(
-            `${this.target.solfege} (${this.target.name})：${result}`,
-          );
-          this.root.classList.toggle("game-success", success);
-          this.phase = "feedback";
-          this.until = now + 1500;
-          this.updateScore();
+          message(`${result} 次の目標を準備します。`);
+          addHistory(`${target.solfege} (${target.name})：${result}`);
+          root.classList.toggle("game-success", success);
+          phase = "feedback";
+          until = now + 1500;
+          updateScore();
         }
-        this.draw();
+        draw();
       }
     }
   }
-  private updateScore() {
-    this.el("gameScore").textContent =
-      `${this.round} / ${this.rounds}問 ・ ${this.correct}問成功`;
-    this.el("gamePoints").textContent = `${this.score.points} pt`;
-    this.el("gameStreak").textContent = `${this.score.streak}連続`;
-    this.el("gameBest").textContent = `${this.best} pt`;
-    const progress = this.el<HTMLProgressElement>("gameRoundProgress");
-    progress.max = this.rounds;
-    progress.value = this.el("gameHistory").children.length;
+
+  function updateScore() {
+    elements.score.textContent = `${round} / ${rounds}問 ・ ${correct}問成功`;
+    elements.points.textContent = `${score.points} pt`;
+    elements.streak.textContent = `${score.streak}連続`;
+    elements.best.textContent = `${best} pt`;
+    const progress = elements.roundProgress;
+    progress.max = rounds;
+    progress.value = elements.history.children.length;
   }
-  private reward(success: boolean) {
-    if (success) this.correct++;
-    const previousPoints = this.score.points;
-    this.score = awardGameRound(this.score, success);
+
+  function reward(success: boolean) {
+    if (success) correct++;
+    const previousPoints = score.points;
+    score = awardGameRound(score, success);
     if (!success) {
-      this.clearCelebration();
+      clearCelebration();
       return;
     }
-    const bonus = this.score.points - previousPoints;
-    this.celebrate(
-      `${this.score.streak >= 2 ? `${this.score.streak}連続！ ` : "やった！ "}+${bonus} pt`,
+    const bonus = score.points - previousPoints;
+    celebrate(
+      `${score.streak >= 2 ? `${score.streak}連続！ ` : "やった！ "}+${bonus} pt`,
       true,
     );
-    if (this.el<HTMLInputElement>("gameEffectSound").checked) {
-      this.player?.playScale("sine", [659.25, 880, 1046.5], {
+    if (elements.effectSound.checked) {
+      referencePlayer?.playScale("sine", [659.25, 880, 1046.5], {
         noteSeconds: 0.2,
       });
     }
   }
-  private clearCelebration() {
-    if (this.effectTimer) clearTimeout(this.effectTimer);
-    this.effectTimer = null;
-    this.el("gameCelebration").replaceChildren();
+
+  function clearCelebration() {
+    if (effectTimer) clearTimeout(effectTimer);
+    effectTimer = null;
+    elements.celebration.replaceChildren();
   }
-  private celebrate(label: string, burst: boolean) {
-    if (this.effectTimer) clearTimeout(this.effectTimer);
-    const elements: HTMLElement[] = [];
+
+  function celebrate(label: string, burst: boolean) {
+    if (effectTimer) clearTimeout(effectTimer);
+    const particles: HTMLElement[] = [];
     const banner = document.createElement("span");
     banner.className = "game-burst-label";
     banner.textContent = label;
-    elements.push(banner);
+    particles.push(banner);
     if (burst) {
       for (let i = 0; i < 18; i++) {
         const particle = document.createElement("span");
@@ -526,49 +527,51 @@ export class GamePractice {
         particle.style.setProperty("--turn", `${i * 53}deg`);
         particle.style.background =
           CELEBRATION_COLORS[i % CELEBRATION_COLORS.length];
-        elements.push(particle);
+        particles.push(particle);
       }
     }
-    this.el("gameCelebration").replaceChildren(...elements);
-    this.effectTimer = setTimeout(
-      () => this.el("gameCelebration").replaceChildren(),
+    elements.celebration.replaceChildren(...particles);
+    effectTimer = setTimeout(
+      () => elements.celebration.replaceChildren(),
       1200,
     );
   }
-  private addHistory(text: string) {
+
+  function addHistory(text: string) {
     const item = document.createElement("li");
-    item.textContent = `${this.round}問目：${text}`;
-    this.el("gameHistory").append(item);
+    item.textContent = `${round}問目：${text}`;
+    elements.history.append(item);
   }
-  private finish() {
-    const newBest = this.score.points > this.best;
+
+  function finish() {
+    const newBest = score.points > best;
     if (newBest) {
-      this.best = this.score.points;
+      best = score.points;
       try {
-        localStorage.setItem(this.bestKey, String(this.best));
+        localStorage.setItem(bestKey, String(best));
       } catch {
         /* Best remains visible for this session. */
       }
     }
-    const result = this.el("gameResult");
+    const result = elements.result;
     const rank = document.createElement("strong");
     rank.className = "game-rank";
-    rank.textContent = pitchGameRank(this.correct, this.rounds);
+    rank.textContent = pitchGameRank(correct, rounds);
     const title = document.createElement("h3");
     title.textContent = newBest
       ? "自己ベスト更新！"
-      : this.correct === this.rounds
+      : correct === rounds
         ? "全問成功！"
         : "ナイスチャレンジ！";
     const detail = document.createElement("p");
-    detail.textContent = `${this.score.points} pt ・ 最大${this.score.bestStreak}連続成功。${this.correct < this.rounds ? "次はもう1問成功をめざそう。" : "難易度や音域を変えて挑戦してみよう。"}`;
+    detail.textContent = `${score.points} pt ・ 最大${score.bestStreak}連続成功。${correct < rounds ? "次はもう1問成功をめざそう。" : "難易度や音域を変えて挑戦してみよう。"}`;
     result.replaceChildren(rank, title, detail);
     result.hidden = false;
-    this.stop(
-      `終了！ ${this.rounds}問中${this.correct}問成功しました。下の結果で振り返れます。`,
+    stop(
+      `終了！ ${rounds}問中${correct}問成功しました。下の結果で振り返れます。`,
     );
-    this.el<HTMLButtonElement>("gameStart").textContent = "もう一度挑戦";
-    this.updateScore();
+    elements.start.textContent = "もう一度挑戦";
+    updateScore();
     result.scrollIntoView({
       block: "nearest",
       behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -576,8 +579,9 @@ export class GamePractice {
         : "smooth",
     });
   }
-  private draw() {
-    const canvas = this.el<HTMLCanvasElement>("gameCanvas");
+
+  function draw() {
+    const canvas = elements.canvas;
     const { width, height } = canvas.getBoundingClientRect();
     if (!width || !height) return;
     const { pixelRatio } = resizeGraphCanvas(canvas, width, height);
@@ -588,7 +592,7 @@ export class GamePractice {
     const theme = getGraphTheme();
     ctx.fillStyle = theme.background;
     ctx.fillRect(0, 0, width, height);
-    const startMidi = this.settings?.startMidi ?? this.getSettings().startMidi;
+    const startMidi = settings?.startMidi ?? getSettings().startMidi;
     const y = (midi: number) => 240 - ((midi - startMidi) / 12) * 220;
     ctx.font = "12px system-ui";
     for (let i = 0; i <= 12; i++) {
@@ -606,11 +610,11 @@ export class GamePractice {
     ctx.beginPath();
     ctx.rect(40, 0, width - 40, 260);
     ctx.clip();
-    if (this.target) {
-      const at = y(hzToMidi(this.target.frequency));
+    if (target) {
+      const at = y(hzToMidi(target.frequency));
       ctx.strokeStyle = theme.target;
-      ctx.lineWidth = this.challenge?.phase === "hold" ? 8 : 6;
-      if (this.challenge?.phase === "hold") {
+      ctx.lineWidth = challenge?.phase === "hold" ? 8 : 6;
+      if (challenge?.phase === "hold") {
         ctx.shadowColor = theme.gameSuccess;
         ctx.shadowBlur = 18;
       }
@@ -623,9 +627,9 @@ export class GamePractice {
     ctx.strokeStyle = theme.voice;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    const latest = this.trace.at(-1)?.time ?? 0;
+    const latest = trace.at(-1)?.time ?? 0;
     let previous: { time: number; hz: number | null } | null = null;
-    for (const point of this.trace) {
+    for (const point of trace) {
       if (!point.hz) {
         previous = null;
         continue;

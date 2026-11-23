@@ -53,6 +53,7 @@ docs/
 - `hidden` は要素の非表示に使い、練習領域の `data-practice-mode` は単音・メロディのレイアウト切り替えに使う。メロディと声域チェックの画面ルートに付く `data-running` は開始準備と実行中の両方を表し、狭い画面の停止欄の配置に使う。
 - `src/commonSettings.ts` が設定値、ダイアログと要約表示、マイク選択、音色の試聴を扱う。単音・メロディ練習、ゲーム、自分の声域チェックは共通設定から現在値を読む。設定変更への反応は各画面が決める。スライダー操作中の反映と、操作確定時にゲームや声域チェックを中止する通知は分ける。試聴を始める前の画面停止は `src/app.ts` が行う。
 - `src/practiceView.ts` が単音・メロディの画面切り替えと共用のマイク入力を扱う。`src/singlePracticeView.ts` は単音の選択、判定、練習記録を持つ。`src/melodyPracticeView.ts` はメロディの進行、判定、音ごとの集計を持つ。両画面は `src/practiceReadout.ts` を通して状態・音量・検出信頼度を表示する。単音の選択音と練習記録はメロディから戻った後も保持する。試聴・単音・メロディは `src/app.ts` が遅延生成する同じ参考音プレーヤーを使う。
+- `src/gamePractice.ts` と `src/voiceRangeCheck.ts` は初期化時に画面の要素を取得し、各ビューの関数内で実行中の状態を保持する。回答や記録済みの音など、実行中に生成する要素は表示時に更新する。
 - `src/microphone.ts` がマイクの制約指定、入力ノードと波形バッファの準備、フレーム更新、停止と切断、許可待ちで無効になったストリームの解放を扱う。開始時に渡されたフレーム処理はマイク取得の成功後に動き始める。単音・メロディ・発声ゲームは `sampleTarget()`、自分の声域チェックは `sampleVoiceRange()` を使う。`src/pitchDetection.ts` が1フレームのRMSを計算し、「声の拾いやすさ」に応じて検出を実行する。検出信頼度の下限は同じモジュールに定義し、単音・メロディは0.52、発声ゲームは0.9、声域チェックは0.93とする。単音・メロディと発声ゲームは4096サンプル、自分の声域チェックは8192サンプルを使う。
 - `styles.css` はアプリのCSSの入口とする。`styles/shared.css` が土台と共通部品を読み込み、画面固有のCSSと狭い画面の固定操作欄は `styles/` の各ファイルに置く。カスケードレイヤーの順序は `base`、`components`、`screens`、`utilities` とする。追加のスタイルシートは、役割に合ったレイヤーを指定して読み込む。開発用のモデル比較画面は `styles/comparison.css` から共通CSSと比較画面用のルールを読む。
 - `src/graphCanvas.ts` は背景・目盛り・声の線・コンボの段階色など、画面とCanvasで共有する色をCSS変数から取得し、表示サイズの監視とCanvasの内部解像度を扱う。音源の声域グラフは表示とPNG出力の両方で、検出点の群れに濃い傾向線を重ねる。Canvasの内部サイズは寸法が変わった場合だけ更新する。
@@ -249,6 +250,8 @@ src/melodyGraph.ts がメロディ専用Canvasを描画し、src/graphModel.ts �
 音源ファイル解析の流れは `src/audioAnalysisPipeline.ts`、軽量推定と共通の結果集計は `src/audioFileAnalysis.ts` が扱う。メディアファイルから PCM データを取り出す処理は `src/mediaAudioExtraction.ts`、任意のボーカル抽出は `src/vocalSeparation.ts` に分離している。
 
 WebGPUの利用可否とアダプタ取得、テンソルの解放、CREPE / RMVPEのセッション生成は `src/onnxRuntime.ts` を使う。Demucs と BS-RoFormer のステレオへのリサンプリングは `src/mediaAudioExtraction.ts` を共有し、モデルが必要とするサンプリングレートを渡す。モデルの前処理、セッションの再利用、分離モデルのセッション設定は各実装が扱う。
+
+CREPEとRMVPEの出力は `src/pitchModelDecoding.ts` でデコードする。ピーク周辺の重み付き平均は、従来どおりCREPEではビン番号、RMVPEではセントで計算する。RMVPEとBS-RoFormerは `src/audioDsp.ts` のFFT・周期的ハン窓・反射パディングを使う。パッド幅が入力長以上の場合、RMVPEは反射を繰り返し、BS-RoFormerは1回分の反射の外側を左ではゼロ、右では入力の先頭値で埋める。
 
 現在の処理:
 
