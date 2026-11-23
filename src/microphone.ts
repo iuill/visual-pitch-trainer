@@ -1,13 +1,18 @@
 import { PitchDetector } from "pitchy";
-import type { LibraryDetectors } from "./pitchDetection";
+import {
+  analyzeTargetPitch,
+  analyzeVoiceRangePitch,
+  type PitchFrame,
+  type TargetPitchOptions,
+} from "./pitchDetection";
 
 export const PRACTICE_MIC_FFT_SIZE = 4096;
 const PITCHY_CLARITY_THRESHOLD = 0.93;
 
 export type MicrophoneCapture = {
-  stream: MediaStream;
-  detectors: LibraryDetectors;
-  read(): Float32Array<ArrayBuffer>;
+  deviceLabel: string;
+  sampleTarget(options: TargetPitchOptions): PitchFrame;
+  sampleVoiceRange(minRms: number): PitchFrame;
 };
 
 type MicrophoneOptions = {
@@ -81,16 +86,18 @@ export class MicrophoneInput {
       const detector = PitchDetector.forFloat32Array(buffer.length);
       detector.clarityThreshold = PITCHY_CLARITY_THRESHOLD;
       for (const track of tracks) track.addEventListener("ended", onEnded);
+      const detectors = { detector, sampleRate: context.sampleRate };
+      function readWaveform() {
+        inputAnalyser.getFloatTimeDomainData(buffer);
+        return buffer;
+      }
       return {
-        stream,
-        detectors: {
-          detector,
-          sampleRate: context.sampleRate,
-          bufferSize: buffer.length,
+        deviceLabel: stream.getAudioTracks()[0]?.label ?? "",
+        sampleTarget(options) {
+          return analyzeTargetPitch(readWaveform(), detectors, options);
         },
-        read() {
-          inputAnalyser.getFloatTimeDomainData(buffer);
-          return buffer;
+        sampleVoiceRange(minRms) {
+          return analyzeVoiceRangePitch(readWaveform(), detectors, minRms);
         },
       };
     } catch (error) {

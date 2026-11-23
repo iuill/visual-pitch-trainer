@@ -17,8 +17,7 @@ import {
   MicrophoneInput,
   PRACTICE_MIC_FFT_SIZE,
 } from "./microphone";
-import { detectPitchWithLibraries } from "./pitchDetection";
-import { buildNoteRange, getRms, type Note } from "./pitchMath";
+import { buildNoteRange, type Note } from "./pitchMath";
 import {
   addSampleToSession,
   createInitialSessionStats,
@@ -110,27 +109,31 @@ export function setupPracticeView(
   let singleStatus = "稽古を開始してください";
 
   const melody = createMelodyPracticeView(settings, playback, {
-    prepare() {
-      stopMicrophone();
-      settings.stopPreview();
-      stopReferenceTone();
+    input: {
+      start: startMicrophone,
+      stop: stopMicrophone,
+      isStarting: () => state.isMicStarting,
     },
-    start: startMicrophone,
-    stop: stopMicrophone,
-    isStarting: () => state.isMicStarting,
-    reportStatus: (message) => {
-      elements.analysisStatus.textContent = message;
-    },
-    setControlsLocked(locked) {
-      elements.graphPanel.classList.toggle("is-melody-running", locked);
-      settings.lockInputControls(locked);
-      elements.clearGraphButton.disabled = locked;
-      if (locked) {
-        settings.close();
-        elements.micButton.disabled = true;
-      } else {
-        updateMicButtonState("stopped");
-      }
+    controls: {
+      prepare() {
+        stopMicrophone();
+        settings.stopPreview();
+        stopReferenceTone();
+      },
+      reportStatus(message) {
+        elements.analysisStatus.textContent = message;
+      },
+      setLocked(locked) {
+        elements.graphPanel.classList.toggle("is-melody-running", locked);
+        settings.lockInputControls(locked);
+        elements.clearGraphButton.disabled = locked;
+        if (locked) {
+          settings.close();
+          elements.micButton.disabled = true;
+        } else {
+          updateMicButtonState("stopped");
+        }
+      },
     },
   });
 
@@ -432,7 +435,7 @@ export function setupPracticeView(
 
     await settings.refreshAudioDevices(() => capture !== null);
     if (capture !== input) return { ok: false };
-    settings.showActiveMicrophone(input.stream.getAudioTracks()[0]);
+    settings.showActiveMicrophone(input.deviceLabel);
     focusGraphForPractice();
 
     state.animationId = requestAnimationFrame(analyzeFrame);
@@ -500,10 +503,8 @@ export function setupPracticeView(
     }
 
     const { minRms, tolerance } = settings.getSettings();
-    const buffer = capture.read();
-    const volume = getRms(buffer);
     const target = melody.noteAt(position?.index) ?? state.target;
-    const detection = detectPitchWithLibraries(buffer, capture.detectors, {
+    const detection = capture.sampleTarget({
       minRms,
       minClarity: MIN_CLARITY,
       targetFrequency: target.frequency,
@@ -511,12 +512,16 @@ export function setupPracticeView(
     const sample = createPitchSample(
       now,
       detection,
-      volume,
+      detection.rms,
       target.frequency,
       position ? null : state.session.sessionStart,
     );
     if (position?.phase === "sing") {
-      const inGracePeriod = melody.record(position, sample, volume >= minRms);
+      const inGracePeriod = melody.record(
+        position,
+        sample,
+        detection.rms >= minRms,
+      );
       if (inGracePeriod) sample.centsFromTarget = null;
       lastMelodySample = sample;
       updatePitchMeters(sample);

@@ -1,84 +1,55 @@
 import type { PitchDetector } from "pitchy";
-import {
-  chooseBestLibraryPitch,
-  getRms,
-  type PitchCandidate,
-} from "./pitchMath";
+import { chooseBestLibraryPitch, getRms } from "./pitchMath";
 import type { PitchDetection } from "./session";
 
 export type LibraryDetectors = {
   sampleRate: number;
-  bufferSize: number;
-  detector: PitchDetector<Float32Array>;
+  detector: Pick<PitchDetector<Float32Array>, "findPitch">;
 };
 
-export type PitchDetectionOptions = {
+export type TargetPitchOptions = {
   minRms: number;
-  minClarity: number;
   targetFrequency: number;
+  minClarity: number;
 };
 
-export const VOICE_RANGE_MIN_CLARITY = 0.93;
+export type PitchFrame = PitchDetection & { rms: number };
 
-export function detectPitchWithLibraries(
+const VOICE_RANGE_MIN_CLARITY = 0.93;
+
+export function analyzeTargetPitch(
   buffer: Float32Array<ArrayBuffer>,
   detectors: LibraryDetectors,
-  options: PitchDetectionOptions,
-): PitchDetection {
-  const rms = getRms(buffer);
+  options: TargetPitchOptions,
+): PitchFrame {
+  const { rms, pitch } = readPitch(buffer, detectors, options.minRms);
+  if (!pitch) return { rms, frequency: null, clarity: null };
 
-  if (rms < options.minRms) {
-    return { frequency: null, clarity: null };
-  }
-
-  const [frequency, clarity] = detectors.detector.findPitch(
-    buffer,
-    detectors.sampleRate,
-  );
+  const [frequency, clarity] = pitch;
   const confidence = clamp(clarity, 0, 1);
-  const candidates: PitchCandidate[] =
+  const candidates =
     frequency > 0 && confidence >= options.minClarity
-      ? [
-          {
-            frequency,
-            confidence,
-            source: "pitchy",
-          },
-        ]
+      ? [{ frequency, confidence, source: "pitchy" as const }]
       : [];
-
-  const bestCandidate = chooseBestLibraryPitch(
-    candidates,
-    options.targetFrequency,
-  );
-
-  if (!bestCandidate) {
-    const fallbackClarity = frequency > 0 ? confidence : null;
-    return { frequency: null, clarity: fallbackClarity };
-  }
-
+  const best = chooseBestLibraryPitch(candidates, options.targetFrequency);
   return {
-    frequency: bestCandidate.frequency,
-    clarity: bestCandidate.confidence,
+    rms,
+    frequency: best?.frequency ?? null,
+    clarity: best?.confidence ?? (frequency > 0 ? confidence : null),
   };
 }
 
-export function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-/** Voice range measurement has no target note or octave correction. */
-export function detectVoiceRangePitch(
+export function analyzeVoiceRangePitch(
   buffer: Float32Array<ArrayBuffer>,
   detectors: LibraryDetectors,
   minRms: number,
-): PitchDetection {
-  if (getRms(buffer) < minRms) return { frequency: null, clarity: null };
-  const [frequency, clarity] = detectors.detector.findPitch(
-    buffer,
-    detectors.sampleRate,
-  );
+): PitchFrame {
+  const { rms, pitch } = readPitch(buffer, detectors, minRms);
+  if (!pitch) return { rms, frequency: null, clarity: null };
+
+  const [frequency, clarity] = pitch;
   return {
+    rms,
     frequency:
       Number.isFinite(frequency) &&
       frequency >= 32.7 &&
@@ -88,4 +59,20 @@ export function detectVoiceRangePitch(
         : null,
     clarity: Number.isFinite(clarity) ? clamp(clarity, 0, 1) : null,
   };
+}
+
+function readPitch(
+  buffer: Float32Array<ArrayBuffer>,
+  { sampleRate, detector }: LibraryDetectors,
+  minRms: number,
+) {
+  const rms = getRms(buffer);
+  return {
+    rms,
+    pitch: rms < minRms ? null : detector.findPitch(buffer, sampleRate),
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

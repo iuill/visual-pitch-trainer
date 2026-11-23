@@ -5,7 +5,6 @@ import {
   MicrophoneInput,
   PRACTICE_MIC_FFT_SIZE,
 } from "./microphone";
-import { detectPitchWithLibraries } from "./pitchDetection";
 import {
   APPROACH_MS,
   awardGameRound,
@@ -387,15 +386,11 @@ export class GamePractice {
         this.capture &&
         this.settings
       ) {
-        const detection = detectPitchWithLibraries(
-          this.capture.read(),
-          this.capture.detectors,
-          {
-            minRms: this.settings.minRms,
-            minClarity: 0.9,
-            targetFrequency: this.target.frequency,
-          },
-        );
+        const detection = this.capture.sampleTarget({
+          minRms: this.settings.minRms,
+          minClarity: 0.9,
+          targetFrequency: this.target.frequency,
+        });
         const previous = this.challenge;
         this.challenge = observeChallenge(
           previous,
