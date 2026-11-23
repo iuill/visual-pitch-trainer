@@ -1,4 +1,5 @@
 import { getAudioContext, isAudioContextSupported } from "./audioContext";
+import type { CommonSettings, ReferencePlayback } from "./commonSettings";
 import { queryElement } from "./dom";
 import {
   createInitialGameEffectState,
@@ -19,13 +20,6 @@ import {
 import { detectPitchWithLibraries } from "./pitchDetection";
 import { buildNoteRange, getRms, type Note } from "./pitchMath";
 import {
-  buildInstrumentPreview,
-  isReferenceInstrumentId,
-  REFERENCE_INSTRUMENTS,
-  type ReferenceInstrumentId,
-} from "./referenceInstruments";
-import { ReferencePlayer } from "./referencePlayer";
-import {
   addSampleToSession,
   createInitialSessionStats,
   createPitchSample,
@@ -37,7 +31,6 @@ import {
   type SessionStats,
   trimSamples,
 } from "./session";
-import { setupSettingsDialog } from "./settingsDialog";
 import {
   COMBO_MILESTONE_DURATION_MS,
   drawSinglePracticeGraph,
@@ -46,18 +39,11 @@ import {
 } from "./singlePracticeGraph";
 
 type PracticeState = {
-  noteRangeStartMidi: number;
   target: Note;
-  referencePlayer: ReferencePlayer | null;
-  referenceInstrument: ReferenceInstrumentId;
   isReferencePlaying: boolean;
-  referenceVolume: number;
   isMicStarting: boolean;
   animationId: number | null;
   session: SessionStats;
-  tolerance: number;
-  minRms: number;
-  selectedDeviceId: string;
   pitchCanvasResizeObserver: ResizeObserver | null;
   pitchCanvasResizeHandler: (() => void) | null;
   gameEffects: GameEffectState;
@@ -69,26 +55,21 @@ type BestRecords = {
   comboMs: number;
 };
 
-const DEFAULT_RANGE_START_MIDI = 48;
 const MIN_CLARITY = 0.52;
 const MOBILE_VIEWPORT_QUERY = "(max-width: 820px)";
 const MAX_LANDING_RIPPLES = 8;
 const MAX_COMBO_MILESTONES = 4;
 const BEST_RECORDS_STORAGE_KEY = "visual-pitch-trainer:best-records";
-export function setupPracticeView(beforePreview: () => void) {
+export function setupPracticeView(
+  settings: CommonSettings,
+  playback: ReferencePlayback,
+) {
   const state: PracticeState = {
-    noteRangeStartMidi: DEFAULT_RANGE_START_MIDI,
-    target: buildNoteRange(DEFAULT_RANGE_START_MIDI)[0],
-    referencePlayer: null,
-    referenceInstrument: "piano",
+    target: buildNoteRange(settings.getSettings().startMidi)[0],
     isReferencePlaying: false,
-    referenceVolume: 0.35,
     isMicStarting: false,
     animationId: null,
     session: createInitialSessionStats(),
-    tolerance: 50,
-    minRms: 0.006,
-    selectedDeviceId: "",
     pitchCanvasResizeObserver: null,
     pitchCanvasResizeHandler: null,
     gameEffects: createInitialGameEffectState(),
@@ -96,18 +77,6 @@ export function setupPracticeView(beforePreview: () => void) {
   };
 
   const elements = {
-    practiceSettings: queryElement<HTMLDialogElement>("#practiceSettings"),
-    openPracticeSettings: queryElement<HTMLButtonElement>(
-      "#openPracticeSettings",
-    ),
-    settingsSummaryRange: queryElement<HTMLElement>("#settingsSummaryRange"),
-    settingsSummaryInstrument: queryElement<HTMLElement>(
-      "#settingsSummaryInstrument",
-    ),
-    settingsSummaryVolume: queryElement<HTMLElement>("#settingsSummaryVolume"),
-    settingsSummaryTolerance: queryElement<HTMLElement>(
-      "#settingsSummaryTolerance",
-    ),
     practiceGraphTitle: queryElement<HTMLElement>("#practiceGraphTitle"),
     practiceGraphHelp: queryElement<HTMLElement>("#practiceGraphHelp"),
     noteButtons: queryElement<HTMLFieldSetElement>("#noteButtons"),
@@ -115,28 +84,6 @@ export function setupPracticeView(beforePreview: () => void) {
     targetFrequency: queryElement<HTMLParagraphElement>("#targetFrequency"),
     playToneButton: queryElement<HTMLButtonElement>("#playToneButton"),
     micButton: queryElement<HTMLButtonElement>("#micButton"),
-    micSelect: queryElement<HTMLSelectElement>("#micSelect"),
-    micDeviceStatus: queryElement<HTMLParagraphElement>("#micDeviceStatus"),
-    noteRangeSelect: queryElement<HTMLSelectElement>("#noteRangeSelect"),
-    referenceInstrumentSelect: queryElement<HTMLSelectElement>(
-      "#referenceInstrumentSelect",
-    ),
-    previewInstrumentButton: queryElement<HTMLButtonElement>(
-      "#previewInstrumentButton",
-    ),
-    referenceInstrumentStatus: queryElement<HTMLParagraphElement>(
-      "#referenceInstrumentStatus",
-    ),
-    referenceVolumeInput: queryElement<HTMLInputElement>(
-      "#referenceVolumeInput",
-    ),
-    referenceVolumeValue: queryElement<HTMLOutputElement>(
-      "#referenceVolumeValue",
-    ),
-    toleranceInput: queryElement<HTMLInputElement>("#toleranceInput"),
-    toleranceValue: queryElement<HTMLOutputElement>("#toleranceValue"),
-    sensitivityInput: queryElement<HTMLInputElement>("#sensitivityInput"),
-    sensitivityValue: queryElement<HTMLOutputElement>("#sensitivityValue"),
     analysisStatus: queryElement<HTMLElement>("#analysisStatus"),
     graphVolume: queryElement<HTMLElement>("#graphVolume"),
     graphClarity: queryElement<HTMLElement>("#graphClarity"),
@@ -163,16 +110,12 @@ export function setupPracticeView(beforePreview: () => void) {
   let singleStatus = "稽古を開始してください";
 
   const melody = createMelodyPracticeView({
-    getSettings: () => ({
-      startMidi: state.noteRangeStartMidi,
-      tolerance: state.tolerance,
-      instrument: state.referenceInstrument,
-    }),
-    getPlayer: getReferencePlayer,
-    getCurrentPlayer: () => state.referencePlayer,
+    getSettings: settings.getSettings,
+    getPlayer: playback.getPlayer,
+    getCurrentPlayer: playback.getCurrentPlayer,
     prepareInput() {
       stopMicrophone();
-      stopInstrumentPreview();
+      settings.stopPreview();
       stopReferenceTone();
     },
     startInput: startMicrophone,
@@ -181,23 +124,15 @@ export function setupPracticeView(beforePreview: () => void) {
     reportInputStatus: (message) => {
       elements.analysisStatus.textContent = message;
     },
-    prepareReferenceStatus() {
-      elements.referenceInstrumentStatus.textContent =
-        "お手本音を準備しています…";
-    },
-    updateReferenceInstrumentDescription,
-    showReferenceAudioError,
+    prepareReferenceStatus: settings.showReferencePreparing,
+    updateReferenceInstrumentDescription: settings.resetReferenceStatus,
+    showReferenceAudioError: settings.reportReferenceError,
     setSharedControlsLocked(locked) {
       elements.graphPanel.classList.toggle("is-melody-running", locked);
-      for (const control of [
-        elements.micSelect,
-        elements.toleranceInput,
-        elements.sensitivityInput,
-        elements.clearGraphButton,
-      ])
-        control.disabled = locked;
+      settings.lockInputControls(locked);
+      elements.clearGraphButton.disabled = locked;
       if (locked) {
-        elements.practiceSettings.close();
+        settings.close();
         elements.micButton.disabled = true;
       } else {
         updateMicButtonState("stopped");
@@ -238,7 +173,11 @@ export function setupPracticeView(beforePreview: () => void) {
       elements.graphDescription.textContent = latest
         ? formatGraphDescription(
             latest,
-            resolveAnalysisStatus(latest, state.minRms, state.tolerance),
+            resolveAnalysisStatus(
+              latest,
+              settings.getSettings().minRms,
+              settings.getSettings().tolerance,
+            ),
             state.target,
           )
         : "声の軌跡はまだ記録されていません。";
@@ -249,103 +188,50 @@ export function setupPracticeView(beforePreview: () => void) {
     });
   }
 
-  function updatePracticeSettingsSummary() {
-    const notes = getCurrentNotes();
-    elements.settingsSummaryRange.textContent = `${notes[0].name}〜${notes[12].name}`;
-    elements.settingsSummaryInstrument.textContent =
-      REFERENCE_INSTRUMENTS[state.referenceInstrument].label;
-    elements.settingsSummaryVolume.textContent = `${Math.round(state.referenceVolume * 100)}%`;
-    elements.settingsSummaryTolerance.textContent = `±半音の${state.tolerance}%`;
-  }
-
   function init() {
-    setupSettingsDialog(
-      elements.practiceSettings,
-      elements.openPracticeSettings,
-    );
-    elements.practiceSettings.addEventListener("close", stopInstrumentPreview);
     melody.init();
     renderNoteButtons();
     updateTargetDisplay();
-    updateReferenceVolume();
-    updateTolerance();
-    updateSensitivity();
     setupPitchCanvas();
     drawGraph();
     elements.clearGraphButton.addEventListener("click", clearSession);
-    elements.noteRangeSelect.addEventListener("change", handleNoteRangeChange);
-    elements.referenceInstrumentSelect.replaceChildren(
-      ...Object.values(REFERENCE_INSTRUMENTS).map((instrument) => {
-        const option = document.createElement("option");
-        option.value = instrument.id;
-        option.textContent = instrument.label;
-        return option;
-      }),
-    );
-    elements.referenceInstrumentSelect.value = state.referenceInstrument;
-    updateReferenceInstrumentDescription();
-    elements.referenceInstrumentSelect.addEventListener(
-      "change",
-      handleReferenceInstrumentChange,
-    );
-    elements.referenceVolumeInput.addEventListener(
-      "input",
-      updateReferenceVolume,
-    );
-    elements.toleranceInput.addEventListener("input", updateTolerance);
-    elements.sensitivityInput.addEventListener("input", updateSensitivity);
-    elements.micSelect.addEventListener("change", handleMicSelection);
+    settings.onChange((key, previous) => {
+      switch (key) {
+        case "startMidi":
+          handleNoteRangeChange(previous.startMidi);
+          break;
+        case "instrument":
+          handleReferenceInstrumentChange();
+          break;
+        case "tolerance":
+          melody.updateTolerance(settings.getSettings().tolerance);
+          drawGraph();
+          break;
+        case "deviceId":
+          void handleMicSelection();
+          break;
+      }
+    });
 
     if (isAudioContextSupported()) {
-      elements.previewInstrumentButton.addEventListener(
-        "click",
-        () => void previewReferenceInstrument(),
-      );
       elements.playToneButton.addEventListener(
         "click",
         () => void toggleReferenceTone(),
       );
       elements.micButton.addEventListener("click", toggleMicrophone);
-      refreshAudioDevices();
     } else {
-      disableAudioControls();
+      elements.playToneButton.disabled = true;
+      elements.micButton.disabled = true;
+      elements.analysisStatus.textContent =
+        "このブラウザでは声の稽古を始められません。別のブラウザで開いてください。";
     }
-    return {
-      show,
-      stop,
-      stopPreview: stopInstrumentPreview,
-      settingsDialog: elements.practiceSettings,
-      getSettings: () => ({
-        startMidi: state.noteRangeStartMidi,
-        instrument: state.referenceInstrument,
-        volume: state.referenceVolume,
-        deviceId: state.selectedDeviceId,
-        minRms: state.minRms,
-        tolerance: state.tolerance,
-      }),
-      dispose() {
-        state.referencePlayer?.dispose();
-        state.referencePlayer = null;
-        cleanupPitchCanvasResizeWatcher();
-      },
-    };
+    return { show, stop, dispose: cleanupPitchCanvasResizeWatcher };
   }
 
   function stop() {
     if (melody.running) melody.stop();
     stopReferenceTone();
     if (capture || state.isMicStarting) stopMicrophone();
-  }
-
-  function disableAudioControls() {
-    elements.referenceInstrumentSelect.disabled = true;
-    elements.previewInstrumentButton.disabled = true;
-    elements.playToneButton.disabled = true;
-    elements.micButton.disabled = true;
-    elements.analysisStatus.textContent =
-      "このブラウザでは声の稽古を始められません。別のブラウザで開いてください。";
-    elements.micDeviceStatus.textContent =
-      "音声機能が使えないため、マイクを取得できません。";
   }
 
   function renderNoteButtons() {
@@ -401,16 +287,12 @@ export function setupPracticeView(beforePreview: () => void) {
     });
   }
 
-  function handleNoteRangeChange() {
-    stopInstrumentPreview();
+  function handleNoteRangeChange(previousStartMidi: number) {
     if (melody.running) melody.stop();
-    const previousIndex = getCurrentNotes().findIndex(
+    const previousIndex = buildNoteRange(previousStartMidi).findIndex(
       (note) => note.name === state.target.name,
     );
-    const nextStartMidi = Number(elements.noteRangeSelect.value);
-    const nextNotes = buildNoteRange(nextStartMidi);
-
-    state.noteRangeStartMidi = nextStartMidi;
+    const nextNotes = getCurrentNotes();
     state.target = nextNotes[Math.max(0, previousIndex)] ?? nextNotes[0];
 
     resetActiveSession();
@@ -422,97 +304,18 @@ export function setupPracticeView(beforePreview: () => void) {
   }
 
   function getCurrentNotes(): Note[] {
-    return buildNoteRange(state.noteRangeStartMidi);
+    return buildNoteRange(settings.getSettings().startMidi);
   }
 
   let referencePlaybackRequestId = 0;
-  let instrumentPreviewRequest: symbol | null = null;
-  let instrumentPreviewTimer: number | undefined;
   const microphone = new MicrophoneInput();
   let capture: MicrophoneCapture | null = null;
   let microphoneStart: symbol | null = null;
-  function getReferencePlayer(): ReferencePlayer {
-    if (!state.referencePlayer) {
-      state.referencePlayer = new ReferencePlayer(getAudioContext());
-      state.referencePlayer.setVolume(state.referenceVolume);
-    }
-    return state.referencePlayer;
-  }
-
-  function updateReferenceInstrumentDescription() {
-    elements.referenceInstrumentStatus.textContent =
-      REFERENCE_INSTRUMENTS[state.referenceInstrument].description;
-    updatePracticeSettingsSummary();
-  }
-
   function handleReferenceInstrumentChange() {
-    const instrument = elements.referenceInstrumentSelect.value;
-    if (!isReferenceInstrumentId(instrument)) return;
     const wasPlaying = state.isReferencePlaying;
-    stopInstrumentPreview();
     stopReferenceTone();
     melody.stop();
-    state.referenceInstrument = instrument;
-    updateReferenceInstrumentDescription();
     if (wasPlaying) void startReferenceTone();
-  }
-
-  function showReferenceAudioError(error: unknown) {
-    console.error(error);
-    elements.referenceInstrumentStatus.textContent =
-      "お手本音を再生できませんでした。もう一度再生するか、正弦波を選んでください。";
-  }
-
-  async function previewReferenceInstrument() {
-    if (instrumentPreviewRequest !== null) {
-      stopInstrumentPreview();
-      return;
-    }
-    beforePreview();
-
-    const request = Symbol();
-    instrumentPreviewRequest = request;
-    const instrument = state.referenceInstrument;
-    elements.previewInstrumentButton.textContent = "試聴を停止";
-    elements.referenceInstrumentStatus.textContent = "試聴音を準備しています…";
-    try {
-      const context = getAudioContext();
-      const player = getReferencePlayer();
-      await Promise.all([player.prepare(instrument), context.resume()]);
-      if (
-        instrumentPreviewRequest !== request ||
-        !elements.practiceSettings.open
-      )
-        return;
-      const seconds = player.playPhrase(
-        instrument,
-        buildInstrumentPreview(state.noteRangeStartMidi),
-      );
-      elements.referenceInstrumentStatus.textContent =
-        "「きらきら星」を試聴中…";
-      instrumentPreviewTimer = window.setTimeout(
-        stopInstrumentPreview,
-        seconds * 1000,
-      );
-    } catch (error) {
-      if (
-        instrumentPreviewRequest !== request ||
-        !elements.practiceSettings.open
-      )
-        return;
-      stopInstrumentPreview();
-      showReferenceAudioError(error);
-    }
-  }
-
-  function stopInstrumentPreview() {
-    if (instrumentPreviewRequest === null) return;
-    instrumentPreviewRequest = null;
-    window.clearTimeout(instrumentPreviewTimer);
-    instrumentPreviewTimer = undefined;
-    state.referencePlayer?.stopScale();
-    elements.previewInstrumentButton.textContent = "試聴";
-    updateReferenceInstrumentDescription();
   }
 
   async function toggleReferenceTone() {
@@ -524,52 +327,43 @@ export function setupPracticeView(beforePreview: () => void) {
   }
 
   async function startReferenceTone() {
-    stopInstrumentPreview();
+    settings.stopPreview();
     melody.stop();
     const requestId = ++referencePlaybackRequestId;
-    const instrument = state.referenceInstrument;
+    const instrument = settings.getSettings().instrument;
     state.isReferencePlaying = true;
     elements.playToneButton.classList.add("is-active");
     elements.playToneButton.innerHTML = `<span aria-hidden="true">■</span>停止`;
     elements.playToneButton.setAttribute("aria-pressed", "true");
-    elements.referenceInstrumentStatus.textContent =
-      "お手本音を準備しています…";
+    settings.showReferencePreparing();
     try {
       const context = getAudioContext();
-      const player = getReferencePlayer();
+      const player = playback.getPlayer();
       await player.prepare(instrument);
       if (requestId !== referencePlaybackRequestId) return;
       await context.resume();
       if (requestId !== referencePlaybackRequestId) return;
       player.startReference(instrument, state.target.frequency);
-      updateReferenceInstrumentDescription();
+      settings.resetReferenceStatus();
     } catch (error) {
       if (requestId !== referencePlaybackRequestId) return;
       stopReferenceTone();
-      showReferenceAudioError(error);
+      settings.reportReferenceError(error);
     }
   }
 
   function stopReferenceTone() {
     referencePlaybackRequestId++;
-    state.referencePlayer?.stopReference();
+    playback.getCurrentPlayer()?.stopReference();
     state.isReferencePlaying = false;
     elements.playToneButton.classList.remove("is-active");
     elements.playToneButton.innerHTML = `<span aria-hidden="true">▶</span>お手本音`;
     elements.playToneButton.setAttribute("aria-pressed", "false");
-    updateReferenceInstrumentDescription();
+    settings.resetReferenceStatus();
   }
 
   function updateReferenceToneFrequency() {
-    state.referencePlayer?.setFrequency(state.target.frequency);
-  }
-
-  function updateReferenceVolume() {
-    state.referenceVolume = Number(elements.referenceVolumeInput.value) / 100;
-    elements.referenceVolumeValue.textContent = `${Math.round(state.referenceVolume * 100)}%`;
-
-    state.referencePlayer?.setVolume(state.referenceVolume);
-    updatePracticeSettingsSummary();
+    playback.getCurrentPlayer()?.setFrequency(state.target.frequency);
   }
 
   async function toggleMicrophone() {
@@ -600,9 +394,7 @@ export function setupPracticeView(beforePreview: () => void) {
       elements.analysisStatus.textContent = switching
         ? "選択したマイクで稽古を始められませんでした。別の入力を選択してください。"
         : formatMicrophoneError(error);
-      if (switching)
-        elements.micDeviceStatus.textContent =
-          "マイクの切り替えに失敗しました。";
+      if (switching) settings.showMicrophoneSwitchError();
       console.error(error);
     } finally {
       if (microphoneStart === request) {
@@ -623,7 +415,7 @@ export function setupPracticeView(beforePreview: () => void) {
     }
 
     const input = await microphone.start(getAudioContext(), {
-      deviceId: state.selectedDeviceId,
+      deviceId: settings.getSettings().deviceId,
       fftSize: PRACTICE_MIC_FFT_SIZE,
       onEnded() {
         if (melody.running) melody.stop();
@@ -644,9 +436,9 @@ export function setupPracticeView(beforePreview: () => void) {
     updateMicButtonState("active");
     elements.analysisStatus.textContent = "声の軌跡を見ています";
 
-    await refreshAudioDevices();
+    await settings.refreshAudioDevices(() => capture !== null);
     if (capture !== input) return { ok: false };
-    updateActiveDeviceFromStream(input.stream);
+    settings.showActiveMicrophone(input.stream.getAudioTracks()[0]);
     focusGraphForPractice();
 
     state.animationId = requestAnimationFrame(analyzeFrame);
@@ -657,7 +449,7 @@ export function setupPracticeView(beforePreview: () => void) {
     if (!window.matchMedia(MOBILE_VIEWPORT_QUERY).matches) {
       return;
     }
-    elements.practiceSettings.close();
+    settings.close();
 
     requestAnimationFrame(() => {
       elements.graphPanel.scrollIntoView({
@@ -697,84 +489,9 @@ export function setupPracticeView(beforePreview: () => void) {
   }
 
   async function handleMicSelection() {
-    if (state.isMicStarting) {
-      return;
-    }
-
-    state.selectedDeviceId = elements.micSelect.value;
-    const selectedLabel =
-      elements.micSelect.selectedOptions[0]?.textContent || "既定のマイク";
-    elements.micDeviceStatus.textContent = `選択中: ${selectedLabel}`;
-
-    if (capture) {
-      stopMicrophone();
-      await requestMicrophone(true);
-    }
-  }
-
-  async function refreshAudioDevices() {
-    if (!navigator.mediaDevices?.enumerateDevices) {
-      elements.micDeviceStatus.textContent =
-        "このブラウザではマイク一覧を取得できません。";
-      return;
-    }
-
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const inputs = devices.filter((device) => device.kind === "audioinput");
-      const currentValue = state.selectedDeviceId || elements.micSelect.value;
-
-      elements.micSelect.replaceChildren(
-        createOption("", "既定のマイク"),
-        ...inputs.map((device, index) =>
-          createOption(device.deviceId, device.label || `マイク ${index + 1}`),
-        ),
-      );
-
-      if (
-        currentValue &&
-        inputs.some((device) => device.deviceId === currentValue)
-      ) {
-        elements.micSelect.value = currentValue;
-      } else {
-        elements.micSelect.value = "";
-        state.selectedDeviceId = "";
-      }
-
-      if (inputs.length === 0) {
-        elements.micDeviceStatus.textContent =
-          "利用可能なマイクが見つかりません。";
-      } else if (!capture && inputs.some((device) => !device.label)) {
-        elements.micDeviceStatus.textContent =
-          "稽古開始後に入力名を表示できます。";
-      } else {
-        const selectedLabel =
-          elements.micSelect.selectedOptions[0]?.textContent || "既定のマイク";
-        elements.micDeviceStatus.textContent = `選択中: ${selectedLabel}`;
-      }
-    } catch (error) {
-      elements.micDeviceStatus.textContent =
-        "マイク一覧を取得できませんでした。";
-      console.error(error);
-    }
-  }
-
-  function updateActiveDeviceFromStream(stream: MediaStream) {
-    const track = stream.getAudioTracks()[0];
-    // The active device is informational. Keep the user's default/explicit choice
-    // unchanged so restarting does not promote a transient ID to an exact constraint.
-    const selectedLabel =
-      track?.label ||
-      elements.micSelect.selectedOptions[0]?.textContent ||
-      "既定のマイク";
-    elements.micDeviceStatus.textContent = `使用中: ${selectedLabel}`;
-  }
-
-  function createOption(value: string, text: string) {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = text;
-    return option;
+    if (state.isMicStarting || !capture) return;
+    stopMicrophone();
+    await requestMicrophone(true);
   }
 
   function analyzeFrame(now: number) {
@@ -788,11 +505,12 @@ export function setupPracticeView(beforePreview: () => void) {
       return;
     }
 
+    const { minRms, tolerance } = settings.getSettings();
     const buffer = capture.read();
     const volume = getRms(buffer);
     const target = melody.noteAt(position?.index) ?? state.target;
     const detection = detectPitchWithLibraries(buffer, capture.detectors, {
-      minRms: state.minRms,
+      minRms,
       minClarity: MIN_CLARITY,
       targetFrequency: target.frequency,
     });
@@ -804,19 +522,11 @@ export function setupPracticeView(beforePreview: () => void) {
       position ? null : state.session.sessionStart,
     );
     if (position?.phase === "sing") {
-      const inGracePeriod = melody.record(
-        position,
-        sample,
-        volume >= state.minRms,
-      );
+      const inGracePeriod = melody.record(position, sample, volume >= minRms);
       if (inGracePeriod) sample.centsFromTarget = null;
       lastMelodySample = sample;
       updatePitchMeters(sample);
-      const status = resolveAnalysisStatus(
-        sample,
-        state.minRms,
-        state.tolerance,
-      );
+      const status = resolveAnalysisStatus(sample, minRms, tolerance);
       elements.analysisStatus.textContent = inGracePeriod
         ? "周回開始の猶予中です（各周回の最初の0.4秒は判定しません）"
         : formatAnalysisStatus(status);
@@ -826,11 +536,7 @@ export function setupPracticeView(beforePreview: () => void) {
         target,
       );
     } else {
-      state.session = addSampleToSession(
-        state.session,
-        sample,
-        state.tolerance,
-      );
+      state.session = addSampleToSession(state.session, sample, tolerance);
       state.session = {
         ...state.session,
         samples: trimSamples(state.session.samples, now, GRAPH_SECONDS),
@@ -847,7 +553,11 @@ export function setupPracticeView(beforePreview: () => void) {
     now: number,
     target: Note,
   ) {
-    const status = resolveAnalysisStatus(sample, state.minRms, state.tolerance);
+    const status = resolveAnalysisStatus(
+      sample,
+      settings.getSettings().minRms,
+      settings.getSettings().tolerance,
+    );
     updateGameEffects(sample, status, now);
     elements.analysisStatus.textContent = formatAnalysisStatus(status);
     elements.graphDescription.textContent = formatGraphDescription(
@@ -882,7 +592,7 @@ export function setupPracticeView(beforePreview: () => void) {
       sample,
       previousSample,
       isInTune,
-      tolerance: state.tolerance,
+      tolerance: settings.getSettings().tolerance,
       now,
       maxStableGapMs: MAX_STABLE_SAMPLE_GAP_MS,
       rippleDurationMs: LANDING_RIPPLE_DURATION_MS,
@@ -1059,9 +769,9 @@ export function setupPracticeView(beforePreview: () => void) {
     }
 
     const direction =
-      sample.centsFromTarget > state.tolerance
+      sample.centsFromTarget > settings.getSettings().tolerance
         ? "高め"
-        : sample.centsFromTarget < -state.tolerance
+        : sample.centsFromTarget < -settings.getSettings().tolerance
           ? "低め"
           : "範囲内";
 
@@ -1076,27 +786,6 @@ export function setupPracticeView(beforePreview: () => void) {
 
   function updateTargetDisplay() {
     elements.targetFrequency.textContent = `${state.target.name} / ${state.target.frequency.toFixed(2)} Hz`;
-    updatePracticeSettingsSummary();
-  }
-
-  function updateTolerance() {
-    state.tolerance = Number(elements.toleranceInput.value);
-    elements.toleranceValue.textContent = `半音の${state.tolerance}%`;
-    melody.updateTolerance(state.tolerance);
-    updatePracticeSettingsSummary();
-    drawGraph();
-  }
-
-  function updateSensitivity() {
-    const value = Number(elements.sensitivityInput.value);
-    state.minRms = value / 1000;
-    if (value <= 4) {
-      elements.sensitivityValue.textContent = "よく拾う";
-    } else if (value >= 12) {
-      elements.sensitivityValue.textContent = "控えめ";
-    } else {
-      elements.sensitivityValue.textContent = "ふつう";
-    }
   }
 
   function setupPitchCanvas() {
@@ -1140,7 +829,7 @@ export function setupPracticeView(beforePreview: () => void) {
 
     drawSinglePracticeGraph(elements.pitchCanvas, {
       target: state.target,
-      tolerance: state.tolerance,
+      tolerance: settings.getSettings().tolerance,
       samples: state.session.samples,
       effects: state.gameEffects,
     });
