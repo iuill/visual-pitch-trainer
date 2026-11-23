@@ -386,7 +386,7 @@ export class GamePractice {
         this.capture &&
         this.settings
       ) {
-        const detection = this.capture.sample({
+        const detection = this.capture.sampleTarget({
           minRms: this.settings.minRms,
           minClarity: 0.9,
           targetFrequency: this.target.frequency,

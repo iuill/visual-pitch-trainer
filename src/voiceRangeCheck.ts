@@ -144,7 +144,7 @@ export class VoiceRangeCheck {
       if (!capture || generation !== this.generation) return;
       const tick = (now: number) => {
         if (generation !== this.generation) return;
-        const detection = capture.sample({ minRms });
+        const detection = capture.sampleVoiceRange(minRms);
         const before = this.range.notes.length;
         observeVoiceRange(this.range, detection.frequency, now);
         if (now - (this.samples.at(-1)?.timeMs ?? -Infinity) >= 40) {

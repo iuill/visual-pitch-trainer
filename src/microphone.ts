@@ -1,8 +1,9 @@
 import { PitchDetector } from "pitchy";
 import {
-  analyzePitchFrame,
+  analyzeTargetPitch,
+  analyzeVoiceRangePitch,
   type PitchFrame,
-  type PitchFrameOptions,
+  type TargetPitchOptions,
 } from "./pitchDetection";
 
 export const PRACTICE_MIC_FFT_SIZE = 4096;
@@ -10,7 +11,8 @@ const PITCHY_CLARITY_THRESHOLD = 0.93;
 
 export type MicrophoneCapture = {
   deviceLabel: string;
-  sample(options: PitchFrameOptions): PitchFrame;
+  sampleTarget(options: TargetPitchOptions): PitchFrame;
+  sampleVoiceRange(minRms: number): PitchFrame;
 };
 
 type MicrophoneOptions = {
@@ -85,11 +87,17 @@ export class MicrophoneInput {
       detector.clarityThreshold = PITCHY_CLARITY_THRESHOLD;
       for (const track of tracks) track.addEventListener("ended", onEnded);
       const detectors = { detector, sampleRate: context.sampleRate };
+      function readWaveform() {
+        inputAnalyser.getFloatTimeDomainData(buffer);
+        return buffer;
+      }
       return {
         deviceLabel: stream.getAudioTracks()[0]?.label ?? "",
-        sample(options) {
-          inputAnalyser.getFloatTimeDomainData(buffer);
-          return analyzePitchFrame(buffer, detectors, options);
+        sampleTarget(options) {
+          return analyzeTargetPitch(readWaveform(), detectors, options);
+        },
+        sampleVoiceRange(minRms) {
+          return analyzeVoiceRangePitch(readWaveform(), detectors, minRms);
         },
       };
     } catch (error) {

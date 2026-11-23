@@ -504,7 +504,7 @@ export function setupPracticeView(
 
     const { minRms, tolerance } = settings.getSettings();
     const target = melody.noteAt(position?.index) ?? state.target;
-    const detection = capture.sample({
+    const detection = capture.sampleTarget({
       minRms,
       minClarity: MIN_CLARITY,
       targetFrequency: target.frequency,
