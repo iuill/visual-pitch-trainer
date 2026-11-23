@@ -710,6 +710,8 @@
               <label><input id="rhythmEffects" type="checkbox"> 判定の効果音</label>
               <label class="rhythm-field">何に合わせて叩くか <select id="rhythmGuide"><option value="visual">画面の動き</option><option value="audio">聞こえる音</option></select></label>
             </div>
+            <label class="rhythm-free-play"><input id="rhythmJudgeFeet" type="checkbox" aria-describedby="rhythmJudgeFeetHelp"> 足レーンも判定する</label>
+            <p id="rhythmJudgeFeetHelp" class="graph-hint">フットコントローラを K キー、またはゲームパッドの LB・RB・LT・RT に割り当ててください。</p>
             <label class="rhythm-free-play"><input id="rhythmFreePlay" type="checkbox" aria-describedby="rhythmFreePlayHelp"> 全ステップを自由に選ぶ</label>
             <p id="rhythmFreePlayHelp" class="graph-hint">オンにすると、クリア前でも全ステップを選べます。練習結果も記録します。</p>
             <fieldset class="rhythm-calibration-settings">
@@ -777,6 +779,7 @@
             </svg>
             <span id="rhythmTapLabel">タップ（スペース / F / J）</span>
           </button>
+          <button id="rhythmFootTap" type="button" class="secondary-button rhythm-tap" aria-describedby="rhythmInputHelp" aria-keyshortcuts="K" hidden>足の拍（K）</button>
           <button id="rhythmStop" type="button" class="secondary-button">停止</button>
         </div>
         <p id="rhythmFeedback" class="rhythm-feedback" role="status"></p>

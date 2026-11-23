@@ -416,6 +416,9 @@ describe("reference player", () => {
     h.player.playPhrase("sine", notes, 2);
     expect(h.gains[2].connectedTo).toBe(h.gains[0]);
     expect(h.gains[2].gain.events[1].value).toBe(1);
+    h.player.playPhrase("sine", [{ ...notes[0], volume: 0.24 }], 3, 0.36);
+    expect(h.gains[3].connectedTo).toBe(h.context.destination);
+    expect(h.gains[3].gain.events[1].value).toBe(0.12);
   });
   test("counts down only once and skips missed loop notes without replaying a backlog", () => {
     const h = createHarness();

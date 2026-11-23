@@ -29,6 +29,7 @@ export interface RhythmSettings {
   countVoice: RhythmCountVoice;
   volume: number;
   effects: boolean;
+  judgeFeet: boolean;
   guide: RhythmGuide;
   freePlay: boolean;
   exampleVoice: boolean;
@@ -40,6 +41,7 @@ const defaultSettings: RhythmSettings = {
   countVoice: "male",
   volume: 0.65,
   effects: true,
+  judgeFeet: false,
   guide: "visual",
   freePlay: false,
   exampleVoice: false,
@@ -196,6 +198,7 @@ export function createRhythmProgressStore(onUnavailable: () => void) {
         countVoice,
         volume,
         effects,
+        judgeFeet,
         guide,
         freePlay,
         exampleVoice,
@@ -210,6 +213,10 @@ export function createRhythmProgressStore(onUnavailable: () => void) {
         volume: inRange(volume, 0, 1) ? volume : defaultSettings.volume,
         effects:
           typeof effects === "boolean" ? effects : defaultSettings.effects,
+        judgeFeet:
+          typeof judgeFeet === "boolean"
+            ? judgeFeet
+            : defaultSettings.judgeFeet,
         guide: guide === "audio" ? guide : defaultSettings.guide,
         freePlay: freePlay === true,
         exampleVoice: exampleVoice === true,

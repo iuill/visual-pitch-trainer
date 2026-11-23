@@ -31,9 +31,14 @@ import {
   type RhythmRestValue,
   type RhythmStep,
   rhythmBeatAccent,
+  rhythmPulseLevel,
   rhythmPulseUnits,
   rhythmSlotsPerBeat,
 } from "./rhythmCourse";
+import {
+  createRhythmGamepadPoller,
+  type RhythmInputLane,
+} from "./rhythmGamepad";
 import {
   collectOmittedRhythmNotes,
   createRhythmTargets,
@@ -44,6 +49,7 @@ import {
   RHYTHM_HISTOGRAM_LABELS,
   RHYTHM_MATCH_MS,
   type RhythmHit,
+  type RhythmTarget,
   summarizeRhythm,
 } from "./rhythmJudge";
 import {
@@ -195,15 +201,17 @@ function createRestIcon(value: RhythmRestValue) {
 }
 
 function melodyNotes(
+  step: RhythmStep,
   pitches: readonly number[],
   targets: ReturnType<typeof createRhythmTargets>,
-  bpm: number,
   startMs: number,
+  volume: number,
 ) {
   return targets.map((target, index) => ({
     frequency: midiToFrequency(pitches[index]),
-    seconds: (RHYTHM_NOTE_BEATS[target.noteValue] * 60) / bpm,
+    seconds: (RHYTHM_NOTE_BEATS[target.noteValue] * 60) / step.bpm,
     offsetSeconds: (target.timeMs - startMs) / 1000,
+    volume: volume * (0.58 + 0.42 * rhythmPulseLevel(step, target.pulse)),
   }));
 }
 
@@ -279,6 +287,7 @@ export function setupRhythmPractice(
   const countVoice = queryElement<HTMLSelectElement>("#rhythmCountVoice");
   const volume = queryElement<HTMLInputElement>("#rhythmVolume");
   const effects = queryElement<HTMLInputElement>("#rhythmEffects");
+  const judgeFeet = queryElement<HTMLInputElement>("#rhythmJudgeFeet");
   const freePlay = queryElement<HTMLInputElement>("#rhythmFreePlay");
   const guide = queryElement<HTMLSelectElement>("#rhythmGuide");
   const reset = queryElement<HTMLButtonElement>("#rhythmReset");
@@ -300,6 +309,7 @@ export function setupRhythmPractice(
   const markers = queryElement<HTMLElement>("#rhythmMarkers");
   const inputHelp = queryElement<HTMLElement>("#rhythmInputHelp");
   const tap = queryElement<HTMLButtonElement>("#rhythmTap");
+  const footTap = queryElement<HTMLButtonElement>("#rhythmFootTap");
   const tapLabel = queryElement<HTMLElement>("#rhythmTapLabel");
   const stopButton = queryElement<HTMLButtonElement>("#rhythmStop");
   const feedback = queryElement<HTMLElement>("#rhythmFeedback");
@@ -324,7 +334,8 @@ export function setupRhythmPractice(
   let scheduler: RhythmScheduler | null = null;
   let melodyPlayer: ReferencePlayer | null = null;
   let generation = 0;
-  let acceptTap: ((timestamp: number) => void) | null = null;
+  let acceptTap: ((timestamp: number, lane?: RhythmInputLane) => void) | null =
+    null;
   let preparedBars: string[] | null = null;
   let sectionIndex = -1;
   let activeExample: {
@@ -366,6 +377,7 @@ export function setupRhythmPractice(
     countVoice.disabled = settings.sound !== "voice" && !settings.exampleVoice;
     volume.value = String(settings.volume * 100);
     effects.checked = settings.effects;
+    judgeFeet.checked = settings.judgeFeet;
     freePlay.checked = settings.freePlay;
     exampleVoice.checked = settings.exampleVoice;
     visualCalibrationInfo.textContent = `補正値 ${calibrationLabel(calibration?.visualOffsetMs)}`;
@@ -820,8 +832,7 @@ export function setupRhythmPractice(
         );
       if (sounds?.message) messages.push(sounds.message);
       exampleStatus.textContent = messages.join(" ");
-      const startAt = player.playExample(patterns, step.bpm, {
-        beatsPerBar,
+      const startAt = player.playExample(patterns, step, {
         feetOnly,
         eighths: spokenEighths,
         voice: spoken ? voice : null,
@@ -831,13 +842,14 @@ export function setupRhythmPractice(
         playSong(player, reference, sounds, events, startAt * 1000, 0.67);
       } else if (melody && reference && sounds) {
         const notes = melodyNotes(
+          step,
           melody,
           createRhythmTargets(patterns, step.bpm, 0, slotsPerBeat),
-          step.bpm,
           0,
+          0.36,
         );
         melodyPlayer = reference;
-        reference.playPhrase(sounds.substitute, notes, startAt, 0.36);
+        reference.playPhrase(sounds.substitute, notes, startAt);
       }
       const slotSeconds = 60 / (step.bpm * slotsPerBeat);
       const subdivisions = step.countSubdivision ? 1 : slotsPerBeat;
@@ -900,6 +912,7 @@ export function setupRhythmPractice(
     setup.hidden = true;
     resultPanel.hidden = true;
     stage.hidden = false;
+    footTap.hidden = true;
     laneArea.hidden = mode !== null;
     lanes.removeAttribute("data-count-in");
     lanes.removeAttribute("data-note-pulse");
@@ -931,7 +944,7 @@ export function setupRhythmPractice(
         ? "準備の4拍でリズムをつかみ、測定に入ったら円が光る瞬間にタップします。"
         : mode === "audio"
           ? "準備の4拍でリズムをつかみ、測定に入ったらクリック音が聞こえた瞬間にタップします。"
-          : `タップかスペース・F・Jキーで開始します。同じテンポで準備${practiceCountInBars}小節、本番${preparedBars?.length ?? 0}小節です。`;
+          : `タップかスペース・F・Jキーで開始します。同じテンポで準備${practiceCountInBars}小節、本番${preparedBars?.length ?? 0}小節です。本番では Xbox コントローラの A・B・X・Y でもタップできます。`;
     feedback.textContent = "";
     tap.focus({ preventScroll: true });
     if (mode !== null) stage.scrollIntoView({ block: "nearest" });
@@ -1047,14 +1060,17 @@ export function setupRhythmPractice(
       );
     }
     audio.player.start(cues, audio.cue, settings.volume, settings.countVoice);
-    acceptTap = (timestamp) => {
+    acceptTap = (timestamp, lane) => {
+      if (lane === "foot") return;
       const tapMs = audio.eventTime(timestamp, mode);
       const index = calibrationTapIndex(tapMs, startMs);
       if (index < 0 || offsets[index] !== null) return;
       offsets[index] = tapMs - startMs - index * CALIBRATION_BEAT_MS;
       received++;
     };
-    loop.start(() => {
+    const poll = createGamepadInput();
+    loop.start((timestamp) => {
+      poll(timestamp);
       const elapsed = audio.now(mode) - prepMs;
       if (elapsed < 0) {
         count.textContent = countdownText(elapsed);
@@ -1088,6 +1104,22 @@ export function setupRhythmPractice(
         (mode === "audio" ? audioCalibration : visualCalibration).focus();
       else start.focus();
     });
+  }
+
+  function createGamepadInput() {
+    const poll = createRhythmGamepadPoller();
+    let available = typeof navigator.getGamepads === "function";
+    return (timestamp: number) => {
+      if (!available || !document.hasFocus()) return;
+      try {
+        for (const lane of poll(navigator.getGamepads()))
+          acceptTap?.(timestamp, lane);
+      } catch (error) {
+        if (!(error instanceof DOMException) || error.name !== "SecurityError")
+          throw error;
+        available = false;
+      }
+    };
   }
 
   function makeMarker(kind: "note" | "beat", content?: Node) {
@@ -1136,6 +1168,7 @@ export function setupRhythmPractice(
     const stride = step.countSubdivision ? 1 : slotsPerBeat;
     scoreBars.dataset.dense = String((beatsPerBar * slotsPerBeat) / stride > 8);
     scoreBars.toggleAttribute("data-long-song", Boolean(step.sections));
+    const dualLane = settings.judgeFeet && !feetOnly;
     scoreBars.tabIndex = step.sections ? 0 : -1;
     scoreBars.style.setProperty(
       "--rhythm-score-slots",
@@ -1146,7 +1179,7 @@ export function setupRhythmPractice(
         const bar = document.createElement("li");
         const number = document.createElement("span");
         number.className = "rhythm-score-bar-number";
-        number.textContent = `${from + index + 1}小節`;
+        number.textContent = `${from + index + 1}小節${dualLane ? " 手" : ""}`;
         bar.append(number);
         for (let slot = 0; slot < pattern.length; slot += stride) {
           const note = document.createElement("span");
@@ -1178,6 +1211,25 @@ export function setupRhythmPractice(
           }
           bar.append(note);
         }
+        if (dualLane) {
+          const footLabel = document.createElement("span");
+          footLabel.className =
+            "rhythm-score-bar-number rhythm-score-foot-label";
+          footLabel.textContent = "足";
+          bar.append(footLabel);
+          for (let beat = 0; beat < beatsPerBar; beat++) {
+            const foot = document.createElement("span");
+            foot.className = "rhythm-score-slot";
+            foot.dataset.foot = `足 ${beat + 1}拍目`;
+            foot.setAttribute("role", "img");
+            foot.setAttribute("aria-label", `${foot.dataset.foot} 未判定`);
+            foot.style.gridColumn = `${2 + (beat * slotsPerBeat) / stride}`;
+            if (step.beatGroups?.includes(beat))
+              foot.classList.add("rhythm-pattern-group-start");
+            foot.append(createFootprint());
+            bar.append(foot);
+          }
+        }
         return bar;
       }),
     );
@@ -1185,6 +1237,7 @@ export function setupRhythmPractice(
     for (let beat = 0; beat < beatsPerBar; beat++) {
       const marker = makeMarker("beat");
       marker.dataset.accent = String(rhythmBeatAccent(step, beat));
+      marker.toggleAttribute("data-downbeat", beat === 0);
       marker.style.left = `${linePercent + beatPercent * beat}%`;
     }
     if (!feetOnly) {
@@ -1196,7 +1249,10 @@ export function setupRhythmPractice(
           : rest &&
             makeRestMarker(rest, beatPercent * rhythmPulseUnits(step)).marker;
         if (!marker) return;
-        if (value) marker.dataset.accent = String(slot === 0);
+        if (value) {
+          marker.dataset.accent = String(slot === 0);
+          marker.toggleAttribute("data-downbeat", slot === 0);
+        }
         marker.style.left = `${linePercent + (beatPercent * slot) / slotsPerBeat}%`;
       });
     }
@@ -1208,6 +1264,7 @@ export function setupRhythmPractice(
     if (!bars) return;
     preparedBars = null;
     const step = currentStep();
+    const dualLane = settings.judgeFeet && !step.feetOnly;
     const section = selectedSection(step);
     const from = section?.startBar ?? 0;
     const beatsPerBar = step.beatsPerBar ?? 4;
@@ -1217,11 +1274,16 @@ export function setupRhythmPractice(
     phase.textContent = "音源を準備中";
     loading.hidden = false;
     tapLabel.textContent = rhythmTapLabel;
+    footTap.hidden = !settings.judgeFeet;
     stopButton.textContent = "停止";
     const tapHelp =
       (step.feetOnly
-        ? "足あとの中心の点線が判定ラインに重なった瞬間にタップします。"
-        : "上段の音符の点線が判定ラインに重なった瞬間にタップします。足は下段の足あとに合わせます。") +
+        ? "足あとの中心線が判定ラインに重なった瞬間にタップします。"
+        : "上段の音符の中心線が判定ラインに重なった瞬間にタップします。足は下段の足あとに合わせます。") +
+      "Xbox コントローラは A・B・X・Y でタップできます。" +
+      (settings.judgeFeet
+        ? "足の拍は K キーか LB・RB・LT・RT で入力できます。"
+        : "") +
       (bars.some((pattern) => Array.from(pattern).some(getRhythmRestValue))
         ? "上段がグレーの区間は手のタップを休み、足の拍は続けます。"
         : "");
@@ -1249,6 +1311,11 @@ export function setupRhythmPractice(
     const startMs = firstBeatMs + beatMs * countInBeats;
     const endMs = startMs + bars.length * beatsPerBar * beatMs;
     const targets = createRhythmTargets(bars, step.bpm, startMs, slotsPerBeat);
+    const footTargets: RhythmTarget[] = dualLane
+      ? Array.from({ length: bars.length * beatsPerBar }, (_, beat) => ({
+          timeMs: startMs + beat * beatMs,
+        }))
+      : [];
     const beatCount = (bars.length + practiceCountInBars) * beatsPerBar;
     const counts: RhythmCount[] = [];
     for (let beat = 0; beat < beatCount; beat++) {
@@ -1259,14 +1326,22 @@ export function setupRhythmPractice(
           ? 0
           : 1
         : pulse;
-      counts.push({ timeMs, voiceIndex });
+      counts.push({
+        timeMs,
+        voiceIndex,
+        pulseLevel: rhythmPulseLevel(step, pulse),
+      });
       if (
         beat >= countInBeats &&
         !step.melody &&
         audio.cue === "click" &&
         step.countSubdivision === "eighth"
       )
-        counts.push({ timeMs: timeMs + beatMs / 2, voiceIndex: 4 });
+        counts.push({
+          timeMs: timeMs + beatMs / 2,
+          voiceIndex: 4,
+          pulseLevel: rhythmPulseLevel(step, pulse + 0.5),
+        });
     }
     audio.player.start(
       step.melody ? counts.slice(0, countInBeats) : counts,
@@ -1288,16 +1363,21 @@ export function setupRhythmPractice(
       melodyPlayer = getReferencePlayer();
       melodyPlayer.playPhrase(
         audio.sounds.substitute,
-        melodyNotes(step.melody.flat(), targets, step.bpm, startMs),
+        melodyNotes(
+          step,
+          step.melody.flat(),
+          targets,
+          startMs,
+          settings.volume,
+        ),
         startMs / 1000,
-        settings.volume,
       );
       for (const beat of counts.slice(countInBeats)) {
-        const downbeat = beat.voiceIndex === 0;
+        const downbeat = beat.pulseLevel === 1;
         audio.player.scheduleBassDrum(
           beat.timeMs / 1000,
           downbeat,
-          settings.volume * (downbeat ? 0.6 : 0.46),
+          settings.volume * 0.66 * (beat.pulseLevel ?? 1),
         );
       }
     }
@@ -1310,7 +1390,9 @@ export function setupRhythmPractice(
         .map((item, index) => ({ ...item, index })),
       (item) => {
         const marker = makeMarker("beat");
-        marker.dataset.accent = String(item.voiceIndex === 0);
+        const pulse = item.index % beatsPerBar;
+        marker.dataset.accent = String(rhythmBeatAccent(step, pulse));
+        marker.toggleAttribute("data-downbeat", pulse === 0);
         marker.toggleAttribute("data-count-in", item.index < countInBeats);
         return marker;
       },
@@ -1318,6 +1400,7 @@ export function setupRhythmPractice(
     const notes = markerWindow(step.feetOnly ? [] : targets, (target) => {
       const marker = makeMarker("note", createNoteIcon(target.noteValue));
       marker.dataset.accent = String(target.downbeat);
+      marker.toggleAttribute("data-downbeat", target.downbeat);
       return marker;
     });
     const restBeatWidth = beatPercent * rhythmPulseUnits(step);
@@ -1340,37 +1423,53 @@ export function setupRhythmPractice(
       ({ rest }) => makeRestMarker(rest, restBeatWidth).marker,
     );
     const scoreNotes = scoreBars.querySelectorAll<HTMLElement>("[data-note]");
+    const scoreFeet = scoreBars.querySelectorAll<HTMLElement>("[data-foot]");
     const hits: RhythmHit[] = [];
-    let extras = 0;
+    const extras = { hand: 0, foot: 0 };
 
-    const presentHit = (hit: RhythmHit) => {
+    const presentHit = (hit: RhythmHit, lane: RhythmInputLane) => {
       hits.push(hit);
       const label = hitLabel(hit);
       const badge = document.createElement("span");
       badge.dataset.grade = hit.grade;
-      badge.textContent = gradeLabels[hit.grade];
-      hitFeedback.replaceChildren(badge);
+      const badgeLane = dualLane ? lane : "hand";
+      badge.dataset.lane = badgeLane;
+      const laneName = lane === "hand" ? "手" : "足";
+      badge.textContent = dualLane
+        ? `${laneName} ${gradeLabels[hit.grade]}`
+        : gradeLabels[hit.grade];
+      hitFeedback.querySelector(`[data-lane="${badgeLane}"]`)?.remove();
+      hitFeedback.append(badge);
       if (hit.reason === "extra") {
         scoreExtras.hidden = false;
-        scoreExtras.textContent = `余分なタップ ${++extras}回`;
+        extras[lane]++;
+        scoreExtras.textContent = dualLane
+          ? `余分なタップ 手 ${extras.hand}回・足 ${extras.foot}回`
+          : `余分なタップ ${extras.hand}回`;
       } else {
-        const index = targets.findIndex((target) => target.hit === hit);
-        const note = scoreNotes[index];
+        const index = (lane === "foot" ? footTargets : targets).findIndex(
+          (target) => target.hit === hit,
+        );
+        const note = (lane === "foot" ? scoreFeet : scoreNotes)[index];
         note.dataset.grade = hit.grade;
         note.textContent = gradeSymbols[hit.grade];
-        const name = step.feetOnly
-          ? ""
-          : ` ${noteNotation[targets[index].noteValue]}`;
-        note.title = `${note.dataset.note}${name} ${label}`;
+        const position =
+          lane === "foot"
+            ? note.dataset.foot
+            : `${note.dataset.note}${step.feetOnly ? "" : ` ${noteNotation[targets[index].noteValue]}`}`;
+        note.title = `${position} ${label}`;
         note.setAttribute("aria-label", note.title);
       }
       if (settings.effects) audio.player.feedback(hit.grade);
     };
 
-    acceptTap = (timestamp) => {
+    acceptTap = (timestamp, lane = "hand") => {
+      if (lane === "foot" && !settings.judgeFeet) return;
       const corrected = audio.eventTime(timestamp, clockGuide) - correction;
       if (corrected < startMs - RHYTHM_MATCH_MS || corrected >= endMs) return;
-      presentHit(judgeRhythmTap(targets, corrected));
+      const judgedLane = dualLane ? lane : "hand";
+      const laneTargets = judgedLane === "foot" ? footTargets : targets;
+      presentHit(judgeRhythmTap(laneTargets, corrected), judgedLane);
     };
 
     function trackPercent(deltaMs: number) {
@@ -1414,7 +1513,9 @@ export function setupRhythmPractice(
       if (!marker.hidden) marker.style.left = `${left}%`;
     }
 
-    loop.start(() => {
+    const poll = createGamepadInput();
+    loop.start((timestamp) => {
+      poll(timestamp);
       const visibleMs = audio.now(clockGuide);
       const elapsed = visibleMs - firstBeatMs;
       const countInWidth = Math.min(
@@ -1496,7 +1597,9 @@ export function setupRhythmPractice(
         inputHelp.textContent = tapHelp;
       const judgeNow = visibleMs - correction;
       for (const hit of collectOmittedRhythmNotes(targets, judgeNow))
-        presentHit(hit);
+        presentHit(hit, "hand");
+      for (const hit of collectOmittedRhythmNotes(footTargets, judgeNow))
+        presentHit(hit, "foot");
       if (visibleMs < endMs || judgeNow < endMs) return;
       const result = summarizeRhythm(hits, step.chapter);
       const record = section
@@ -1599,6 +1702,7 @@ export function setupRhythmPractice(
       countVoice: countVoice.value === "female" ? "female" : "male",
       volume: Number(volume.value) / 100,
       effects: effects.checked,
+      judgeFeet: judgeFeet.checked,
       guide: guide.value === "audio" ? "audio" : "visual",
       freePlay: freePlay.checked,
       exampleVoice: exampleVoice.checked,
@@ -1609,8 +1713,9 @@ export function setupRhythmPractice(
 
   function handleKey(event: KeyboardEvent) {
     const letterKey = event.code === "KeyF" || event.code === "KeyJ";
+    const footKey = event.code === "KeyK" && !footTap.hidden;
     if (
-      (!letterKey && event.code !== "Space") ||
+      (!letterKey && !footKey && event.code !== "Space") ||
       event.altKey ||
       event.ctrlKey ||
       event.metaKey ||
@@ -1625,15 +1730,17 @@ export function setupRhythmPractice(
       }
       return;
     }
+    if (event.code === "Space" && focused === footTap) return;
     if (
       focused !== tap &&
+      focused !== footTap &&
       focused?.closest(
         "button, input, select, textarea, summary, a, [contenteditable]",
       )
     )
       return;
     event.preventDefault();
-    if (!event.repeat) acceptTap(event.timeStamp);
+    if (!event.repeat) acceptTap(event.timeStamp, footKey ? "foot" : "hand");
   }
   document.addEventListener("keydown", handleKey);
   function handleKeyUp(event: KeyboardEvent) {
@@ -1647,6 +1754,13 @@ export function setupRhythmPractice(
   tap.addEventListener("click", (event) => {
     if (preparedBars) void play();
     else if (event.detail === 0) acceptTap?.(event.timeStamp);
+  });
+  footTap.addEventListener("pointerdown", (event) => {
+    if (event.isPrimary && event.button === 0)
+      acceptTap?.(event.timeStamp, "foot");
+  });
+  footTap.addEventListener("click", (event) => {
+    if (event.detail === 0) acceptTap?.(event.timeStamp, "foot");
   });
   stopButton.addEventListener("click", () => {
     stop();
@@ -1680,6 +1794,7 @@ export function setupRhythmPractice(
     countVoice,
     volume,
     effects,
+    judgeFeet,
     guide,
     freePlay,
     exampleVoice,

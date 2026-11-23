@@ -1,5 +1,9 @@
 import type { SongDrum } from "./rhythmArrangement";
-import { getRhythmNoteValue } from "./rhythmCourse";
+import {
+  getRhythmNoteValue,
+  type RhythmStep,
+  rhythmPulseLevel,
+} from "./rhythmCourse";
 import type { RhythmGrade } from "./rhythmJudge";
 import type { RhythmCountVoice, RhythmSound } from "./rhythmProgressStore";
 
@@ -11,6 +15,7 @@ export interface RhythmCount {
   voiceIndex: number;
   sound?: RhythmSound;
   volume?: number;
+  pulseLevel?: number;
 }
 
 export type RhythmCue =
@@ -110,7 +115,8 @@ export class RhythmScheduler {
           this.tone("triangle", frequency, when, duration, level * 0.32);
           continue;
         }
-        const accent = count.voiceIndex === 0;
+        const pulseLevel =
+          count.pulseLevel ?? (count.voiceIndex === 0 ? 1 : 0.72);
         const available =
           Math.min(counts[next]?.timeMs ?? endMs, endMs) / 1000 - when;
         const buffer = cue === "voice" ? voices?.[count.voiceIndex] : undefined;
@@ -127,15 +133,15 @@ export class RhythmScheduler {
             source,
             when,
             buffer.duration / rate,
-            level * (accent ? 1 : 0.72),
+            level * (0.28 + 0.72 * pulseLevel),
           );
         } else {
           this.tone(
             "sine",
-            accent ? 1340 : 930,
+            620 + 720 * pulseLevel,
             when,
             0.033,
-            level * (accent ? 0.36 : 0.26),
+            level * 0.36 * pulseLevel,
           );
         }
       }
@@ -147,18 +153,17 @@ export class RhythmScheduler {
 
   playExample(
     patterns: readonly string[],
-    bpm: number,
+    step: RhythmStep,
     options: {
-      beatsPerBar: number;
       feetOnly: boolean;
       eighths: boolean;
       voice: RhythmCountVoice | null;
       scheduleDrums?: boolean;
     },
   ) {
-    const beatSeconds = 60 / bpm;
+    const beatSeconds = 60 / step.bpm;
     const startAt = this.context.currentTime + 0.12;
-    const { beatsPerBar } = options;
+    const beatsPerBar = step.beatsPerBar ?? 4;
     const beatCount = patterns.length * beatsPerBar;
     if (options.voice) {
       const speakOffbeats =
@@ -169,9 +174,18 @@ export class RhythmScheduler {
       const counts: RhythmCount[] = [];
       for (let beat = 0; beat < beatCount; beat++) {
         const timeMs = (startAt + beat * beatSeconds) * 1000;
-        counts.push({ timeMs, voiceIndex: beat % beatsPerBar });
+        const pulse = beat % beatsPerBar;
+        counts.push({
+          timeMs,
+          voiceIndex: pulse,
+          pulseLevel: rhythmPulseLevel(step, pulse),
+        });
         if (speakOffbeats)
-          counts.push({ timeMs: timeMs + beatSeconds * 500, voiceIndex: 4 });
+          counts.push({
+            timeMs: timeMs + beatSeconds * 500,
+            voiceIndex: 4,
+            pulseLevel: rhythmPulseLevel(step, pulse + 0.5),
+          });
       }
       this.start(
         counts,
@@ -185,9 +199,13 @@ export class RhythmScheduler {
     }
     if (options.scheduleDrums !== false) {
       for (let beat = 0; beat < beatCount; beat++) {
-        const downbeat = beat % beatsPerBar === 0;
+        const pulse = beat % beatsPerBar;
         const when = startAt + beat * beatSeconds;
-        this.scheduleBassDrum(when, downbeat, downbeat ? 0.29 : 0.21);
+        this.scheduleBassDrum(
+          when,
+          pulse === 0,
+          0.4 * rhythmPulseLevel(step, pulse),
+        );
       }
     }
     if (options.feetOnly) return startAt;
@@ -196,12 +214,15 @@ export class RhythmScheduler {
       if (!getRhythmNoteValue(symbol)) continue;
       const when =
         startAt + (slot * beatSeconds * beatsPerBar) / patterns[0].length;
+      const pulse =
+        ((slot % patterns[0].length) * beatsPerBar) / patterns[0].length;
+      const level = 0.6 + 0.4 * rhythmPulseLevel(step, pulse);
       if (highTom) {
         const source = this.context.createBufferSource();
         source.buffer = highTom;
-        this.play(source, when, highTom.duration, 0.55);
+        this.play(source, when, highTom.duration, 0.55 * level);
       } else {
-        this.tone("triangle", 660, when, 0.065, 0.12);
+        this.tone("triangle", 660, when, 0.065, 0.12 * level);
       }
     }
     return startAt;

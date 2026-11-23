@@ -35,6 +35,13 @@ export function rhythmBeatAccent(step: RhythmStep, pulse: number) {
   return pulse === 0 || step.beatGroups?.includes(pulse) === true;
 }
 
+export function rhythmPulseLevel(step: RhythmStep, pulse: number) {
+  if (pulse === 0) return 1;
+  if (!Number.isInteger(pulse)) return 0.35;
+  if (rhythmBeatAccent(step, pulse)) return 0.88;
+  return (step.beatsPerBar ?? 4) === 4 && pulse === 2 ? 0.75 : 0.5;
+}
+
 export const RHYTHM_CHAPTERS = [
   "ゆっくり基礎",
   "だんだん速く",
@@ -110,7 +117,7 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
     id: "1-1",
     chapter: 1,
     title: "足だけで拍を感じる",
-    hint: "足で拍を刻み、下段の足あとの中心の点線が判定ラインに重なるたびにタップします。",
+    hint: "足で拍を刻み、下段の足あとの中心線が判定ラインに重なるたびにタップします。",
     bpm: 60,
     patterns: quarters,
     feetOnly: true,

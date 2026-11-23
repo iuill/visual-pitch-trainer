@@ -17,9 +17,11 @@ import {
   RHYTHM_NOTE_BEATS,
   RHYTHM_STEPS,
   rhythmBeatAccent,
+  rhythmPulseLevel,
   rhythmPulseUnits,
   rhythmSlotsPerBeat,
 } from "./rhythmCourse";
+import { createRhythmGamepadPoller } from "./rhythmGamepad";
 import {
   collectOmittedRhythmNotes,
   createRhythmTargets,
@@ -35,6 +37,24 @@ import {
 } from "./rhythmProgressStore";
 
 describe("rhythm course", () => {
+  test("distinguishes downbeats, secondary accents and weak beats by meter", () => {
+    const step = RHYTHM_STEPS[0];
+    const levels = (meter: typeof step, pulses: number[]) =>
+      pulses.map((pulse) => rhythmPulseLevel(meter, pulse));
+    expect(levels(step, [0, 1, 2, 3])).toEqual([1, 0.5, 0.75, 0.5]);
+    expect(levels({ ...step, beatsPerBar: 3 }, [0, 1, 2])).toEqual([
+      1, 0.5, 0.5,
+    ]);
+    expect(levels({ ...step, beatsPerBar: 2 }, [0, 1, 1.5])).toEqual([
+      1, 0.5, 0.35,
+    ]);
+    expect(
+      levels(
+        { ...step, beatsPerBar: 7, beatGroups: [2, 4] },
+        [0, 1, 2, 3, 4, 5, 6],
+      ),
+    ).toEqual([1, 0.5, 0.88, 0.5, 0.88, 0.5, 0.5]);
+  });
   test("uses 32 ordered steps, in 5 chapters", () => {
     expect(RHYTHM_STEPS.map((step) => step.bpm)).toEqual([
       60, 60, 60, 60, 60, 60, 70, 70, 80, 90, 100, 110, 60, 60, 80, 100, 76,
@@ -199,6 +219,13 @@ describe("rhythm course", () => {
     expect(accompaniment.map(({ timeMs }) => Math.round(timeMs))).toEqual([
       0, 833, 1667,
     ]);
+    const kick = buildSongEvents(step, 0, 1, 0, true).flatMap((event) =>
+      "drum" in event && event.drum === "kick" ? [event.level] : [],
+    );
+    expect(kick).toHaveLength(7);
+    expect(kick[0]).toBeGreaterThan(kick[2]);
+    expect(kick[2]).toBeGreaterThan(kick[1]);
+    expect(kick[4]).toBeGreaterThan(kick[3]);
   });
 
   test("keeps every 7/8 event on the eighth-note grid, including the flute answers", () => {
@@ -300,12 +327,12 @@ describe("rhythm course", () => {
     expect(
       createRhythmTargets(["-e---e--", "w-------", "h---x-x-"], 60, 1000),
     ).toEqual([
-      { timeMs: 1500, downbeat: false, noteValue: "eighth" },
-      { timeMs: 3500, downbeat: false, noteValue: "eighth" },
-      { timeMs: 5000, downbeat: true, noteValue: "whole" },
-      { timeMs: 9000, downbeat: true, noteValue: "half" },
-      { timeMs: 11000, downbeat: false, noteValue: "quarter" },
-      { timeMs: 12000, downbeat: false, noteValue: "quarter" },
+      { timeMs: 1500, downbeat: false, pulse: 0.5, noteValue: "eighth" },
+      { timeMs: 3500, downbeat: false, pulse: 2.5, noteValue: "eighth" },
+      { timeMs: 5000, downbeat: true, pulse: 0, noteValue: "whole" },
+      { timeMs: 9000, downbeat: true, pulse: 0, noteValue: "half" },
+      { timeMs: 11000, downbeat: false, pulse: 2, noteValue: "quarter" },
+      { timeMs: 12000, downbeat: false, pulse: 3, noteValue: "quarter" },
     ]);
   });
 
@@ -314,6 +341,26 @@ describe("rhythm course", () => {
     expect(targets.map((target) => target.timeMs)).toEqual([1000, 2000, 4000]);
     expect(judgeRhythmTap(targets, 3000).reason).toBe("extra");
   });
+});
+
+test("detects simultaneous gamepad lanes on the press edge only", () => {
+  const poll = createRhythmGamepadPoller();
+  const gamepad = (values: Record<number, number>) => ({
+    id: "Xbox Controller",
+    connected: true,
+    mapping: "standard" as const,
+    index: 0,
+    buttons: Array.from({ length: 17 }, (_, index) => {
+      const value = values[index] ?? 0;
+      return { value, pressed: value === 1, touched: value > 0 };
+    }),
+  });
+  expect([...poll([gamepad({ 0: 1, 6: 0.6 })])]).toEqual(["hand", "foot"]);
+  expect([...poll([gamepad({ 0: 1, 6: 0.8 })])]).toEqual([]);
+  expect([...poll([gamepad({ 0: 1, 2: 1, 6: 0.4 })])]).toEqual(["hand"]);
+  expect([...poll([gamepad({ 6: 0.5 })])]).toEqual(["foot"]);
+  expect([...poll([null])]).toEqual([]);
+  expect([...poll([gamepad({ 1: 1 })])]).toEqual(["hand"]);
 });
 
 describe("rhythm judging", () => {
@@ -584,6 +631,9 @@ describe("rhythm progress", () => {
       expect(rhythmStepUnlocked(restored, RHYTHM_STEPS[14])).toBe(false);
       data = '{"freePlay":true}';
       expect(store.loadSettings().freePlay).toBe(true);
+      expect(store.loadSettings().judgeFeet).toBe(false);
+      data = '{"judgeFeet":true}';
+      expect(store.loadSettings().judgeFeet).toBe(true);
       data = "{}";
       expect(store.loadSettings().freePlay).toBe(false);
       data = JSON.stringify({
