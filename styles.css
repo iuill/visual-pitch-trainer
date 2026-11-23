@@ -12,7 +12,9 @@
   --danger: #c53030;
   --blue: #2b6cb0;
   --highlight: #f7d774;
-  --game-success: #15806d;
+  --game-success-rgb: 21 128 109;
+  --game-success: rgb(var(--game-success-rgb));
+  --game-success-background: #e1f5e9;
   --combo-tier-1: #15857d;
   --combo-tier-2: #2f9e44;
   --combo-tier-3: #e09f10;
@@ -2084,9 +2086,9 @@ body[data-practice-view="melody"] .control-panel {
   min-height: 64px;
 }
 .game-success .game-feedback {
-  background: #e1f5e9;
+  background: var(--game-success-background);
   border-color: var(--game-success);
-  box-shadow: 0 0 18px #15806d44;
+  box-shadow: 0 0 18px rgb(var(--game-success-rgb) / 26.6667%);
 }
 .game-countdown {
   text-align: center;
@@ -2126,7 +2128,7 @@ body[data-practice-view="melody"] .control-panel {
 }
 .game-choices button[data-result="correct"] {
   border-color: var(--game-success);
-  background: #e1f5e9;
+  background: var(--game-success-background);
   opacity: 1;
 }
 .game-choices button[data-result="incorrect"] {
@@ -2208,7 +2210,7 @@ body[data-practice-view="melody"] .control-panel {
   text-shadow: 2px 2px #fff;
 }
 .game-holding #gameHoldProgress {
-  filter: drop-shadow(0 0 4px #15806d88);
+  filter: drop-shadow(0 0 4px rgb(var(--game-success-rgb) / 53.3333%));
 }
 @keyframes game-pop {
   from {

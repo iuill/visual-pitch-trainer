@@ -21,6 +21,7 @@ export const LANDING_RIPPLE_DURATION_MS = 850;
 export const COMBO_MILESTONE_DURATION_MS = 1600;
 const EFFECT_COLORS = {
   meterLabel: "#41505a",
+  // Keep RGB channels so each gradient stop can have its own opacity.
   glowGreenRgb: "28, 148, 119",
   glowGoldRgb: "247, 201, 72",
 };
