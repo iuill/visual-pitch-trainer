@@ -68,6 +68,10 @@
   flex-shrink: 0;
 }
 
+.practice-settings-launcher {
+  margin: 16px 0;
+}
+
 .settings-button:not(:disabled) {
   border: 2px solid var(--accent);
   background: #d8efec;

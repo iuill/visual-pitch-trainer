@@ -6,7 +6,7 @@ import type { ReferenceInstrumentId } from "./referenceInstruments";
 import {
   RHYTHM_NOTE_BEATS,
   type RhythmStep,
-  rhythmBeatAccent,
+  rhythmPulseLevel,
   rhythmPulseUnits,
   rhythmSlotsPerBeat,
 } from "./rhythmCourse";
@@ -161,7 +161,7 @@ export function buildSongEvents(
     const targets = createRhythmTargets([pattern], step.bpm, 0, slotsPerPulse);
     for (const [targetIndex, target] of targets.entries()) {
       const midi = melody[bar][targetIndex];
-      const slot = target.timeMs / slotMs;
+      const slot = target.pulse * slotsPerPulse;
       const duration =
         RHYTHM_NOTE_BEATS[target.noteValue] *
         rhythmPulseUnits(step) *
@@ -171,11 +171,17 @@ export function buildSongEvents(
         midi,
         slot,
         duration,
-        slot === 0 ? 0.72 : 0.63,
+        0.5 + 0.22 * rhythmPulseLevel(step, target.pulse),
         bends?.[targetIndex],
       );
       if (part.lead === "violin" || part.lead === "flute")
-        note("piano", midi, slot, Math.min(duration, 1), 0.26);
+        note(
+          "piano",
+          midi,
+          slot,
+          Math.min(duration, 1),
+          0.19 + 0.07 * rhythmPulseLevel(step, target.pulse),
+        );
     }
 
     if (part.keys === "mellotron" || part.keys === "symphonic") {
@@ -226,7 +232,12 @@ export function buildSongEvents(
           pitch,
           slot,
           ending ? 8 : muted ? 0.9 : 1.8,
-          0.56,
+          0.36 +
+            0.2 *
+              rhythmPulseLevel(
+                step,
+                Math.round((slot * length) / 8) / slotsPerPulse,
+              ),
         );
       }
     } else if (ending || part.keys === "held") {
@@ -289,12 +300,18 @@ export function buildSongEvents(
       if (ending && id !== "crash") groove = id === "kick" ? "X" : "";
       for (let slot = 0; slot < length; slot++) {
         const hit = groove[slot];
+        const pulse = slot / slotsPerPulse;
+        const level = rhythmPulseLevel(step, pulse);
         if (hit === "X" || hit === "x")
-          drum(id, slot, drumLevels[id] * (hit === "X" ? 1 : 0.62));
-        else if (footGuide && id === "kick" && slot % slotsPerPulse === 0) {
-          const accent = rhythmBeatAccent(step, slot / slotsPerPulse);
-          drum(id, slot, accent ? 0.3 : 0.15);
-        }
+          drum(
+            id,
+            slot,
+            drumLevels[id] *
+              (hit === "X" ? 1 : 0.62) *
+              (id === "kick" ? 0.5 + 0.5 * level : 1),
+          );
+        else if (footGuide && id === "kick" && Number.isInteger(pulse))
+          drum(id, slot, 0.3 * level);
       }
     }
   }

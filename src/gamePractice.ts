@@ -34,6 +34,7 @@ import {
   type Note,
 } from "./pitchMath";
 import { ReferencePlayer } from "./referencePlayer";
+import { setupSettingsDialog } from "./settingsDialog";
 
 type Settings = ReturnType<CommonSettings["getSettings"]>;
 type Phase =
@@ -61,7 +62,6 @@ export function setupGamePractice(
     stop: queryElement<HTMLButtonElement>("#gameStop"),
     replay: queryElement<HTMLButtonElement>("#gameReplay"),
     next: queryElement<HTMLButtonElement>("#gameNext"),
-    mode: queryElement<HTMLElement>("#gameMode"),
     canvas: queryElement<HTMLCanvasElement>("#gameCanvas"),
     feedback: queryElement<HTMLElement>("#gameFeedback"),
     voiceGameSettings: queryElement<HTMLElement>("#voiceGameSettings"),
@@ -79,7 +79,9 @@ export function setupGamePractice(
     gap: queryElement<HTMLElement>("#gameGap"),
     choices: queryElement<HTMLElement>("#gameChoices"),
     metric: queryElement<HTMLElement>("#gameMetric"),
-    setup: queryElement<HTMLDetailsElement>("#gameSetup"),
+    setup: queryElement<HTMLDialogElement>("#gameSetup"),
+    openSettings: queryElement<HTMLButtonElement>("#openGameSettings"),
+    settingsSummary: queryElement<HTMLElement>("#gameSettingsSummary"),
     score: queryElement<HTMLElement>("#gameScore"),
     points: queryElement<HTMLElement>("#gamePoints"),
     streak: queryElement<HTMLElement>("#gameStreak"),
@@ -126,7 +128,14 @@ export function setupGamePractice(
     if (round >= rounds) finish();
     else nextEarRound();
   });
-  elements.mode.addEventListener("change", () => showMode());
+  setupSettingsDialog(elements.setup, elements.openSettings);
+  elements.settings.addEventListener("change", (event) => {
+    if (
+      event.target instanceof HTMLInputElement &&
+      event.target.type === "radio"
+    )
+      showMode();
+  });
   const stopObservingGraph = observeGraphResize([elements.canvas], draw);
   showMode();
 
@@ -150,6 +159,12 @@ export function setupGamePractice(
     elements.earGameSettings.hidden = voice;
     elements.voiceStage.hidden = !voice;
     elements.earStage.hidden = voice;
+    const condition = voice
+      ? `${selected("voiceGameHold")}秒キープ`
+      : selected("earGameDifficulty") === "3"
+        ? "やさしい"
+        : "むずかしい";
+    elements.settingsSummary.textContent = `${voice ? "発声チャレンジ" : "音当て"}・${selected("gameRounds")}問・${condition}`;
     elements.instructions.textContent = voice
       ? `目標がランダムに変わります。${APPROACH_MS / 1000}秒以内に音を合わせ、その後は指定秒数ずっとキープ。お手本音は鳴らさず、画面を見て挑戦します。`
       : "鳴った音を選択肢から当てます。最初は3半音間隔、上級は半音間隔。何度でも聴き直せます。マイクは使いません。";
@@ -157,6 +172,7 @@ export function setupGamePractice(
   }
 
   function show(visible: boolean) {
+    if (!visible) elements.setup.close();
     root.hidden = !visible;
     if (visible) requestAnimationFrame(draw);
   }
@@ -167,6 +183,7 @@ export function setupGamePractice(
   }
 
   function dispose() {
+    elements.setup.close();
     stop();
     stopObservingGraph();
   }
@@ -188,6 +205,7 @@ export function setupGamePractice(
     elements.start.disabled = false;
     elements.stop.disabled = true;
     elements.settings.disabled = false;
+    elements.openSettings.disabled = false;
     elements.replay.disabled = true;
     elements.next.hidden = true;
     elements.countdown.hidden = true;
@@ -221,7 +239,8 @@ export function setupGamePractice(
     elements.start.disabled = true;
     elements.stop.disabled = false;
     elements.settings.disabled = true;
-    elements.setup.open = false;
+    elements.setup.close();
+    elements.openSettings.disabled = true;
     updateScore();
     let startingMicrophone = false;
     try {

@@ -63,6 +63,10 @@ Switch between single-note practice, melody practice, rhythm practice, games, yo
 
 Keep the beat with your foot and tap the screen or press Space, F, or J as notes reach the judgment line. The course has 32 steps. The first practice chapter has 11 arrangements, and the second adds five original pieces, including a 180 BPM symphonic rock ballad, that run for three to four minutes each. You can preview and practice each original piece in full or by section. You can also review each tap, calibrate timing, and save your progress in the browser. See the [design notes](docs/design.md#リズム練習) for the practice flow and scoring rules.
 
+You can also tap with a standard gamepad using A, B, X, or Y on an Xbox controller. Choose 「リズム練習の設定を開く」 to open rhythm practice settings, then enable 「足レーンも判定する」 to score foot taps. You can use the on-screen foot button or map a foot controller to the K key or to LB, RB, LT, or RT on a standard gamepad.
+
+Chapter 2 starts with a 4/4 review, introduces 2/4 and 3/4, and ends with a 150 BPM challenge in 4/4. Chapter 3 covers offbeats after rests and notes held across the next beat in 4/4 and 3/4, with a 130 BPM challenge at the end.
+
 ## Voice Range Check
 
 Sustain comfortable low and high notes to view the confirmed range in solfege, scientific and karaoke notation alongside a pitch graph. After stopping, individual incorrect notes can be removed. The hold duration is provisional; real-voice and iOS evaluation is still pending. See the [implementation notes](docs/implementation-notes.md#自分の声域チェック) for notation and detection details.

@@ -17,9 +17,11 @@ import {
   RHYTHM_NOTE_BEATS,
   RHYTHM_STEPS,
   rhythmBeatAccent,
+  rhythmPulseLevel,
   rhythmPulseUnits,
   rhythmSlotsPerBeat,
 } from "./rhythmCourse";
+import { createRhythmGamepadPoller } from "./rhythmGamepad";
 import {
   collectOmittedRhythmNotes,
   createRhythmTargets,
@@ -35,9 +37,27 @@ import {
 } from "./rhythmProgressStore";
 
 describe("rhythm course", () => {
+  test("distinguishes downbeats, secondary accents and weak beats by meter", () => {
+    const step = RHYTHM_STEPS[0];
+    const levels = (meter: typeof step, pulses: number[]) =>
+      pulses.map((pulse) => rhythmPulseLevel(meter, pulse));
+    expect(levels(step, [0, 1, 2, 3])).toEqual([1, 0.5, 0.75, 0.5]);
+    expect(levels({ ...step, beatsPerBar: 3 }, [0, 1, 2])).toEqual([
+      1, 0.5, 0.5,
+    ]);
+    expect(levels({ ...step, beatsPerBar: 2 }, [0, 1, 1.5])).toEqual([
+      1, 0.5, 0.35,
+    ]);
+    expect(
+      levels(
+        { ...step, beatsPerBar: 7, beatGroups: [2, 4] },
+        [0, 1, 2, 3, 4, 5, 6],
+      ),
+    ).toEqual([1, 0.5, 0.88, 0.5, 0.88, 0.5, 0.5]);
+  });
   test("uses 32 ordered steps, in 5 chapters", () => {
     expect(RHYTHM_STEPS.map((step) => step.bpm)).toEqual([
-      60, 60, 60, 60, 60, 60, 70, 70, 80, 90, 100, 110, 60, 60, 80, 100, 76,
+      60, 60, 60, 60, 60, 60, 70, 70, 90, 105, 125, 150, 60, 60, 95, 130, 76,
       100, 80, 76, 72, 88, 92, 96, 52, 60, 52, 72, 116, 144, 128, 180,
     ]);
     expect(new Set(RHYTHM_STEPS.map((step) => step.id)).size).toBe(32);
@@ -49,7 +69,10 @@ describe("rhythm course", () => {
         expect(bars.length).toBeGreaterThanOrEqual(8);
         expect(step.melody).toHaveLength(bars.length);
         expect(bars).toEqual([...step.patterns]);
-      } else expect(bars).toHaveLength(4);
+      } else {
+        const lengthByMeter = { 2: 8, 3: 6, 4: 4, 7: 3 };
+        expect(bars).toHaveLength(lengthByMeter[step.beatsPerBar ?? 4]);
+      }
       for (const [index, bar] of bars.entries()) {
         expect(bar).toMatch(/^[wjhdxtfezrs-]+$/);
         expect(bar).toHaveLength((step.beatsPerBar ?? 4) * slotsPerBeat);
@@ -199,6 +222,13 @@ describe("rhythm course", () => {
     expect(accompaniment.map(({ timeMs }) => Math.round(timeMs))).toEqual([
       0, 833, 1667,
     ]);
+    const kick = buildSongEvents(step, 0, 1, 0, true).flatMap((event) =>
+      "drum" in event && event.drum === "kick" ? [event.level] : [],
+    );
+    expect(kick).toHaveLength(7);
+    expect(kick[0]).toBeGreaterThan(kick[2]);
+    expect(kick[2]).toBeGreaterThan(kick[1]);
+    expect(kick[4]).toBeGreaterThan(kick[3]);
   });
 
   test("keeps every 7/8 event on the eighth-note grid, including the flute answers", () => {
@@ -284,28 +314,46 @@ describe("rhythm course", () => {
     expect(targets.filter((target) => target.downbeat)).toHaveLength(2);
   });
 
-  test("shows eighth rests at the untapped beats in the offbeat chapter", () => {
-    const patterns = new Set(
-      RHYTHM_STEPS.filter((step) => step.chapter === 3).flatMap(
-        (step) => step.patterns,
-      ),
-    );
-    expect([...patterns]).toEqual(["sesesese", "x-x-sese", "sesex-x-"]);
+  test("starts the offbeat chapter with eighth rests on every beat", () => {
+    const first = RHYTHM_STEPS.find((step) => step.id === "3-1");
+    if (!first) throw new Error("Missing offbeat introduction");
+    expect(first.patterns).toEqual(["sesesese"]);
     expect(
-      createRhythmTargets(["sesesese"], 60, 0).map((target) => target.timeMs),
+      createRhythmTargets(first.patterns, 60, 0).map((target) => target.timeMs),
     ).toEqual([500, 1500, 2500, 3500]);
+  });
+
+  test("practices isolated and held offbeats in 3/4 before the song", () => {
+    const step = RHYTHM_STEPS.find((item) => item.id === "3-3");
+    const song = RHYTHM_STEPS.find((item) => item.id === "4-3");
+    if (!step || !song) throw new Error("Missing 3/4 offbeat steps");
+    const bars = createRhythmBars(step);
+    expect(step.beatsPerBar).toBe(3);
+    expect(bars).toEqual([...step.patterns]);
+    expect(bars[4]).toBe(song.patterns[1]);
+    expect(
+      createRhythmTargets([bars[2]], step.bpm, 0).map(({ pulse }) => pulse),
+    ).toEqual([1.5, 2]);
+    expect(
+      createRhythmTargets([bars[5]], step.bpm, 0).map(
+        ({ pulse, noteValue }) => [pulse, noteValue],
+      ),
+    ).toEqual([
+      [0.5, "dotted-quarter"],
+      [2, "quarter"],
+    ]);
   });
 
   test("maps eighth slots and bar boundaries to the common time axis", () => {
     expect(
       createRhythmTargets(["-e---e--", "w-------", "h---x-x-"], 60, 1000),
     ).toEqual([
-      { timeMs: 1500, downbeat: false, noteValue: "eighth" },
-      { timeMs: 3500, downbeat: false, noteValue: "eighth" },
-      { timeMs: 5000, downbeat: true, noteValue: "whole" },
-      { timeMs: 9000, downbeat: true, noteValue: "half" },
-      { timeMs: 11000, downbeat: false, noteValue: "quarter" },
-      { timeMs: 12000, downbeat: false, noteValue: "quarter" },
+      { timeMs: 1500, downbeat: false, pulse: 0.5, noteValue: "eighth" },
+      { timeMs: 3500, downbeat: false, pulse: 2.5, noteValue: "eighth" },
+      { timeMs: 5000, downbeat: true, pulse: 0, noteValue: "whole" },
+      { timeMs: 9000, downbeat: true, pulse: 0, noteValue: "half" },
+      { timeMs: 11000, downbeat: false, pulse: 2, noteValue: "quarter" },
+      { timeMs: 12000, downbeat: false, pulse: 3, noteValue: "quarter" },
     ]);
   });
 
@@ -314,6 +362,39 @@ describe("rhythm course", () => {
     expect(targets.map((target) => target.timeMs)).toEqual([1000, 2000, 4000]);
     expect(judgeRhythmTap(targets, 3000).reason).toBe("extra");
   });
+});
+
+test("introduces two- and three-beat measures before the fastest steps", () => {
+  const steps = RHYTHM_STEPS.filter((step) => step.chapter === 2);
+  expect(steps.map((step) => step.beatsPerBar ?? 4)).toEqual([
+    4, 4, 2, 3, 4, 4,
+  ]);
+});
+
+test("timestamps gamepad press edges and falls back to the current poll time", () => {
+  const poll = createRhythmGamepadPoller();
+  const gamepad = (values: Record<number, number>, timestamp = 0) => ({
+    id: "Xbox Controller",
+    connected: true,
+    mapping: "standard" as const,
+    index: 0,
+    timestamp,
+    buttons: Array.from({ length: 17 }, (_, index) => {
+      const value = values[index] ?? 0;
+      return { value, pressed: value === 1, touched: value > 0 };
+    }),
+  });
+  expect([...poll([gamepad({ 0: 1, 6: 0.6 }, 95)], 100)]).toEqual([
+    ["hand", 95],
+    ["foot", 95],
+  ]);
+  expect([...poll([gamepad({ 0: 1, 6: 0.8 }, 112)], 116)]).toEqual([]);
+  expect([...poll([gamepad({ 0: 1, 2: 1, 6: 0.4 }, 95)], 132)]).toEqual([
+    ["hand", 132],
+  ]);
+  expect([...poll([gamepad({ 6: 0.5 })], 148)]).toEqual([["foot", 148]]);
+  expect([...poll([null], 164)]).toEqual([]);
+  expect([...poll([gamepad({ 7: 1 }, 181)], 180)]).toEqual([["foot", 180]]);
 });
 
 describe("rhythm judging", () => {
@@ -584,6 +665,9 @@ describe("rhythm progress", () => {
       expect(rhythmStepUnlocked(restored, RHYTHM_STEPS[14])).toBe(false);
       data = '{"freePlay":true}';
       expect(store.loadSettings().freePlay).toBe(true);
+      expect(store.loadSettings().judgeFeet).toBe(false);
+      data = '{"judgeFeet":true}';
+      expect(store.loadSettings().judgeFeet).toBe(true);
       data = "{}";
       expect(store.loadSettings().freePlay).toBe(false);
       data = JSON.stringify({

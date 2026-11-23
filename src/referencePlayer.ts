@@ -249,20 +249,26 @@ export class ReferencePlayer {
       frequency: number;
       seconds: number;
       offsetSeconds?: number;
+      volume?: number;
     }[],
     startAt = this.context.currentTime + 0.01,
     volume?: number,
   ) {
     this.stopScale();
     let offset = 0;
-    for (const { frequency, seconds, offsetSeconds = offset } of notes) {
+    for (const {
+      frequency,
+      seconds,
+      offsetSeconds = offset,
+      volume: noteVolume,
+    } of notes) {
       this.createVoice(
         instrument,
         frequency,
         startAt + offsetSeconds,
         seconds - 0.08,
         this.scaleVoices,
-        volume,
+        noteVolume ?? volume,
       );
       offset = offsetSeconds + seconds;
     }

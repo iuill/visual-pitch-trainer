@@ -23,7 +23,11 @@ export function createRhythmTargets(
   bpm: number,
   startMs: number,
   slotsPerBeat = 2,
-): (RhythmTarget & { downbeat: boolean; noteValue: RhythmNoteValue })[] {
+): (RhythmTarget & {
+  downbeat: boolean;
+  pulse: number;
+  noteValue: RhythmNoteValue;
+})[] {
   return bars.flatMap((pattern, bar) =>
     Array.from(pattern).flatMap((symbol, slot) => {
       const noteValue = getRhythmNoteValue(symbol);
@@ -34,6 +38,7 @@ export function createRhythmTargets(
                 startMs +
                 ((bar * pattern.length + slot) * 60_000) / (bpm * slotsPerBeat),
               downbeat: slot === 0,
+              pulse: slot / slotsPerBeat,
               noteValue,
             },
           ]

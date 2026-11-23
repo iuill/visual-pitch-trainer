@@ -409,6 +409,20 @@
   font-weight: 700;
 }
 
+.rhythm-score-hand-label {
+  display: block;
+}
+
+.rhythm-score-foot-label,
+.rhythm-score-slot[data-foot] {
+  grid-row: 2;
+  padding-block: 3px;
+}
+
+.rhythm-score-foot-label {
+  grid-column: 1;
+}
+
 .rhythm-score-slot {
   display: grid;
   place-items: center;
@@ -576,6 +590,11 @@
   top: calc(50% + var(--rhythm-guide-gap));
 }
 
+.rhythm-mark[data-downbeat]::before,
+.rhythm-mark[data-downbeat]::after {
+  border-inline-start-style: solid;
+}
+
 .rhythm-note {
   --rhythm-note-size: 2.475rem;
   --rhythm-guide-gap: min(0.54em, calc(var(--rhythm-track-height) / 4 - 4px));
@@ -716,6 +735,10 @@
 .rhythm-hit-feedback [data-grade="perfect"] {
   color: #126748;
   background: #e0f3e8;
+}
+
+.rhythm-hit-feedback [data-lane="foot"] {
+  top: 1.55rem;
 }
 
 .rhythm-hit-feedback [data-grade="close"] {
