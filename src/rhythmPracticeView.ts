@@ -72,6 +72,7 @@ const restNotation: Record<RhythmRestValue, string> = {
 };
 const linePercent = 18;
 const beatPercent = 30;
+const previewBeatPercent = 20;
 const timingPulseMs = 100;
 const countdownSeconds = CALIBRATION_COUNTDOWN_MS / 1000;
 const practiceReadyMs = 3000;
@@ -909,7 +910,7 @@ export function setupRhythmPractice(
     });
   }
 
-  function makeMarker(kind: "note" | "rest" | "beat", content?: Node) {
+  function makeMarker(kind: "note" | "beat", content?: Node) {
     const marker = document.createElement("span");
     marker.className = `rhythm-mark rhythm-${kind}`;
     if (kind === "beat") marker.append(createFootprint());
@@ -918,13 +919,14 @@ export function setupRhythmPractice(
     return marker;
   }
 
-  function makeRestMarker(rest: RhythmRestValue) {
-    const marker = makeMarker("rest", createRestIcon(rest));
-    const label = document.createElement("span");
-    label.className = "rhythm-rest-label";
-    label.textContent = "休";
-    marker.append(label);
-    return marker;
+  function makeRestMarker(rest: RhythmRestValue, beatWidth: number) {
+    const marker = document.createElement("span");
+    const widthPercent = beatWidth * RHYTHM_NOTE_BEATS[rest];
+    marker.className = "rhythm-rest";
+    marker.style.width = `${widthPercent}%`;
+    marker.append(createRestIcon(rest));
+    markers.prepend(marker);
+    return { marker, widthPercent };
   }
 
   function openPractice() {
@@ -987,7 +989,7 @@ export function setupRhythmPractice(
     for (let beat = 0; beat < beatsPerBar; beat++) {
       const marker = makeMarker("beat");
       marker.dataset.accent = String(beat === 0);
-      marker.style.left = `${linePercent + 22 * beat}%`;
+      marker.style.left = `${linePercent + previewBeatPercent * beat}%`;
     }
     if (!feetOnly) {
       Array.from(preparedBars[0]).forEach((symbol, slot) => {
@@ -995,10 +997,10 @@ export function setupRhythmPractice(
         const rest = getRhythmRestValue(symbol);
         const marker = value
           ? makeMarker("note", createNoteIcon(value))
-          : rest && makeRestMarker(rest);
+          : rest && makeRestMarker(rest, previewBeatPercent).marker;
         if (!marker) return;
         if (value) marker.dataset.accent = String(slot === 0);
-        marker.style.left = `${linePercent + (22 * slot) / slotsPerBeat}%`;
+        marker.style.left = `${linePercent + (previewBeatPercent * slot) / slotsPerBeat}%`;
       });
     }
     stage.scrollIntoView({ block: "nearest" });
@@ -1022,7 +1024,7 @@ export function setupRhythmPractice(
         ? "足あとの中心の点線が判定ラインに重なった瞬間にタップします。"
         : "上段の音符の点線が判定ラインに重なった瞬間にタップします。足は下段の足あとに合わせます。") +
       (bars.some((pattern) => Array.from(pattern).some(getRhythmRestValue))
-        ? "「休」では手のタップを休み、足の拍は続けます。"
+        ? "上段がグレーの区間は手のタップを休み、足の拍は続けます。"
         : "");
     inputHelp.textContent = `準備の${practiceCountInBars}小節は足で拍を刻みます。タップは「本番」の表示からです。`;
     const beatMs = 60_000 / step.bpm;
@@ -1108,7 +1110,7 @@ export function setupRhythmPractice(
                 timeMs:
                   startMs +
                   ((bar * pattern.length + slot) * beatMs) / slotsPerBeat,
-                marker: makeRestMarker(rest),
+                ...makeRestMarker(rest, beatPercent),
               },
             ]
           : [];
@@ -1154,9 +1156,14 @@ export function setupRhythmPractice(
       return linePercent + (deltaMs / beatMs) * beatPercent;
     }
 
-    function position(marker: HTMLElement, delta: number, visible = true) {
+    function position(
+      marker: HTMLElement,
+      delta: number,
+      visible = true,
+      widthPercent = 0,
+    ) {
       const left = trackPercent(delta);
-      marker.hidden = !visible || left < -5 || left > 105;
+      marker.hidden = !visible || left + widthPercent < -5 || left > 105;
       if (!marker.hidden) marker.style.left = `${left}%`;
     }
 
@@ -1190,7 +1197,8 @@ export function setupRhythmPractice(
       }
       lanes.toggleAttribute("data-beat-pulse", beatPulse);
       lanes.toggleAttribute("data-note-pulse", notePulse);
-      for (const rest of rests) position(rest.marker, rest.timeMs - visibleMs);
+      for (const rest of rests)
+        position(rest.marker, rest.timeMs - visibleMs, true, rest.widthPercent);
       if (elapsed < 0) {
         const seconds = String(
           Math.ceil(Math.min(-elapsed, practiceReadyMs) / 1000),

@@ -588,24 +588,18 @@
 }
 
 .rhythm-rest {
-  top: 25%;
-  z-index: 2;
-  color: var(--muted);
+  position: absolute;
+  top: 0;
+  display: grid;
+  place-items: center;
+  height: 49%;
+  background: #e1e4e8;
   font-size: 1.65rem;
 }
 
 .rhythm-rest .rhythm-rest-icon {
-  color: #77838c;
-}
-
-.rhythm-rest-label {
-  position: absolute;
-  top: calc(100% - 2px);
-  left: 50%;
-  translate: -50% 0;
-  padding-inline: 2px;
-  background: #edf6fa;
-  font-size: 0.78rem;
+  width: min(1em, 100%);
+  color: #68747e;
 }
 
 .rhythm-beat {
