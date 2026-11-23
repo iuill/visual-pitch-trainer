@@ -1,0 +1,260 @@
+.reference-instrument-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.reference-instrument-status {
+  margin: 8px 0 12px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.device-row {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.device-row label {
+  color: var(--muted);
+}
+
+.device-row p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 520px) {
+  .device-row {
+    margin-top: 14px;
+  }
+}
+
+.common-settings {
+  margin-bottom: 16px;
+}
+
+.settings-launcher,
+.settings-dialog-header,
+.settings-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-launcher h2,
+.settings-dialog-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--accent-strong);
+}
+
+.settings-launcher p,
+.settings-dialog-header p,
+.settings-dialog-footer p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.settings-button {
+  flex-shrink: 0;
+}
+
+.settings-button:not(:disabled) {
+  border: 2px solid var(--accent);
+  background: #d8efec;
+  color: var(--accent-strong);
+  box-shadow: 0 2px 0 rgba(20, 108, 117, 0.16);
+}
+
+.settings-button:not(:disabled):is(:hover, :focus-visible) {
+  background: #c2e3df;
+}
+
+.settings-button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.settings-dialog {
+  width: min(860px, calc(100% - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 24px 80px rgba(23, 32, 38, 0.25);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.settings-dialog::backdrop {
+  background: rgba(23, 32, 38, 0.55);
+}
+
+body:has(.settings-dialog[open]) {
+  overflow: hidden;
+}
+
+.settings-dialog-header,
+.settings-dialog-footer {
+  position: sticky;
+  z-index: 1;
+  padding: 16px 24px;
+  background: var(--panel);
+}
+
+.settings-dialog-header {
+  top: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-dialog-footer {
+  bottom: 0;
+  border-top: 1px solid var(--line);
+}
+
+.settings-dialog-header button,
+.settings-dialog-footer button {
+  flex-shrink: 0;
+}
+
+.settings-dialog-body {
+  padding: 24px;
+}
+
+.settings-error {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .settings-launcher {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .settings-launcher .settings-button {
+    width: 100%;
+  }
+
+  .settings-dialog-header,
+  .settings-dialog-footer {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .settings-dialog-body {
+    padding: 16px;
+  }
+
+  .settings-dialog .setting-row,
+  .settings-dialog .setting-row.select-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+}
+
+.common-settings-help {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 0.9rem;
+}
+
+.common-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.common-settings-grid > div {
+  min-width: 0;
+}
+
+.common-settings > .settings-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.settings-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #dce8e9;
+  border-radius: 8px;
+  background: #f4f9f9;
+}
+
+.settings-summary-item svg {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.settings-summary-text {
+  min-width: 0;
+}
+
+.settings-summary-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.settings-summary-text strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 820px) {
+  .common-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .common-settings > .settings-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-summary-item {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .settings-summary-item svg {
+    flex-basis: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .settings-summary-text strong {
+    font-size: 0.86rem;
+  }
+}

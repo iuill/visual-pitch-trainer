@@ -29,7 +29,7 @@ import {
   VOCAL_SEPARATION_MODELS,
   type VocalSeparationModelId,
 } from "./vocalSeparation";
-import "../styles.css";
+import "../styles/comparison.css";
 
 const COMPARISON_PNG_BACKGROUND = "#f7faf8";
 

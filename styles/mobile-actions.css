@@ -1,0 +1,26 @@
+@media (max-width: 520px) {
+  :root:has([data-practice-mode="single"], [data-running]) {
+    scroll-padding-bottom: var(--mobile-actions-space);
+  }
+
+  body:has([data-practice-mode="single"], [data-running]) {
+    padding-bottom: var(--mobile-actions-space);
+  }
+
+  :where([data-practice-mode="single"], [data-running]) .mobile-action-bar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
+    display: grid;
+    gap: 8px;
+    padding: 10px max(10px, env(safe-area-inset-left))
+      calc(10px + env(safe-area-inset-bottom))
+      max(10px, env(safe-area-inset-right));
+    border-top: 1px solid var(--line);
+    background: rgba(245, 247, 248, 0.96);
+    box-shadow: 0 -10px 28px rgba(23, 32, 38, 0.12);
+    backdrop-filter: blur(10px);
+  }
+}

@@ -18,6 +18,7 @@ export function setupPracticeView(
   settings: CommonSettings,
   playback: ReferencePlayback,
 ) {
+  const workspace = queryElement<HTMLElement>("#practiceWorkspace");
   const graphPanel = queryElement<HTMLElement>(".graph-panel");
   const graphTitle = queryElement<HTMLElement>("#practiceGraphTitle");
   const graphHelp = queryElement<HTMLElement>("#practiceGraphHelp");
@@ -25,7 +26,7 @@ export function setupPracticeView(
   const playToneButton = queryElement<HTMLButtonElement>("#playToneButton");
   const micButton = queryElement<HTMLButtonElement>("#micButton");
   const singleElements =
-    document.querySelectorAll<HTMLElement>("[data-single-only]");
+    workspace.querySelectorAll<HTMLElement>("[data-single-only]");
   const readout = createPracticeReadout(settings.getSettings);
   const microphone = new MicrophoneInput();
   let practiceView: PracticeMode | null = "single";
@@ -55,7 +56,8 @@ export function setupPracticeView(
         stopReferenceTone();
       },
       setLocked(locked) {
-        graphPanel.classList.toggle("is-melody-running", locked);
+        workspace.toggleAttribute("data-running", locked);
+        graphHelp.hidden = locked;
         settings.lockInputControls(locked);
         clearGraphButton.disabled = locked;
         if (locked) settings.close();
@@ -68,6 +70,8 @@ export function setupPracticeView(
 
   function show(view: PracticeMode | null) {
     practiceView = view;
+    if (view === null) delete workspace.dataset.practiceMode;
+    else workspace.dataset.practiceMode = view;
     const isMelody = view === "melody";
     for (const element of singleElements) element.hidden = view !== "single";
     graphPanel.hidden = view === null;
