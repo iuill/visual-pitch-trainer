@@ -234,10 +234,10 @@ describe("rhythm judging", () => {
 });
 
 describe("rhythm calibration", () => {
-  test("uses the median after four warmup taps and rejects misses or excessive spread", () => {
-    const offsets = [-320, 320, -320, 320, 10, 10, 20, 20, 30, 30, 40, 100];
+  test("uses the median of the eight measured taps and rejects misses or excessive spread", () => {
+    const offsets = [10, 10, 20, 20, 30, 30, 40, 100];
     expect(measureRhythmOffset(offsets)).toBe(25);
-    offsets[11] = 300;
+    offsets[7] = 300;
     expect(measureRhythmOffset(offsets)).toBeNull();
     expect(measureRhythmOffset(Array(CALIBRATION_TAPS).fill(null))).toBeNull();
   });
@@ -247,7 +247,10 @@ describe("rhythm calibration", () => {
     expect(calibrationTapIndex(750, 750)).toBe(0);
     expect(calibrationTapIndex(750 + 374, 750)).toBe(0);
     expect(calibrationTapIndex(750 + 375, 750)).toBe(1);
-    expect(calibrationTapIndex(750 + 12 * 750, 750)).toBe(-1);
+    expect(calibrationTapIndex(750 + (CALIBRATION_TAPS - 1) * 750, 750)).toBe(
+      CALIBRATION_TAPS - 1,
+    );
+    expect(calibrationTapIndex(750 + CALIBRATION_TAPS * 750, 750)).toBe(-1);
   });
 
   test("converts audio-guide taps with the output clock and falls back to latency", () => {

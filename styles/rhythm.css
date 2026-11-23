@@ -36,6 +36,32 @@
   margin: 12px 0;
 }
 
+.rhythm-calibration-settings {
+  margin: 16px 0;
+}
+
+.rhythm-calibration-settings legend {
+  padding: 0;
+  font-weight: 700;
+}
+
+.rhythm-calibration-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.rhythm-calibration-options > div {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.rhythm-calibration-options .graph-hint {
+  margin: 4px 0 8px;
+}
+
 .rhythm-field {
   display: grid;
   gap: 4px;
@@ -304,13 +330,18 @@
 }
 
 .rhythm-count[data-calibration] {
-  border: 3px solid var(--accent-strong);
+  --rhythm-calibration-ink: var(--accent-strong);
+  border: 3px solid var(--rhythm-calibration-ink);
   border-radius: 50%;
+}
+
+.rhythm-count[data-calibration-prep] {
+  --rhythm-calibration-ink: var(--rhythm-count-in-ink);
 }
 
 .rhythm-count[data-calibration][data-accent="true"] {
   border-width: 7px;
-  background: var(--accent-strong);
+  background: var(--rhythm-calibration-ink);
   color: white;
 }
 

@@ -6,6 +6,7 @@ import type { ReferencePlayer } from "./referencePlayer";
 import {
   CALIBRATION_BEAT_MS,
   CALIBRATION_COUNTDOWN_MS,
+  CALIBRATION_PREP_BEATS,
   CALIBRATION_TAPS,
   calibrationTapIndex,
   measureRhythmOffset,
@@ -242,7 +243,12 @@ export function setupRhythmPractice(
   const clearAudioCalibration = queryElement<HTMLButtonElement>(
     "#rhythmClearAudioCalibration",
   );
-  const calibrationInfo = queryElement<HTMLElement>("#rhythmCalibrationInfo");
+  const visualCalibrationInfo = queryElement<HTMLElement>(
+    "#rhythmVisualCalibrationInfo",
+  );
+  const audioCalibrationInfo = queryElement<HTMLElement>(
+    "#rhythmAudioCalibrationInfo",
+  );
   const sound = queryElement<HTMLSelectElement>("#rhythmSound");
   const countVoice = queryElement<HTMLSelectElement>("#rhythmCountVoice");
   const volume = queryElement<HTMLInputElement>("#rhythmVolume");
@@ -331,7 +337,8 @@ export function setupRhythmPractice(
     effects.checked = settings.effects;
     freePlay.checked = settings.freePlay;
     exampleVoice.checked = settings.exampleVoice;
-    calibrationInfo.textContent = `視覚 ${calibrationLabel(calibration?.visualOffsetMs)} ／ 音 ${calibrationLabel(calibration?.audioOffsetMs)}`;
+    visualCalibrationInfo.textContent = `補正値 ${calibrationLabel(calibration?.visualOffsetMs)}`;
+    audioCalibrationInfo.textContent = `補正値 ${calibrationLabel(calibration?.audioOffsetMs)}`;
     clearVisualCalibration.disabled = calibration?.visualOffsetMs == null;
     clearAudioCalibration.disabled = calibration?.audioOffsetMs == null;
 
@@ -726,6 +733,7 @@ export function setupRhythmPractice(
     lanes.style.removeProperty("--rhythm-count-in-width");
     score.hidden = mode !== null;
     count.removeAttribute("data-calibration");
+    count.removeAttribute("data-calibration-prep");
     count.removeAttribute("data-ready");
     count.style.removeProperty("--rhythm-ready-remaining");
     count.dataset.accent = "false";
@@ -736,9 +744,9 @@ export function setupRhythmPractice(
     activeMeter.textContent = rhythmMeterAndTempo(step);
     title.textContent =
       mode === "visual"
-        ? "視覚の補正"
+        ? "光に合わせて測る"
         : mode === "audio"
-          ? "音の補正"
+          ? "クリック音に合わせて測る"
           : step.title;
     phase.textContent = mode === null ? "開始前" : "準備中";
     phase.removeAttribute("data-scoring");
@@ -746,9 +754,9 @@ export function setupRhythmPractice(
     stopButton.textContent = mode === null ? "戻る" : "停止";
     inputHelp.textContent =
       mode === "visual"
-        ? "カウントダウンの後、円が光る瞬間にタップします。"
+        ? "準備の4拍でリズムをつかみ、測定に入ったら円が光る瞬間にタップします。"
         : mode === "audio"
-          ? "カウントダウンの後、クリック音が聞こえた瞬間にタップします。"
+          ? "準備の4拍でリズムをつかみ、測定に入ったらクリック音が聞こえた瞬間にタップします。"
           : `タップかスペース・F・Jキーで開始します。同じテンポで準備${practiceCountInBars}小節、本番${preparedBars?.length ?? 0}小節です。`;
     feedback.textContent = "";
     tap.focus({ preventScroll: true });
@@ -830,7 +838,7 @@ export function setupRhythmPractice(
     showSetup();
     if (settings.guide !== previousGuide) store.saveSettings(settings);
     (mode === "visual" ? visualCalibration : audioCalibration).focus();
-    feedback.textContent = `${mode === "visual" ? "視覚" : "音"}の補正を解除しました。`;
+    feedback.textContent = `${mode === "visual" ? "画面" : "音"}の補正を解除しました。`;
   }
 
   async function calibrate(mode: RhythmGuide) {
@@ -839,16 +847,18 @@ export function setupRhythmPractice(
     const audio = await prepareAudio();
     if (!audio) return;
     const countdownMs = audio.now() + 100;
-    const startMs = countdownMs + CALIBRATION_COUNTDOWN_MS;
+    const prepMs = countdownMs + CALIBRATION_COUNTDOWN_MS;
+    const startMs = prepMs + CALIBRATION_PREP_BEATS * CALIBRATION_BEAT_MS;
+    const totalBeats = CALIBRATION_PREP_BEATS + CALIBRATION_TAPS;
     const offsets: (number | null)[] = Array(CALIBRATION_TAPS).fill(null);
     let received = 0;
-    phase.textContent = "開始まで";
+    phase.textContent = "準備まで";
     count.textContent = String(countdownSeconds);
     const cues = createCountdown(countdownMs);
     if (mode === "audio") {
       cues.push(
-        ...offsets.map((_, index) => ({
-          timeMs: startMs + index * CALIBRATION_BEAT_MS,
+        ...Array.from({ length: totalBeats }, (_, index) => ({
+          timeMs: prepMs + index * CALIBRATION_BEAT_MS,
           voiceIndex: 1,
           sound: "click" as const,
           volume: settings.volume || 0.65,
@@ -861,32 +871,38 @@ export function setupRhythmPractice(
       const index = calibrationTapIndex(tapMs, startMs);
       if (index < 0 || offsets[index] !== null) return;
       offsets[index] = tapMs - startMs - index * CALIBRATION_BEAT_MS;
-      phase.textContent = `${++received} / ${CALIBRATION_TAPS}回`;
+      received++;
     };
     loop.start(() => {
-      const elapsed = audio.now(mode) - startMs;
+      const elapsed = audio.now(mode) - prepMs;
       if (elapsed < 0) {
         count.textContent = countdownText(elapsed);
         return;
       }
-      if (phase.textContent === "開始まで")
-        phase.textContent = `0 / ${CALIBRATION_TAPS}回`;
       const beat = Math.floor(elapsed / CALIBRATION_BEAT_MS);
-      if (mode === "visual" && beat >= 0 && beat < CALIBRATION_TAPS) {
+      const preparing = beat < CALIBRATION_PREP_BEATS;
+      const phaseLabel = preparing
+        ? `準備 ${beat + 1} / ${CALIBRATION_PREP_BEATS}拍（測定なし）`
+        : `測定 ${received} / ${CALIBRATION_TAPS}回`;
+      if (phase.textContent !== phaseLabel) phase.textContent = phaseLabel;
+      if (mode === "visual" && beat < totalBeats) {
         count.setAttribute("data-calibration", "");
-        count.textContent = String(beat + 1);
+        count.toggleAttribute("data-calibration-prep", preparing);
+        count.textContent = String(
+          beat + 1 - (preparing ? 0 : CALIBRATION_PREP_BEATS),
+        );
         count.dataset.accent = String(elapsed % CALIBRATION_BEAT_MS < 160);
       } else if (mode === "audio") {
         count.textContent = "♪";
       }
-      if (elapsed < (CALIBRATION_TAPS - 0.5) * CALIBRATION_BEAT_MS) return;
+      if (elapsed < (totalBeats - 0.5) * CALIBRATION_BEAT_MS) return;
       const measured = measureRhythmOffset(offsets);
       if (measured !== null) setCalibration(mode, measured);
       end();
       feedback.textContent =
         measured === null
-          ? "12回分のタイミングがそろいませんでした。もう一度測定してください。"
-          : `${mode === "visual" ? "視覚" : "音"}の補正を記録しました。`;
+          ? `${CALIBRATION_TAPS}回分のタイミングがそろいませんでした。もう一度測定してください。`
+          : `${mode === "visual" ? "画面" : "音"}の補正を記録しました。`;
       if (measured === null)
         (mode === "audio" ? audioCalibration : visualCalibration).focus();
       else start.focus();
@@ -1319,9 +1335,8 @@ export function setupRhythmPractice(
     )
       return;
     const focused = document.activeElement;
-    if (letterKey && focused !== tap) return;
     if (!acceptTap) {
-      if (letterKey && preparedBars) {
+      if (letterKey && focused === tap && preparedBars) {
         event.preventDefault();
         if (!event.repeat) void play();
       }

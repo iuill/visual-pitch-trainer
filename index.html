@@ -704,19 +704,35 @@
               <label class="rhythm-field">カウントの声 <select id="rhythmCountVoice"><option value="male">男性</option><option value="female">女性</option></select></label>
               <label class="rhythm-field">カウント・曲の音量 <input id="rhythmVolume" type="range" min="0" max="100" step="1"></label>
               <label><input id="rhythmEffects" type="checkbox"> 判定の効果音</label>
-              <label class="rhythm-field">判定に使うガイド <select id="rhythmGuide"><option value="visual">視覚</option><option value="audio">音</option></select></label>
+              <label class="rhythm-field">何に合わせて叩くか <select id="rhythmGuide"><option value="visual">画面の動き</option><option value="audio">聞こえる音</option></select></label>
             </div>
             <label class="rhythm-free-play"><input id="rhythmFreePlay" type="checkbox" aria-describedby="rhythmFreePlayHelp"> 全ステップを自由に選ぶ</label>
             <p id="rhythmFreePlayHelp" class="graph-hint">オンにすると、クリア前でも全ステップを選べます。練習結果も記録します。</p>
-            <p class="graph-hint">タイミングの補正は任意です。測定は3秒後に始まります。合図に合わせて12回タップします。</p>
-            <p id="rhythmCalibrationInfo" class="graph-hint"></p>
-            <div class="rhythm-actions">
-              <button id="rhythmVisualCalibration" type="button" class="secondary-button">視覚の補正を始める</button>
-              <button id="rhythmClearVisualCalibration" type="button" class="secondary-button">視覚の補正を解除</button>
-              <button id="rhythmAudioCalibration" type="button" class="secondary-button">クリック音で測定</button>
-              <button id="rhythmClearAudioCalibration" type="button" class="secondary-button">音の補正を解除</button>
-              <button id="rhythmReset" type="button" class="secondary-button">進捗をリセット</button>
-            </div>
+            <fieldset class="rhythm-calibration-settings">
+              <legend>タイミング補正（任意）</legend>
+              <p class="graph-hint">3秒のカウントダウンの後、準備の4拍があります。「測定」に切り替わったら、合図に合わせて8回タップします。</p>
+              <div class="rhythm-calibration-options">
+                <div>
+                  <strong>画面を見て叩く</strong>
+                  <p class="graph-hint">画面の光とタップのズレを測ります。</p>
+                  <p id="rhythmVisualCalibrationInfo" class="graph-hint"></p>
+                  <div class="rhythm-actions">
+                    <button id="rhythmVisualCalibration" type="button" class="secondary-button">光に合わせて測る</button>
+                    <button id="rhythmClearVisualCalibration" type="button" class="secondary-button">画面の補正を解除</button>
+                  </div>
+                </div>
+                <div>
+                  <strong>音を聴いて叩く</strong>
+                  <p class="graph-hint">聞こえたクリック音とタップのズレを測ります。Bluetoothでも、練習に使うイヤホンやスピーカーで測ってください。</p>
+                  <p id="rhythmAudioCalibrationInfo" class="graph-hint"></p>
+                  <div class="rhythm-actions">
+                    <button id="rhythmAudioCalibration" type="button" class="secondary-button">クリック音に合わせて測る</button>
+                    <button id="rhythmClearAudioCalibration" type="button" class="secondary-button">音の補正を解除</button>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+            <button id="rhythmReset" type="button" class="secondary-button">進捗をリセット</button>
           </details>
         </div>
         <div id="rhythmStage" hidden>
