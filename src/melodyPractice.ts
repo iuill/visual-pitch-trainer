@@ -1,16 +1,16 @@
 import { buildNoteRange, type Note, SOLFEGE_NAMES } from "./pitchMath";
 
+const MAJOR_OFFSETS = [0, 2, 4, 5, 7, 9, 11, 12];
+
 export const MELODY_PATTERNS = [
-  { id: "major", label: "ドレミ上行", offsets: [0, 2, 4, 5, 7, 9, 11, 12] },
+  { id: "two-tone", label: "2トーンスケール", tones: 2 },
+  { id: "three-tone", label: "3トーンスケール", tones: 3 },
+  { id: "five-tone", label: "5トーンスケール", tones: 5 },
+  { id: "major", label: "ドレミ上行", offsets: MAJOR_OFFSETS },
   {
     id: "descending",
     label: "ドレミ下行",
     offsets: [12, 11, 9, 7, 5, 4, 2, 0],
-  },
-  {
-    id: "five",
-    label: "ドレミファソの往復",
-    offsets: [0, 2, 4, 5, 7, 5, 4, 2, 0],
   },
   { id: "triad", label: "ドミソミド", offsets: [0, 4, 7, 4, 0] },
   {
@@ -20,13 +20,49 @@ export const MELODY_PATTERNS = [
   },
 ] as const;
 
+export function getToneScaleSize(patternId: string): number {
+  const pattern = MELODY_PATTERNS.find((item) => item.id === patternId);
+  return pattern && "tones" in pattern ? pattern.tones : 0;
+}
+
+export function getLastToneScaleStart(tones: number): number {
+  return MAJOR_OFFSETS.length - tones;
+}
+
+export function pickToneScaleStart(
+  tones: number,
+  current: number,
+  maxSteps: number,
+  random = Math.random,
+): number {
+  const first = Math.max(0, current - maxSteps);
+  const last = Math.min(getLastToneScaleStart(tones), current + maxSteps);
+  const candidates = [];
+  for (let degree = first; degree <= last; degree++) {
+    if (degree !== current) candidates.push(degree);
+  }
+  return candidates[Math.floor(random() * candidates.length)] ?? current;
+}
+
 export function buildMelody(
   patternId: string,
   custom: string,
   startMidi: number,
+  startDegree = 0,
 ): Note[] {
   const range = buildNoteRange(startMidi);
   const pattern = MELODY_PATTERNS.find((item) => item.id === patternId);
+  if (pattern && "tones" in pattern) {
+    const start = Math.max(
+      0,
+      Math.min(startDegree, getLastToneScaleStart(pattern.tones)),
+    );
+    const ascending = MAJOR_OFFSETS.slice(start, start + pattern.tones).map(
+      (offset) => range[offset],
+    );
+    // The turn plays once, and the next lap supplies the return to the start.
+    return [...ascending, ...ascending.slice(1, -1).reverse()];
+  }
   if (pattern) return pattern.offsets.map((offset) => range[offset]);
   if (patternId !== "custom") throw new Error("メロディを選んでください。");
   const tokens = custom

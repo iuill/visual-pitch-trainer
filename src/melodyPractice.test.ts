@@ -3,10 +3,51 @@ import {
   buildMelody,
   getMelodyAssessedSeconds,
   getMelodyPosition,
+  MELODY_PATTERNS,
+  pickToneScaleStart,
   recordMelodyObservation,
 } from "./melodyPractice";
 
 describe("melody practice", () => {
+  test("loops tone scales without repeating the turn or the starting note", () => {
+    expect(MELODY_PATTERNS[0].id).toBe("two-tone");
+    expect(buildMelody("two-tone", "", 48).map((note) => note.name)).toEqual([
+      "C3",
+      "D3",
+    ]);
+    expect(buildMelody("three-tone", "", 48).map((note) => note.name)).toEqual([
+      "C3",
+      "D3",
+      "E3",
+      "D3",
+    ]);
+    expect(buildMelody("five-tone", "", 48).map((note) => note.name)).toEqual([
+      "C3",
+      "D3",
+      "E3",
+      "F3",
+      "G3",
+      "F3",
+      "E3",
+      "D3",
+    ]);
+    expect(buildMelody("two-tone", "", 60, 1).map((note) => note.name)).toEqual(
+      ["D4", "E4"],
+    );
+    expect(
+      buildMelody("three-tone", "", 60, 1).map((note) => note.name),
+    ).toEqual(["D4", "E4", "F4", "E4"]);
+    expect(
+      buildMelody("five-tone", "", 60, 3).map((note) => note.name),
+    ).toEqual(["F4", "G4", "A4", "B4", "C5", "B4", "A4", "G4"]);
+  });
+  test("picks a different in-range start within the selected number of steps", () => {
+    expect(pickToneScaleStart(2, 0, 1, () => 0.99)).toBe(1);
+    expect(pickToneScaleStart(2, 1, 1, () => 0)).toBe(0);
+    expect(pickToneScaleStart(3, 2, 2, () => 0.5)).toBe(3);
+    expect(pickToneScaleStart(5, 0, 3, () => 0.99)).toBe(3);
+    expect(pickToneScaleStart(5, 3, 3, () => 0.99)).toBe(2);
+  });
   test("keeps major-scale intervals and transposes every note with the selected range", () => {
     expect(buildMelody("major", "", 48).map((note) => note.name)).toEqual([
       "C3",

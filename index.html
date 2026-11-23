@@ -217,6 +217,23 @@
               </div>
               <div class="settings-dialog-footer"><p>変更はすぐに反映されます。</p><button type="button" class="primary-button" data-close-dialog>設定を閉じる</button></div>
             </dialog>
+            <div id="toneScaleControls" class="tone-scale-controls" hidden>
+              <p id="toneScaleStart" role="status"></p>
+              <div id="toneScaleManual" class="tone-scale-actions">
+                <button id="toneScaleDown" class="secondary-button" type="button">開始音を1つ下げる</button>
+                <button id="toneScaleUp" class="secondary-button" type="button">開始音を1つ上げる</button>
+              </div>
+              <div class="tone-scale-actions">
+                <label for="toneScaleRandom">ランダム</label>
+                <select id="toneScaleRandom">
+                  <option value="0" selected>オフ</option>
+                  <option value="1">音階で上下1音まで</option>
+                  <option value="2">音階で上下2音まで</option>
+                  <option value="3">音階で上下3音まで</option>
+                </select>
+                <button id="toneScaleNext" class="secondary-button" type="button" hidden>次の音型</button>
+              </div>
+            </div>
             <details class="melody-sequence"><summary>音名を文字で確認</summary>
             <ol id="melodyNotes" class="melody-notes" aria-label="練習する音の順番"></ol>
             </details>
