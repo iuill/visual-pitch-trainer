@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>音源解析モデルの比較</title>
+    <style>
+      .comparison-page h1 {
+        margin-bottom: 16px;
+        white-space: normal;
+      }
+      .comparison-page fieldset {
+        display: grid;
+        justify-items: start;
+        gap: 12px;
+        min-width: 0;
+      }
+      .comparison-page label {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .comparison-page fieldset > div,
+      .comparison-page input {
+        min-width: 0;
+        max-width: 100%;
+      }
+      #comparisonStatus {
+        overflow-wrap: anywhere;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell comparison-page">
+      <section class="control-panel">
+        <h1>音源解析モデルの比較</h1>
+        <p>ローカルの音源・動画をブラウザ内で処理します。モデルの実行には WebGPU が必要です。</p>
+        <fieldset id="comparisonControls">
+          <legend>比較する音源</legend>
+          <div>
+            <label for="comparisonFile">音源または動画</label>
+            <input id="comparisonFile" type="file" accept="audio/*,video/*" />
+          </div>
+          <div>
+            <label for="comparisonVocalModel">ピッチ比較前のボーカル抽出</label>
+            <select id="comparisonVocalModel"></select>
+          </div>
+          <button id="comparePitch" class="secondary-button" type="button" disabled>ピッチ推定モデル比較PNG出力</button>
+          <button id="compareVocals" class="secondary-button" type="button" disabled>全ボーカル抽出モデルMP3出力</button>
+        </fieldset>
+        <p id="comparisonStatus" role="status"></p>
+      </section>
+    </main>
+    <script type="module" src="./src/modelComparisonTool.ts"></script>
+  </body>
+</html>

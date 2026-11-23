@@ -207,7 +207,7 @@ docker run --rm -it --gpus all -v ${PWD}:/workdir beveradb/audio-separator:gpu "
 
 Pitch estimation can use the default RMVPE model, lightweight pitchy, or CREPE small / medium / large / full for comparison. The default RMVPE option is intended for gaming-PC-class machines; on typical PCs and smartphones, choose lightweight pitchy. Real-time microphone pitch detection still uses pitchy. Runtime model URLs can be customized with `VITE_RMVPE_MODEL_URL`, `VITE_DEMUCS_MODEL_URL`, and `VITE_BS_ROFORMER_FP16_MODEL_URL`; `VITE_CREPE_MODEL_URL` currently affects only CREPE small. For local development or non-GitHub Pages builds, fetch the bundled pitch models with `bun run download:pitch-models`. The model download script uses size-specific source env vars such as `CREPE_SMALL_MODEL_SOURCE_URL`.
 
-The development-only pitch-estimator comparison PNG export outputs one combined PNG with pitchy, CREPE small / medium / large / full, and RMVPE results stacked vertically. RMVPE uses the bundled `lj1995/VoiceConversionWebUI` `rmvpe.onnx` model.
+Start `bun run dev` and open `http://localhost:35173/model-comparison.html` (Dev Container host URL) to use the comparison tools. The pitch-estimator comparison exports one combined PNG with pitchy, CREPE small / medium / large / full, and RMVPE results stacked vertically. RMVPE uses the bundled `lj1995/VoiceConversionWebUI` `rmvpe.onnx` model.
 
 The development-only all vocal extraction models MP3 export runs Demucs v4 and BS-RoFormer fp16 2-stem in sequence on the same analysis audio and exports each available model's extracted vocal as a separate MP3. Some browsers may require permission for multiple file downloads.
 

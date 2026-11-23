@@ -14,7 +14,14 @@
 - 主要ファイル:
   - `index.html`: アプリの HTML。
   - `styles.css`: 画面全体のスタイル。
-  - `src/app.ts`: UI、Web Audio API、マイク制御、描画の統合。
+  - `src/app.ts`: 画面の初期化・切り替えとページのライフサイクル。
+  - `src/practiceView.ts` / `src/melodyPracticeView.ts`: 共通設定、単音・メロディ練習。
+  - `src/gamePractice.ts` / `src/voiceRangeCheck.ts`: ゲームと自分の声域チェック。
+  - `src/microphone.ts`: マイク入力の取得・波形の読み取り・解放。
+  - `src/audioContext.ts`: AudioContext の生成と共有コンテキストの管理。
+  - `src/audioFileView.ts` / `src/audioAnalysisPipeline.ts`: 音源の声域確認と解析の流れ。
+  - `src/audioRangeGraph.ts` / `src/singlePracticeGraph.ts`: 音源の声域と単音練習のグラフ描画。
+  - `model-comparison.html` / `src/modelComparisonTool.ts`: 開発用の音源解析モデル比較。
   - `src/pitchMath.ts`: 音名、MIDI、周波数、音程差などの計算。
   - `src/pitchDetection.ts`: `pitchy` を使った音程検出。
   - `src/graphModel.ts`: グラフ描画用の座標・表示範囲計算。
@@ -76,12 +83,12 @@
 
 ## 実装ガイド
 
-- `src/app.ts` は UI と Web Audio API の統合点として扱い、肥大化する変更では責務を既存モジュールへ切り出せないか検討する。
+- 画面の作業状態は各機能が管理し、`src/app.ts` からは画面単位で表示や停止を指示する。
 - 音名、周波数、MIDI、cents 差分の計算は `src/pitchMath.ts` に寄せる。
 - 音程検出ライブラリの呼び出しや候補選択は `src/pitchDetection.ts` に寄せる。
 - グラフの表示範囲、座標変換、サンプル抽出は `src/graphModel.ts` に寄せる。
 - 練習サンプルやサマリーの集計は `src/session.ts` に寄せる。
-- DOM 構造を変える場合は `index.html`、`styles.css`、`src/app.ts` の対応を必ずそろえる。
+- DOM 構造を変える場合は HTML、スタイル、対応する画面モジュールをそろえる。
 - テストしやすい計算ロジックは DOM や Web Audio API から分離する。
 
 ## 検証
