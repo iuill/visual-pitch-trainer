@@ -159,6 +159,8 @@ Use headphones: reference audio leaking into the microphone can be scored as sin
 
 ### Reference Instruments
 
+In Shared Settings, select an instrument and press **試聴** (Preview) to hear about five seconds of “Twinkle, Twinkle, Little Star” in the selected range at the reference volume. To end the preview early, press **試聴を停止** (Stop preview), change the instrument or range, or close the dialog. Starting a preview stops active practice and voice measurements and pauses audio file playback. Previewing requires no microphone permission. The app plays the public-domain French folk melody using its own instrument sounds. [Score of Mozart’s variations on the same tune](https://imslp.org/wiki/12_Variations_on_%27Ah%2C_vous_dirai-je_maman%27%2C_K.265%2F300e_%28Mozart%2C_Wolfgang_Amadeus%29)
+
 Harmonium, organ, violin and flute are available alongside sine and piano. The four added timbres use crossfaded sustain loops from CC0 recordings, held until stop or the end of each melody note, without piano-style retriggering. Small variations in the original performance remain.
 
 Organ recordings are from VCSL; violin and flute from VSCO 2 CE; harmonium from Donya Quick on Freesound (HQ MP3 preview). The additions total about 2 MB and load from the app's origin on first use of each timbre. Playback rate compensates for measured tuning. Violin below G3, flute below C4 and harmonium above D5 use transposition beyond their recorded ranges. Each instrument directory under public/audio/ includes provenance, checksums, processing notes and the full CC0 license. Optional regeneration uses Bun and ffmpeg via bun run prepare:reference-sustains; regular builds do not download recordings.

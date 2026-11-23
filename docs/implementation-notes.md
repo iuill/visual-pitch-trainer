@@ -149,6 +149,8 @@ scripts/reference-sustain-sources.json に固定 URL・SHA256・切り出し時�
 
 参考音は `src/referenceInstruments.ts` の音色定義と `src/referencePlayer.ts` の再生・読み込み・スケジューリングで扱う。正弦波は `OscillatorNode`、ピアノは `AudioBufferSourceNode` を使い、共通の GainNode で音量を制御する。外部再生ライブラリや音源サービスは追加しない。
 
+共通設定の試聴は `src/referenceInstruments.ts` の音程と拍数から、設定音域の下端を主音にしたフレーズを作る。`ReferencePlayer.playPhrase()` が各音を同じ AudioContext の時計に予約し、音源と音量設定を共有する。音色・音域の変更や設定画面を閉じたときに予約と準備中のリクエストを取り消す。
+
 ピアノには VCSL の CC0-1.0 グランドピアノ録音10点を同梱し、C3–C6 をカバーする。最寄りの録音を最大約2半音移調し、実測した元の音程を基準に playbackRate を補正する（元の VCSL ファイル名は中央ドを C3 とする表記）。`public/audio/piano/sources.json` に固定コミット、原音・加工後の SHA256、加工内容、実測ピッチを記録する。`bun run prepare:reference-piano` は任意の再生成処理で、ffmpeg が必要。通常ビルドでは同梱済み素材を使用する。
 
 現在の動作:
