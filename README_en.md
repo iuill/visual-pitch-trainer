@@ -141,7 +141,7 @@ bun run build
 
 On pushes to `main` or SemVer tags, the app is deployed to GitHub Pages after verification passes. For the first deployment, set the GitHub Pages Build and deployment source to `GitHub Actions` in the repository settings.
 
-The deployed app shows a build version and short commit hash in the footer. Regular GitHub Pages deployments use `GITHUB_RUN_NUMBER` to generate labels such as `v0.2.N`, so you do not need to manually increment `package.json`. `N` is the CI workflow run number and may include gaps from pull requests or manual runs. Tag deployments display the SemVer tag name, such as `v1.2.3`.
+The deployed app shows a build version and short commit hash in the footer. Regular GitHub Pages deployments display `Version v0.2 · Build N (commit hash)` and read `N` from `GITHUB_RUN_NUMBER`. `N` is the CI workflow run number and may include gaps from pull requests or manual runs. Tag deployments display the SemVer tag name, such as `v1.2.3`.
 
 To update Pages manually, select Actions → `Deploy Pages` → `Run workflow` on `main`. It audits dependencies, runs lint, tests and typechecking, downloads models, builds and deploys. Other branches are skipped. Manual `CI` runs only verify the app.
 

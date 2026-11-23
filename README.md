@@ -149,7 +149,7 @@ bun run build
 
 `main` または SemVer タグへの push では、検証が通った後に `dist/` を GitHub Pages へデプロイします。初回は GitHub のリポジトリ設定で Pages の Build and deployment source を `GitHub Actions` に設定してください。
 
-デプロイされたアプリのフッターには、ビルド時に自動生成したバージョンと短いコミットハッシュを表示します。通常の GitHub Pages デプロイでは `GITHUB_RUN_NUMBER` を使って `v0.2.N` のように自動採番するため、`package.json` などを手動でインクリメントする必要はありません。`N` は CI workflow の実行番号なので、Pull Request や手動実行による欠番を含むことがあります。タグからデプロイする場合は、`v1.2.3` のような SemVer タグ名をそのまま表示します。
+デプロイされたアプリのフッターには、ビルド時に自動生成したバージョンと短いコミットハッシュを表示します。通常の GitHub Pages デプロイでは `Version v0.2 · Build N (コミットハッシュ)` と表示し、`N` は `GITHUB_RUN_NUMBER` から自動で取得します。`N` は CI workflow の実行番号なので、Pull Request や手動実行による欠番を含むことがあります。タグからデプロイする場合は、`v1.2.3` のような SemVer タグ名をそのまま表示します。
 
 Pages を手動更新する場合は、Actions の `Deploy Pages` → `Run workflow` で `main` を選択してください。監査・lint・テスト・型検査後にモデル取得・ビルド・公開を行います。`main` 以外はスキップします。`CI` の手動実行は検証のみです。
 

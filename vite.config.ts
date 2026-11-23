@@ -58,7 +58,7 @@ function readBuildNumber(): string {
   }
 }
 
-function readVersion(): string {
+function readVersionLabel(): string {
   if (process.env.GITHUB_REF_TYPE === "tag") {
     const tagName = process.env.GITHUB_REF_NAME ?? "";
     if (!VERSION_TAG_PATTERN.test(tagName)) {
@@ -67,7 +67,7 @@ function readVersion(): string {
       );
     }
 
-    return tagName.replace(/^v/, "");
+    return `v${tagName.replace(/^v/, "")}`;
   }
 
   const versionBase = process.env.APP_VERSION_BASE ?? "0.2";
@@ -77,7 +77,7 @@ function readVersion(): string {
     );
   }
 
-  return `${versionBase}.${readBuildNumber()}`;
+  return `v${versionBase} · Build ${readBuildNumber()}`;
 }
 
 function readOnnxRuntimeWebVersion(): string {
@@ -98,7 +98,9 @@ export default defineConfig({
   base: "./",
   define: {
     "import.meta.env.VITE_APP_COMMIT_HASH": JSON.stringify(readGitCommitHash()),
-    "import.meta.env.VITE_APP_VERSION": JSON.stringify(readVersion()),
+    "import.meta.env.VITE_APP_VERSION_LABEL": JSON.stringify(
+      readVersionLabel(),
+    ),
     "import.meta.env.VITE_ONNX_RUNTIME_WEB_VERSION": JSON.stringify(
       readOnnxRuntimeWebVersion(),
     ),

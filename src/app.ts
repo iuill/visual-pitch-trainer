@@ -131,7 +131,7 @@ function init() {
 function updateBuildInfo() {
   const element = queryElement<HTMLElement>("#appVersion");
   const hash = import.meta.env.VITE_APP_COMMIT_HASH;
-  element.textContent = `Version v${import.meta.env.VITE_APP_VERSION}${hash ? ` (${hash})` : ""}`;
+  element.textContent = `Version ${import.meta.env.VITE_APP_VERSION_LABEL}${hash ? ` (${hash})` : ""}`;
   element.title = hash ? `build commit: ${hash}` : "build commit: unavailable";
 }
 
