@@ -321,6 +321,9 @@ const elements = {
   toneScaleManual: queryElement<HTMLDivElement>("#toneScaleManual"),
   toneScaleDown: queryElement<HTMLButtonElement>("#toneScaleDown"),
   toneScaleUp: queryElement<HTMLButtonElement>("#toneScaleUp"),
+  toneScaleRandomControls: queryElement<HTMLDivElement>(
+    "#toneScaleRandomControls",
+  ),
   toneScaleRandom: queryElement<HTMLSelectElement>("#toneScaleRandom"),
   toneScaleNext: queryElement<HTMLButtonElement>("#toneScaleNext"),
   customMelodyInput: queryElement<HTMLInputElement>("#customMelodyInput"),
@@ -700,10 +703,10 @@ function init() {
     renderMelodyPreview();
   });
   elements.toneScaleDown.addEventListener("click", () =>
-    setToneScaleStart(toneScaleStartDegree - 1),
+    setToneScaleStart((melodyRun?.pending?.degree ?? toneScaleStartDegree) - 1),
   );
   elements.toneScaleUp.addEventListener("click", () =>
-    setToneScaleStart(toneScaleStartDegree + 1),
+    setToneScaleStart((melodyRun?.pending?.degree ?? toneScaleStartDegree) + 1),
   );
   elements.toneScaleRandom.addEventListener("change", () => {
     const steps = Number(elements.toneScaleRandom.value);
@@ -2480,65 +2483,127 @@ let instrumentPreviewTimer: number | undefined;
 let microphoneRequestId = 0;
 let toneScaleStartDegree = 0;
 let toneScaleRandomSteps = 0;
-let melodyRun: {
+type MelodyResultSection = {
   notes: Note[];
+  results: MelodyNoteResult[];
+  firstLap: number;
+  elapsed: number;
+};
+type MelodyRun = {
+  notes: Note[];
+  frequencies: number[];
   seconds: number;
   startedAt: number;
   positionKey: string;
   results: MelodyNoteResult[];
   previous: MelodyObservation | null;
   lap: number;
-} | null = null;
+  firstLap: number;
+  history: MelodyResultSection[];
+  pending: {
+    degree: number;
+    lap: number;
+    notes: Note[];
+    frequencies: number[];
+  } | null;
+};
+let melodyRun: MelodyRun | null = null;
 
-function selectedMelody(): Note[] {
+function selectedMelody(degree = toneScaleStartDegree): Note[] {
   return buildMelody(
     elements.melodyPatternSelect.value,
     elements.customMelodyInput.value,
     state.noteRangeStartMidi,
-    toneScaleStartDegree,
+    degree,
   );
 }
 
 function setToneScaleStart(degree: number) {
   const tones = getToneScaleSize(elements.melodyPatternSelect.value);
   const next = Math.max(0, Math.min(degree, getLastToneScaleStart(tones)));
-  if (state.isScalePlaying || !tones || next === toneScaleStartDegree) return;
+  const run = melodyRun;
+  if (!tones || next === (run?.pending?.degree ?? toneScaleStartDegree)) return;
+  if (state.isScalePlaying) {
+    if (!run) return;
+    state.referencePlayer?.queueScaleLapChange((lap) => {
+      if (run.pending && run.pending.lap < lap) applyMelodyLapChange(run);
+      const notes = selectedMelody(next);
+      run.pending =
+        next === toneScaleStartDegree
+          ? null
+          : {
+              degree: next,
+              lap,
+              notes,
+              frequencies: notes.map((note) => note.frequency),
+            };
+      if (lap === 0) applyMelodyLapChange(run);
+    });
+    const position = tickMelody(false);
+    if (position?.phase === "sing") {
+      updateMelodyMovement(
+        run.notes,
+        position.index,
+        false,
+        run.pending?.notes[0],
+      );
+    } else {
+      drawGraph();
+    }
+    updateToneScaleControls(run.notes[0]);
+    return;
+  }
   toneScaleStartDegree = next;
   renderMelodyPreview();
 }
 
-function updateToneScaleControls() {
+function updateToneScaleControls(start?: Note) {
   const tones = getToneScaleSize(elements.melodyPatternSelect.value);
   const random = toneScaleRandomSteps > 0;
   const locked = state.isScalePlaying;
+  const pending = melodyRun?.pending;
+  const degree = pending?.degree ?? toneScaleStartDegree;
+  const manualLocked = locked && !melodyRun;
   elements.toneScaleControls.hidden = !tones;
-  elements.toneScaleManual.hidden = random;
+  elements.toneScaleManual.hidden = random && !locked;
+  elements.toneScaleRandomControls.hidden = locked;
   elements.toneScaleNext.hidden = !random;
   elements.toneScaleRandom.disabled = locked;
-  elements.toneScaleDown.disabled = locked;
-  elements.toneScaleUp.disabled = locked;
+  elements.toneScaleDown.disabled = manualLocked;
+  elements.toneScaleUp.disabled = manualLocked;
   elements.toneScaleDown.setAttribute(
     "aria-disabled",
-    String(locked || toneScaleStartDegree === 0),
+    String(manualLocked || degree === 0),
   );
   elements.toneScaleUp.setAttribute(
     "aria-disabled",
-    String(locked || toneScaleStartDegree === getLastToneScaleStart(tones)),
+    String(manualLocked || degree === getLastToneScaleStart(tones)),
   );
   elements.toneScaleNext.disabled = locked;
+  if (tones && start) {
+    const next = pending?.notes[0];
+    const label = `開始音：${start.solfege}（${start.name}）${pending && next ? ` · ${pending.lap + 1}周目から${next.solfege}（${next.name}）` : ""}`;
+    if (elements.toneScaleStart.textContent !== label)
+      elements.toneScaleStart.textContent = label;
+  }
 }
 
-function updateMelodyMovement(notes: Note[], index: number, preparing = false) {
+function updateMelodyMovement(
+  notes: Note[],
+  index: number,
+  preparing = false,
+  loopStart = notes[0],
+) {
   const looping = state.isScalePlaying && !preparing;
-  renderMelodyKeyboard(elements.melodyKeyboard, notes, index, looping);
   const note = notes[index];
+  const next = notes[index + 1] ?? (looping ? loopStart : undefined);
+  renderMelodyKeyboard(elements.melodyKeyboard, note, next);
   elements.melodyMovement.hidden = !note;
   if (!note) return;
   elements.melodyCurrentMovement.textContent =
     index === 0
       ? `${preparing ? "発声の最初" : "最初の音"}：${note.solfege} (${note.name})`
       : `前の音から：${formatPitchMovement(notes[index - 1].frequency, note.frequency)}`;
-  const next = notes[index + 1] ?? (looping ? notes[0] : undefined);
   elements.melodyMovementIcon.toggleAttribute("hidden", !next);
   if (next) {
     const icon = getPitchMovementIcon(note.frequency, next.frequency);
@@ -2551,6 +2616,20 @@ function updateMelodyMovement(notes: Note[], index: number, preparing = false) {
   elements.melodyCurrentMovement.textContent += next
     ? `。次の音：${next.solfege} (${next.name})、${formatPitchMovement(note.frequency, next.frequency)}`
     : "。次の音はありません。最後の音です。";
+}
+
+function renderMelodyNotes(notes: Note[]) {
+  elements.melodyNotes.replaceChildren(
+    ...notes.map((note, index) => {
+      const item = document.createElement("li");
+      const movement =
+        index === 0
+          ? "最初の音"
+          : `前の音から ${formatPitchMovement(notes[index - 1].frequency, note.frequency)}`;
+      item.textContent = `${index + 1}. ${note.solfege} (${note.name})・${movement}`;
+      return item;
+    }),
+  );
 }
 
 function renderMelodyPreview() {
@@ -2567,12 +2646,7 @@ function renderMelodyPreview() {
   elements.melodyProgress.value = 0;
   try {
     const notes = selectedMelody();
-    if (!elements.toneScaleControls.hidden) {
-      const start = notes[0];
-      const label = `開始音：${start.solfege}（${start.name}）`;
-      if (elements.toneScaleStart.textContent !== label)
-        elements.toneScaleStart.textContent = label;
-    }
+    updateToneScaleControls(notes[0]);
     updateMelodyMovement(notes, 0);
     melodyGraphData = {
       notes,
@@ -2584,17 +2658,7 @@ function renderMelodyPreview() {
     };
     elements.melodyGraphDescription.textContent =
       "横軸は音の順番、縦軸は声の高さです。声の線は周回ごとに描き直し、停止後はその周回を残します。長いメロディは左右にスクロールできます。範囲外の声は上下端に表示します。";
-    elements.melodyNotes.replaceChildren(
-      ...notes.map((note, index) => {
-        const item = document.createElement("li");
-        const movement =
-          index === 0
-            ? "最初の音"
-            : `前の音から ${formatPitchMovement(notes[index - 1].frequency, note.frequency)}`;
-        item.textContent = `${index + 1}. ${note.solfege} (${note.name})・${movement}`;
-        return item;
-      }),
-    );
+    renderMelodyNotes(notes);
     const duration = notes.length * Number(elements.melodySecondsSelect.value);
     const message = `${notes.length}音・1周${duration}秒。3秒の準備後、お手本と一緒に発声します。停止するまで繰り返します。`;
     if (elements.melodyStatus.textContent !== message)
@@ -2646,14 +2710,48 @@ function setMelodyControlsLocked(locked: boolean) {
   if (!locked) updateAudioFileControls();
 }
 
-function tickMelody(schedule = true) {
+function applyMelodyLapChange(run: MelodyRun) {
+  const pending = run.pending;
+  if (!pending) return;
+  if (pending.lap > run.firstLap) {
+    run.history.push({
+      notes: run.notes,
+      results: run.results,
+      firstLap: run.firstLap,
+      elapsed:
+        MELODY_COUNTDOWN_SECONDS +
+        (pending.lap - run.firstLap) * run.notes.length * run.seconds,
+    });
+  }
+  toneScaleStartDegree = pending.degree;
+  run.firstLap = pending.lap;
+  run.notes = pending.notes;
+  run.frequencies = pending.frequencies;
+  run.results = pending.notes.map(() => ({ detectedMs: 0, inTuneMs: 0 }));
+  run.pending = null;
+  run.positionKey = "";
+  if (melodyGraphData) {
+    melodyGraphData.notes = run.notes;
+    melodyGraphData.samples = [];
+  }
+  renderMelodyNotes(run.notes);
+  updateToneScaleControls(run.notes[0]);
+}
+
+function tickMelody(schedule = true, elapsed?: number) {
   const run = melodyRun;
   if (!run || !state.audioContext) return;
   const position = getMelodyPosition(
-    state.audioContext.currentTime - run.startedAt,
+    elapsed ?? state.audioContext.currentTime - run.startedAt,
     run.notes.length,
     run.seconds,
   );
+  if (
+    position.phase === "sing" &&
+    run.pending &&
+    position.lap >= run.pending.lap
+  )
+    applyMelodyLapChange(run);
   const total = run.notes.length * run.seconds;
   if (position.phase === "sing" && position.lap !== run.lap) {
     run.lap = position.lap;
@@ -2683,6 +2781,7 @@ function tickMelody(schedule = true) {
       run.notes,
       position.phase === "countdown" ? 0 : position.index,
       position.phase === "countdown",
+      run.pending?.notes[0],
     );
     if (position.phase === "countdown") {
       const rect = elements.melodyCountdown.getBoundingClientRect();
@@ -2732,6 +2831,7 @@ function tickMelody(schedule = true) {
     elements.melodyStatus.textContent = message;
   if (schedule && position.phase !== "sing") drawGraph();
   if (schedule) state.scalePlaybackTimerId = window.setTimeout(tickMelody, 50);
+  return position;
 }
 
 function showMelodyResults(
@@ -2755,23 +2855,46 @@ function showMelodyResults(
     th.textContent = label;
     header.append(th);
   }
-  const body = table.createTBody();
-  run.results.forEach((result, index) => {
-    const row = body.insertRow();
-    const note = run.notes[index];
-    const assessedMs =
-      getMelodyAssessedSeconds(elapsed, run.notes.length, run.seconds, index) *
-      1000;
-    const values = [
-      `${index + 1}. ${note.solfege} (${note.name})`,
-      `${(result.inTuneMs / 1000).toFixed(1)}秒`,
-      assessedMs > 0
-        ? `${Math.min(100, Math.round((result.inTuneMs / assessedMs) * 100))}%`
-        : "—",
-      `${(result.detectedMs / 1000).toFixed(1)}秒`,
-    ];
-    for (const value of values) row.insertCell().textContent = value;
-  });
+  const sections = [
+    ...run.history,
+    {
+      notes: run.notes,
+      results: run.results,
+      firstLap: run.firstLap,
+      elapsed: elapsed - run.firstLap * run.notes.length * run.seconds,
+    },
+  ];
+  for (const section of sections) {
+    const body = table.createTBody();
+    if (sections.length > 1) {
+      const label = document.createElement("th");
+      label.scope = "rowgroup";
+      label.colSpan = header.cells.length;
+      const start = section.notes[0];
+      label.textContent = `${section.firstLap + 1}周目から · 開始音 ${start.solfege} (${start.name})`;
+      body.insertRow().append(label);
+    }
+    section.results.forEach((result, index) => {
+      const row = body.insertRow();
+      const note = section.notes[index];
+      const assessedMs =
+        getMelodyAssessedSeconds(
+          section.elapsed,
+          section.notes.length,
+          run.seconds,
+          index,
+        ) * 1000;
+      const values = [
+        `${index + 1}. ${note.solfege} (${note.name})`,
+        `${(result.inTuneMs / 1000).toFixed(1)}秒`,
+        assessedMs > 0
+          ? `${Math.min(100, Math.round((result.inTuneMs / assessedMs) * 100))}%`
+          : "—",
+        `${(result.detectedMs / 1000).toFixed(1)}秒`,
+      ];
+      for (const value of values) row.insertCell().textContent = value;
+    });
+  }
   elements.melodyResults.replaceChildren(heading, table);
   elements.melodyResults.hidden = false;
 }
@@ -2973,15 +3096,20 @@ async function playScale() {
     if (requestId !== scalePlaybackRequestId) return;
     const seconds = Number(elements.melodySecondsSelect.value);
     const startedAt = context.currentTime + 0.1;
-    melodyRun = {
+    const run: MelodyRun = {
       notes,
+      frequencies: notes.map((note) => note.frequency),
       seconds,
       startedAt,
       positionKey: "",
       results: notes.map(() => ({ detectedMs: 0, inTuneMs: 0 })),
       previous: null,
       lap: -1,
+      firstLap: 0,
+      history: [],
+      pending: null,
     };
+    melodyRun = run;
     melodyGraphData = {
       notes,
       seconds,
@@ -2991,17 +3119,18 @@ async function playScale() {
       samples: [],
     };
     elements.melodyGraphScroll.scrollLeft = 0;
-    player.playScale(
-      instrument,
-      notes.map((note) => note.frequency),
-      {
-        noteSeconds: seconds,
-        loop: true,
-        countdownSeconds: MELODY_COUNTDOWN_SECONDS,
-        countdownSound: elements.melodyCountdownSound.checked,
-        startAt: startedAt,
-      },
-    );
+    player.playScale(instrument, run.frequencies, {
+      noteSeconds: seconds,
+      loop: true,
+      loopFrequencies: (lap) =>
+        run.pending && lap >= run.pending.lap
+          ? run.pending.frequencies
+          : run.frequencies,
+      countdownSeconds: MELODY_COUNTDOWN_SECONDS,
+      countdownSound: elements.melodyCountdownSound.checked,
+      startAt: startedAt,
+    });
+    updateToneScaleControls(notes[0]);
     updateReferenceInstrumentDescription();
     tickMelody();
   } catch (error) {
@@ -3019,6 +3148,8 @@ function stopScalePlayback() {
     run && state.audioContext
       ? state.audioContext.currentTime - run.startedAt
       : 0;
+  if (run?.pending && elapsed >= MELODY_COUNTDOWN_SECONDS)
+    tickMelody(false, elapsed);
   elements.melodyCountdown.hidden = true;
   scalePlaybackRequestId++;
   state.referencePlayer?.stopScale();
@@ -3035,6 +3166,7 @@ function stopScalePlayback() {
     if (melodyGraphData) melodyGraphData.phase = "stopped";
     stopMicrophone();
     setMelodyControlsLocked(false);
+    updateToneScaleControls(run?.notes[0]);
     for (const item of elements.melodyNotes.children)
       item.removeAttribute("aria-current");
     updateMicButtonState("stopped");
@@ -3327,25 +3459,16 @@ function createOption(value: string, text: string) {
 }
 
 function analyzeFrame(now: number) {
-  if (melodyRun) tickMelody(false);
+  const position = tickMelody(false);
   if (!state.analyser || !state.buffer || !state.audioContext) {
     return;
   }
 
-  if (state.isScalePlaying) {
-    const position = melodyRun
-      ? getMelodyPosition(
-          state.audioContext.currentTime - melodyRun.startedAt,
-          melodyRun.notes.length,
-          melodyRun.seconds,
-        )
-      : null;
-    if (position?.phase !== "sing") {
-      elements.analysisStatus.textContent =
-        "準備中です。3秒後からお手本と一緒に発声してください。";
-      state.animationId = requestAnimationFrame(analyzeFrame);
-      return;
-    }
+  if (state.isScalePlaying && position?.phase !== "sing") {
+    elements.analysisStatus.textContent =
+      "準備中です。3秒後からお手本と一緒に発声してください。";
+    state.animationId = requestAnimationFrame(analyzeFrame);
+    return;
   }
 
   state.analyser.getFloatTimeDomainData(state.buffer);
@@ -3359,12 +3482,7 @@ function analyzeFrame(now: number) {
     state.session.sessionStart,
   );
   let isMelodyTransition = false;
-  if (melodyRun) {
-    const position = getMelodyPosition(
-      state.audioContext.currentTime - melodyRun.startedAt,
-      melodyRun.notes.length,
-      melodyRun.seconds,
-    );
+  if (melodyRun && position?.phase === "sing") {
     const elapsed = position.elapsedInLap;
     const observation = {
       index: position.index,

@@ -73,11 +73,9 @@ export function followMelodyKeyboard(root: HTMLElement) {
 /** Only the reference targets drive these markers; this is not detected voice. */
 export function renderMelodyKeyboard(
   root: HTMLElement,
-  notes: Note[],
-  index: number,
-  looping = false,
+  current: Note | undefined,
+  next: Note | undefined,
 ) {
-  const current = notes[index];
   root.hidden = !current;
   if (!current) return;
   const keys = root.querySelector<HTMLElement>(".melody-keyboard-keys");
@@ -110,7 +108,6 @@ export function renderMelodyKeyboard(
         passive: true,
       });
   }
-  const next = notes[index + 1] ?? (looping ? notes[0] : undefined);
   const currentMidi = Math.round(hzToMidi(current.frequency));
   const nextMidi = next ? Math.round(hzToMidi(next.frequency)) : null;
   for (const key of keys.querySelectorAll<HTMLElement>(".melody-piano-key")) {
