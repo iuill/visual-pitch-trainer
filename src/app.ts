@@ -2491,7 +2491,6 @@ type MelodyResultSection = {
 };
 type MelodyRun = {
   notes: Note[];
-  frequencies: number[];
   seconds: number;
   startedAt: number;
   positionKey: string;
@@ -2504,7 +2503,6 @@ type MelodyRun = {
     degree: number;
     lap: number;
     notes: Note[];
-    frequencies: number[];
   } | null;
 };
 let melodyRun: MelodyRun | null = null;
@@ -2523,38 +2521,43 @@ function setToneScaleStart(degree: number) {
   const next = Math.max(0, Math.min(degree, getLastToneScaleStart(tones)));
   const run = melodyRun;
   if (!tones || next === (run?.pending?.degree ?? toneScaleStartDegree)) return;
-  if (state.isScalePlaying) {
-    if (!run) return;
-    state.referencePlayer?.queueScaleLapChange((lap) => {
-      if (run.pending && run.pending.lap < lap) applyMelodyLapChange(run);
-      const notes = selectedMelody(next);
-      run.pending =
-        next === toneScaleStartDegree
-          ? null
-          : {
-              degree: next,
-              lap,
-              notes,
-              frequencies: notes.map((note) => note.frequency),
-            };
-      if (lap === 0) applyMelodyLapChange(run);
-    });
+  if (run) {
+    queueMelodyStart(run, next);
+    return;
+  }
+  if (state.isScalePlaying) return;
+  toneScaleStartDegree = next;
+  renderMelodyPreview();
+}
+
+function queueMelodyStart(run: MelodyRun, degree: number) {
+  const player = state.referencePlayer;
+  if (!player) return;
+  const notes = selectedMelody(degree);
+  const frequencies = notes.map((note) => note.frequency);
+  // If the audio clock reaches the boundary while updating the display, use the following lap.
+  for (let attempt = 0; attempt < 2; attempt++) {
     const position = tickMelody(false);
-    if (position?.phase === "sing") {
+    if (!position) return;
+    const lap = position.phase === "countdown" ? 0 : position.lap + 1;
+    if (!player.replaceScaleLap(lap, frequencies)) continue;
+    run.pending =
+      degree === toneScaleStartDegree ? null : { degree, lap, notes };
+    if (lap === 0) {
+      applyMelodyLapChange(run);
+      tickMelody(false);
+      drawGraph();
+    } else if (position.index === run.notes.length - 1) {
       updateMelodyMovement(
         run.notes,
         position.index,
         false,
         run.pending?.notes[0],
       );
-    } else {
-      drawGraph();
     }
     updateToneScaleControls(run.notes[0]);
     return;
   }
-  toneScaleStartDegree = next;
-  renderMelodyPreview();
 }
 
 function updateToneScaleControls(start?: Note) {
@@ -2632,6 +2635,12 @@ function renderMelodyNotes(notes: Note[]) {
   );
 }
 
+function melodyGraphMidiRange(): readonly [number, number] | undefined {
+  if (!getToneScaleSize(elements.melodyPatternSelect.value)) return;
+  const start = state.noteRangeStartMidi;
+  return [start, start + 12];
+}
+
 function renderMelodyPreview() {
   if (state.isScalePlaying) stopScalePlayback();
   const custom = elements.melodyPatternSelect.value === "custom";
@@ -2650,6 +2659,7 @@ function renderMelodyPreview() {
     updateMelodyMovement(notes, 0);
     melodyGraphData = {
       notes,
+      midiRange: melodyGraphMidiRange(),
       seconds: Number(elements.melodySecondsSelect.value),
       tolerance: state.tolerance,
       phase: "ready",
@@ -2719,14 +2729,12 @@ function applyMelodyLapChange(run: MelodyRun) {
       results: run.results,
       firstLap: run.firstLap,
       elapsed:
-        MELODY_COUNTDOWN_SECONDS +
-        (pending.lap - run.firstLap) * run.notes.length * run.seconds,
+        MELODY_COUNTDOWN_SECONDS + pending.lap * run.notes.length * run.seconds,
     });
   }
   toneScaleStartDegree = pending.degree;
   run.firstLap = pending.lap;
   run.notes = pending.notes;
-  run.frequencies = pending.frequencies;
   run.results = pending.notes.map(() => ({ detectedMs: 0, inTuneMs: 0 }));
   run.pending = null;
   run.positionKey = "";
@@ -2861,7 +2869,7 @@ function showMelodyResults(
       notes: run.notes,
       results: run.results,
       firstLap: run.firstLap,
-      elapsed: elapsed - run.firstLap * run.notes.length * run.seconds,
+      elapsed,
     },
   ];
   for (const section of sections) {
@@ -2883,6 +2891,7 @@ function showMelodyResults(
           section.notes.length,
           run.seconds,
           index,
+          section.firstLap,
         ) * 1000;
       const values = [
         `${index + 1}. ${note.solfege} (${note.name})`,
@@ -3098,7 +3107,6 @@ async function playScale() {
     const startedAt = context.currentTime + 0.1;
     const run: MelodyRun = {
       notes,
-      frequencies: notes.map((note) => note.frequency),
       seconds,
       startedAt,
       positionKey: "",
@@ -3112,6 +3120,7 @@ async function playScale() {
     melodyRun = run;
     melodyGraphData = {
       notes,
+      midiRange: melodyGraphMidiRange(),
       seconds,
       tolerance: state.tolerance,
       phase: "ready",
@@ -3119,17 +3128,17 @@ async function playScale() {
       samples: [],
     };
     elements.melodyGraphScroll.scrollLeft = 0;
-    player.playScale(instrument, run.frequencies, {
-      noteSeconds: seconds,
-      loop: true,
-      loopFrequencies: (lap) =>
-        run.pending && lap >= run.pending.lap
-          ? run.pending.frequencies
-          : run.frequencies,
-      countdownSeconds: MELODY_COUNTDOWN_SECONDS,
-      countdownSound: elements.melodyCountdownSound.checked,
-      startAt: startedAt,
-    });
+    player.playScale(
+      instrument,
+      notes.map((note) => note.frequency),
+      {
+        noteSeconds: seconds,
+        loop: true,
+        countdownSeconds: MELODY_COUNTDOWN_SECONDS,
+        countdownSound: elements.melodyCountdownSound.checked,
+        startAt: startedAt,
+      },
+    );
     updateToneScaleControls(notes[0]);
     updateReferenceInstrumentDescription();
     tickMelody();

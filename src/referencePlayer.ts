@@ -33,7 +33,9 @@ export class ReferencePlayer {
   private repeatTimer: IntervalHandle | null = null;
   private nextRepeatAt = 0;
   private scaleTimer: IntervalHandle | null = null;
-  private queueLoopLap: ((change: (lap: number) => void) => void) | null = null;
+  private replaceLoopFrequencies:
+    | ((lap: number, notes: readonly number[]) => boolean)
+    | null = null;
   private disposed = false;
 
   constructor(
@@ -151,7 +153,6 @@ export class ReferencePlayer {
       countdownSound?: boolean;
       countdownSeconds?: number;
       loop?: boolean;
-      loopFrequencies?: (lap: number) => readonly number[];
     } = {},
   ) {
     this.stopScale();
@@ -185,12 +186,14 @@ export class ReferencePlayer {
     }
     let nextNote = 0;
     const count = frequencies.length;
+    let current = frequencies;
+    let pending: { firstNote: number; notes: readonly number[] } | null = null;
     const schedule = (now = this.context.currentTime) => {
       // Keep a bounded lookahead and skip missed notes after a stalled timer.
       nextNote = Math.max(nextNote, Math.ceil((now - singingAt) / seconds));
       while (singingAt + nextNote * seconds <= now + 0.2) {
-        const lap = Math.floor(nextNote / count);
-        const notes = options.loopFrequencies?.(lap) ?? frequencies;
+        const notes =
+          pending && nextNote >= pending.firstNote ? pending.notes : current;
         this.createVoice(
           instrument,
           notes[nextNote % count],
@@ -201,23 +204,24 @@ export class ReferencePlayer {
         nextNote++;
       }
     };
-    this.queueLoopLap = (change) => {
+    this.replaceLoopFrequencies = (lap, notes) => {
       const now = this.context.currentTime;
-      const lap = Math.max(
-        0,
-        Math.floor((now - singingAt) / (count * seconds)) + 1,
-      );
-      change(lap);
       const firstNote = lap * count;
-      if (nextNote <= firstNote) return;
       const start = singingAt + firstNote * seconds;
-      for (const voice of this.loopVoices) {
-        if (voice.at < start) continue;
-        voice.source.stop(now);
-        this.loopVoices.delete(voice);
+      if (start <= now || notes.length !== count) return false;
+      if (pending && singingAt + pending.firstNote * seconds <= now)
+        current = pending.notes;
+      pending = { firstNote, notes };
+      if (nextNote > firstNote) {
+        for (const voice of this.loopVoices) {
+          if (voice.at < start) continue;
+          voice.source.stop(now);
+          this.loopVoices.delete(voice);
+        }
+        nextNote = firstNote;
+        schedule(now);
       }
-      nextNote = firstNote;
-      schedule(now);
+      return true;
     };
     schedule();
     this.scaleTimer = (this.options.setInterval ?? globalThis.setInterval)(
@@ -226,8 +230,9 @@ export class ReferencePlayer {
     );
   }
 
-  queueScaleLapChange(change: (lap: number) => void) {
-    this.queueLoopLap?.(change);
+  // Replace the upcoming lap while keeping its start time and note count.
+  replaceScaleLap(lap: number, notes: readonly number[]): boolean {
+    return this.replaceLoopFrequencies?.(lap, notes) ?? false;
   }
 
   playPhrase(
@@ -317,7 +322,7 @@ export class ReferencePlayer {
   }
 
   stopScale() {
-    this.queueLoopLap = null;
+    this.replaceLoopFrequencies = null;
     if (this.scaleTimer !== null) {
       (this.options.clearInterval ?? globalThis.clearInterval)(this.scaleTimer);
       this.scaleTimer = null;

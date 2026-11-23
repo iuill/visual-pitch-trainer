@@ -8,6 +8,7 @@ import { getPitchMovementIcon } from "./pitchMovementVisual";
 export type MelodyTraceSample = { time: number; midi: number | null };
 export type MelodyGraphData = {
   notes: Note[];
+  midiRange?: readonly [number, number];
   seconds: number;
   tolerance: number;
   phase: "ready" | "countdown" | "sing" | "stopped";
@@ -29,6 +30,7 @@ export function drawMelodyGraph(
     data.seconds,
     Math.max(scroll.clientWidth, data.notes.length * 112 + 70),
     300,
+    data.midiRange,
   );
   const backing = resolveCanvasBackingSize(
     layout.width,

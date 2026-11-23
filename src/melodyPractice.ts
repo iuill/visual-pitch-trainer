@@ -137,9 +137,13 @@ export function getMelodyAssessedSeconds(
   count: number,
   seconds: number,
   index: number,
+  firstLap = 0,
 ): number {
   const duration = count * seconds;
-  const singingElapsed = Math.max(0, elapsed - MELODY_COUNTDOWN_SECONDS);
+  const singingElapsed = Math.max(
+    0,
+    elapsed - MELODY_COUNTDOWN_SECONDS - firstLap * duration,
+  );
   const laps = Math.floor(singingElapsed / duration);
   const local = singingElapsed - laps * duration - index * seconds;
   const grace = index === 0 ? MELODY_GRACE_SECONDS : 0;

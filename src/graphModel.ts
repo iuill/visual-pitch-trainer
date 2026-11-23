@@ -210,10 +210,11 @@ export function createMelodyGraphLayout(
   seconds: number,
   availableWidth: number,
   height: number,
+  midiRange?: readonly [number, number],
 ) {
   const midis = frequencies.map((frequency) => Math.round(hzToMidi(frequency)));
-  const minMidi = Math.floor(Math.min(...midis)) - 2;
-  const maxMidi = Math.ceil(Math.max(...midis)) + 2;
+  const minMidi = (midiRange?.[0] ?? Math.min(...midis)) - 2;
+  const maxMidi = (midiRange?.[1] ?? Math.max(...midis)) + 2;
   const padding = { top: 28, right: 18, bottom: 36, left: 52 };
   const width = Math.max(
     availableWidth,
