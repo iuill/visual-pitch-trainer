@@ -139,6 +139,11 @@ export class GamePractice {
       : "鳴った音を選択肢から当てます。最初は3半音間隔、上級は半音間隔。何度でも聴き直せます。マイクは使いません。";
     this.draw();
   }
+  show(visible: boolean) {
+    this.root.hidden = !visible;
+    if (visible) requestAnimationFrame(() => this.draw());
+  }
+
   settingsChanged() {
     if (this.active)
       this.stop(

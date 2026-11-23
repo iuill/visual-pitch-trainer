@@ -10,11 +10,9 @@ import { VoiceRangeCheck } from "./voiceRangeCheck";
 import "../styles.css";
 
 type View = {
-  description: string;
   show(visible: boolean): void;
   stop(): void;
   settingsChanged?(): void;
-  dispose?(): void;
 };
 
 function init() {
@@ -33,58 +31,48 @@ function init() {
     getCurrentPlayer: () => referencePlayer,
   };
   const settings = setupCommonSettings(playback, () => {
-    views[currentView].stop();
+    views[currentView].view.stop();
   });
   const practice = setupPracticeView(settings, playback);
   const audio = setupAudioFileView();
   const game = new GamePractice(settings.getSettings, settings.stopPreview);
   const range = new VoiceRangeCheck(settings.getSettings, settings.stopPreview);
-  const gameRoot = queryElement<HTMLElement>("#gamePracticeView");
-  const rangeRoot = queryElement<HTMLElement>("#voiceRangeView");
   const views = {
     single: {
       description: "音をひとつ選び、お手本に合わせて声を伸ばします。",
-      show: (visible) => practice.show(visible ? "single" : null),
-      stop: practice.stop,
+      view: {
+        show: (visible) => practice.show(visible ? "single" : null),
+        stop: practice.stop,
+      },
     },
     melody: {
       description:
         "お手本と一緒に歌い、停止するまで繰り返します。停止後に音ごとに振り返れます。",
-      show: (visible) => practice.show(visible ? "melody" : null),
-      stop: practice.stop,
+      view: {
+        show: (visible) => practice.show(visible ? "melody" : null),
+        stop: practice.stop,
+      },
     },
     games: {
       description:
         "ランダムな目標音への発声と、鳴った音を当てるゲームに挑戦できます。",
-      show: (visible) => {
-        gameRoot.hidden = !visible;
-      },
-      stop: () => game.stop(),
-      settingsChanged: () => game.settingsChanged(),
-      dispose: () => game.dispose(),
+      view: game,
     },
     range: {
       description:
         "マイクで自分の声域をチェックします。安定して出せた音を3通りの表記で確認できます。",
-      show: (visible) => {
-        rangeRoot.hidden = !visible;
-      },
-      stop: () => range.stop(),
-      settingsChanged: () => range.stop(),
-      dispose: () => range.dispose(),
+      view: range,
     },
     audio: {
       description: "音源や動画を読み込み、歌声の高さの目安を確認します。",
-      show: audio.show,
-      stop: audio.pause,
-      dispose: audio.dispose,
+      view: audio,
     },
-  } satisfies Record<string, View>;
+  } satisfies Record<string, { description: string; view: View }>;
   type ViewId = keyof typeof views;
   let currentView: ViewId = "single";
   const description = queryElement<HTMLElement>("#practiceViewDescription");
   const buttons = document.querySelectorAll<HTMLButtonElement>(
-    "[data-practice-view]",
+    "button[data-practice-view]",
   );
   const showCurrentView = () => {
     document.body.dataset.practiceView = currentView;
@@ -95,38 +83,35 @@ function init() {
       );
     const current = views[currentView];
     description.textContent = current.description;
-    current.show(true);
+    current.view.show(true);
+  };
+  const suspend = () => {
+    settings.stopPreview();
+    views[currentView].view.stop();
   };
 
   for (const button of buttons) {
     button.addEventListener("click", () => {
       const view = button.dataset.practiceView as ViewId;
       if (view === currentView || !Object.hasOwn(views, view)) return;
-      settings.stopPreview();
-      const previous = views[currentView];
-      previous.stop();
-      previous.show(false);
+      suspend();
+      views[currentView].view.show(false);
       currentView = view;
       showCurrentView();
     });
   }
   settings.onCommit(() => {
-    const current: View = views[currentView];
+    const current: View = views[currentView].view;
     current.settingsChanged?.();
   });
 
-  const suspend = () => {
-    settings.stopPreview();
-    views[currentView].stop();
-  };
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) suspend();
   });
   window.addEventListener("pagehide", (event) => {
     suspend();
     if (event.persisted) return;
-    practice.dispose();
-    for (const view of Object.values<View>(views)) view.dispose?.();
+    for (const view of [practice, game, range, audio]) view.dispose();
     referencePlayer?.dispose();
     referencePlayer = null;
     closeAudioContext();
