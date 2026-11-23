@@ -88,7 +88,7 @@ const practiceCountInBars = 2;
 const rhythmTapLabel = "タップ（スペース / F / J）";
 
 function rhythmMeterAndTempo(step: RhythmStep) {
-  if (step.beatsPerBar === 7) return `7/8拍子（2＋2＋3）・♩ = ${step.bpm / 2}`;
+  if (step.beatsPerBar === 7) return `7/8拍子（2＋2＋3）・♪ = ${step.bpm}`;
   return `${step.beatsPerBar ?? 4}/4拍子・${step.bpm} BPM`;
 }
 
@@ -1108,6 +1108,10 @@ export function setupRhythmPractice(
       : createRhythmBars(step);
     openStage(null);
     lanes.dataset.dense = String(slotsPerBeat > 2);
+    lanes.style.setProperty(
+      "--rhythm-note-gap",
+      `${beatPercent / slotsPerBeat}cqi`,
+    );
     if (step.sections) stopButton.after(score);
     else laneArea.before(score);
     score.hidden = false;
@@ -1163,6 +1167,7 @@ export function setupRhythmPractice(
         return bar;
       }),
     );
+    scoreBars.scrollTop = 0;
     for (let beat = 0; beat < beatsPerBar; beat++) {
       const marker = makeMarker("beat");
       marker.dataset.accent = String(rhythmBeatAccent(step, beat));
@@ -1461,6 +1466,17 @@ export function setupRhythmPractice(
         phase.textContent = label;
         phase.toggleAttribute("data-scoring", scoring);
         lanes.toggleAttribute("data-count-in", !scoring);
+        if (scoring && step.sections) {
+          const currentBar = scoreBars.children[bar - practiceCountInBars - 1];
+          if (currentBar) {
+            const view = scoreBars.getBoundingClientRect();
+            const row = currentBar.getBoundingClientRect();
+            if (row.bottom > view.bottom)
+              scoreBars.scrollTop += row.bottom - view.bottom;
+            else if (row.top < view.top)
+              scoreBars.scrollTop += row.top - view.top;
+          }
+        }
       }
       if (scoring && inputHelp.textContent !== tapHelp)
         inputHelp.textContent = tapHelp;
@@ -1497,6 +1513,7 @@ export function setupRhythmPractice(
       }
       resultPanel.insertBefore(score, stats);
       renderResult(result, step.chapter);
+      scoreBars.scrollTop = 0;
       (section || next.hidden ? retry : next).focus();
     });
   }

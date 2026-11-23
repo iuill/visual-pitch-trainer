@@ -36,10 +36,13 @@ Source recording, checksums and processing: audio/rhythm/sources.json
 
 Rhythm practice — compositions and counting voices
 
-The practice arrangements are transcribed from the historical compositions
+Chapter 4 practice arrangements are transcribed from the historical compositions
 and played locally with the bundled piano samples. The app distributes note
 data and its own notation. Score scans, lyrics and recordings of the pieces
 are reference materials and are not included.
+
+The five Chapter 5 pieces are original compositions of this project (MIT).
+Their arrangements use bundled recordings and synthesized instruments.
 
 - Twinkle, Twinkle, Little Star: traditional French melody, also the theme of
   Mozart's K. 265. https://www.loc.gov/nls/services-and-resources/music-service-and-materials/piano-scores-braille/braille-composers-jacob-quilter/

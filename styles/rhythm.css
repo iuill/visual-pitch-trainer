@@ -450,10 +450,6 @@
   .rhythm-score-slot[data-grade] {
     font-size: 0.75rem;
   }
-
-  .rhythm-lanes[data-dense="true"] .rhythm-note {
-    font-size: 1.575rem;
-  }
 }
 
 .rhythm-lane-area {
@@ -478,6 +474,7 @@
 }
 
 .rhythm-track {
+  container-type: inline-size;
   --rhythm-track-height: clamp(116px, 14vw, 144px);
   position: relative;
   height: var(--rhythm-track-height);
@@ -580,10 +577,11 @@
 }
 
 .rhythm-note {
+  --rhythm-note-size: 2.475rem;
   --rhythm-guide-gap: min(0.54em, calc(var(--rhythm-track-height) / 4 - 4px));
   top: 25%;
   color: #122932;
-  font-size: 2.475rem;
+  font-size: var(--rhythm-note-size);
 }
 
 .rhythm-note::before,
@@ -600,7 +598,11 @@
 }
 
 .rhythm-note[data-accent="true"] {
-  font-size: 3.3rem;
+  --rhythm-note-size: 3.3rem;
+}
+
+.rhythm-lanes[data-dense="true"] .rhythm-note {
+  font-size: min(var(--rhythm-note-size), var(--rhythm-note-gap));
 }
 
 .rhythm-note[data-active] {
