@@ -25,6 +25,10 @@
   gap: 8px;
 }
 
+.tone-scale-actions > .secondary-button {
+  padding-inline: 8px;
+}
+
 .melody-notes {
   position: relative;
   display: flex;

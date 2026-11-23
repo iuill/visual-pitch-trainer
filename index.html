@@ -223,18 +223,18 @@
             </dialog>
             <div id="toneScaleControls" class="tone-scale-controls" hidden>
               <p id="toneScaleStart" role="status"></p>
-              <div id="toneScaleManual" class="tone-scale-actions">
-                <button id="toneScaleDown" class="secondary-button" type="button">開始音を1つ下げる</button>
-                <button id="toneScaleUp" class="secondary-button" type="button">開始音を1つ上げる</button>
-              </div>
-              <div id="toneScaleRandomControls" class="tone-scale-actions">
-                <label for="toneScaleRandom">ランダム</label>
-                <select id="toneScaleRandom">
-                  <option value="0" selected>オフ</option>
-                  <option value="1">音階で上下1音まで</option>
-                  <option value="2">音階で上下2音まで</option>
-                  <option value="3">音階で上下3音まで</option>
-                </select>
+              <div class="tone-scale-actions">
+                <button id="toneScaleDown" class="secondary-button" type="button" aria-label="開始音を1つ下げる">1つ下げる</button>
+                <button id="toneScaleUp" class="secondary-button" type="button" aria-label="開始音を1つ上げる">1つ上げる</button>
+                <div id="toneScaleRandomSetting" class="tone-scale-actions">
+                  <label for="toneScaleRandom">音の間隔をランダムに</label>
+                  <select id="toneScaleRandom">
+                    <option value="0" selected>オフ</option>
+                    <option value="1">音階で上下1音まで</option>
+                    <option value="2">音階で上下2音まで</option>
+                    <option value="3">音階で上下3音まで</option>
+                  </select>
+                </div>
                 <button id="toneScaleNext" class="secondary-button" type="button" hidden>次の音型</button>
               </div>
             </div>

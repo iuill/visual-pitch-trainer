@@ -4,9 +4,10 @@ import {
   getMelodyAssessedSeconds,
   getMelodyPosition,
   MELODY_PATTERNS,
-  pickToneScaleStart,
+  pickToneScalePattern,
   recordMelodyObservation,
 } from "./melodyPractice";
+import { midiToFrequency } from "./pitchMath";
 
 describe("melody practice", () => {
   test("loops tone scales without repeating the turn or the starting note", () => {
@@ -41,12 +42,66 @@ describe("melody practice", () => {
       buildMelody("five-tone", "", 60, 3).map((note) => note.name),
     ).toEqual(["F4", "G4", "A4", "B4", "C5", "B4", "A4", "G4"]);
   });
-  test("picks a different in-range start within the selected number of steps", () => {
-    expect(pickToneScaleStart(2, 0, 1, () => 0.99)).toBe(1);
-    expect(pickToneScaleStart(2, 1, 1, () => 0)).toBe(0);
-    expect(pickToneScaleStart(3, 2, 2, () => 0.5)).toBe(3);
-    expect(pickToneScaleStart(5, 0, 3, () => 0.99)).toBe(3);
-    expect(pickToneScaleStart(5, 3, 3, () => 0.99)).toBe(2);
+  test("changes the two-tone interval so it can skip notes or go down", () => {
+    const skip = pickToneScalePattern(2, 3, undefined, { random: () => 0 });
+    expect(skip).toEqual({ startDegree: 0, offsets: [0, 2] });
+    const down = pickToneScalePattern(2, 3, skip.offsets, {
+      random: () => 0.999,
+    });
+    expect(down).toEqual({ startDegree: 7, offsets: [0, -1] });
+    expect(
+      buildMelody("two-tone", "", 60, down.startDegree, down.offsets).map(
+        (note) => note.name,
+      ),
+    ).toEqual(["C5", "B4"]);
+    expect(
+      pickToneScalePattern(2, 1, down.offsets, { random: () => 0 }).offsets,
+    ).toEqual([0, 1]);
+  });
+  test("skips the exact queued pattern without returning to the current intervals", () => {
+    expect(
+      pickToneScalePattern(2, 1, undefined, {
+        pending: { degree: 1, offsets: [0, -1] },
+        random: () => 0,
+      }),
+    ).toEqual({ startDegree: 2, offsets: [0, -1] });
+    expect(
+      pickToneScalePattern(2, 3, undefined, {
+        pending: { degree: 0, offsets: [0, 2] },
+        random: () => 0,
+      }),
+    ).toEqual({ startDegree: 0, offsets: [0, 3] });
+  });
+  test("keeps random patterns and their return path in range when moving the start", () => {
+    for (const [id, tones] of [
+      ["three-tone", 3],
+      ["five-tone", 5],
+    ] as const) {
+      for (const maxSteps of [1, 2, 3]) {
+        const { offsets } = pickToneScalePattern(tones, maxSteps, undefined, {
+          random: () => 0.6,
+        });
+        expect(new Set(offsets).size).toBe(tones);
+        for (let index = 1; index < offsets.length; index++) {
+          expect(
+            Math.abs(offsets[index] - offsets[index - 1]),
+          ).toBeLessThanOrEqual(maxSteps);
+        }
+        for (const start of [0, 7]) {
+          const notes = buildMelody(id, "", 60, start, offsets).map(
+            (note) => note.frequency,
+          );
+          expect(notes).toHaveLength(2 * tones - 2);
+          expect(notes.slice(tones)).toEqual(
+            notes.slice(1, tones - 1).reverse(),
+          );
+          expect(Math.min(...notes)).toBeGreaterThanOrEqual(
+            midiToFrequency(60),
+          );
+          expect(Math.max(...notes)).toBeLessThanOrEqual(midiToFrequency(72));
+        }
+      }
+    }
   });
   test("keeps major-scale intervals and transposes every note with the selected range", () => {
     expect(buildMelody("major", "", 48).map((note) => note.name)).toEqual([
