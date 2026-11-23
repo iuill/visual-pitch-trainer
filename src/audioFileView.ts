@@ -18,8 +18,10 @@ import {
   formatMidiRange,
   getVoiceCoverage,
 } from "./audioFileAnalysis";
+import { createAudioFilePlayback } from "./audioFilePlayback";
 import {
   AUDIO_RANGE_GRAPH_PADDING,
+  audioPitchLabelAt,
   audioRangeGraphWidth,
   formatClockTime,
   renderAudioRangeGraph,
@@ -50,7 +52,7 @@ declare global {
 type ExtractedVocals = {
   audio: DecodedMediaAudio;
   fileName: string;
-  url: string;
+  playbackBlob: Blob;
 };
 
 type AudioFileOperation = {
@@ -66,16 +68,11 @@ type AudioFileState = {
   useVocalExtraction: boolean;
   vocalSeparationModel: VocalSeparationModelId;
   audioPitchEstimator: AudioPitchEstimator;
-  selectedPlaybackAudioFileUrl: string | null;
   extractedVocals: ExtractedVocals | null;
-  audioFilePlayer: HTMLAudioElement | null;
-  audioFilePlaybackSource: MediaElementAudioSourceNode | null;
-  audioFilePlaybackGain: GainNode | null;
   audioFileAnalysis: AudioFileAnalysis | null;
   operation: AudioFileOperation | null;
   audioAnalysisMemoryTimerId: number | null;
   isAudioPlaybackDurationCompatible: boolean;
-  audioPlaybackAnimationId: number | null;
   isDraggingAudioPlaybackCursor: boolean;
   audioRangeResizeObserver: ResizeObserver | null;
   audioRangeResizeHandler: (() => void) | null;
@@ -89,16 +86,11 @@ export function setupAudioFileView() {
     useVocalExtraction: false,
     vocalSeparationModel: "demucs",
     audioPitchEstimator: "rmvpe",
-    selectedPlaybackAudioFileUrl: null,
     extractedVocals: null,
-    audioFilePlayer: null,
-    audioFilePlaybackSource: null,
-    audioFilePlaybackGain: null,
     audioFileAnalysis: null,
     operation: null,
     audioAnalysisMemoryTimerId: null,
     isAudioPlaybackDurationCompatible: true,
-    audioPlaybackAnimationId: null,
     isDraggingAudioPlaybackCursor: false,
     audioRangeResizeObserver: null,
     audioRangeResizeHandler: null,
@@ -155,6 +147,10 @@ export function setupAudioFileView() {
     medianVoiceReadout: queryElement<HTMLElement>("#medianVoiceReadout"),
     voicedRatioReadout: queryElement<HTMLElement>("#voicedRatioReadout"),
     audioRangeDescription: queryElement<HTMLElement>("#audioRangeDescription"),
+    audioRangeContent: queryElement<HTMLElement>(".audio-range-content"),
+    audioRangeCursor: queryElement<HTMLElement>("#audioRangeCursor"),
+    audioRangeCursorTime: queryElement<HTMLElement>("#audioRangeCursorTime"),
+    audioRangeCursorPitch: queryElement<HTMLElement>("#audioRangeCursorPitch"),
     audioRangeScroll: queryElement<HTMLElement>(".audio-range-scroll"),
     audioRangeAxisCanvas: queryElement<HTMLCanvasElement>(
       "#audioRangeAxisCanvas",
@@ -176,11 +172,36 @@ export function setupAudioFileView() {
 
   const audioRangeAxisCanvasContext = maybeAudioRangeAxisCanvasContext;
   const audioRangeCanvasContext = maybeAudioRangeCanvasContext;
-  const AUDIO_FILE_PLAYBACK_GAIN = 2;
   const AUDIO_PLAYBACK_DURATION_TOLERANCE_SEC = 1;
   const AUDIO_PLAYBACK_CURSOR_HIT_RADIUS_PX = 14;
   const AUDIO_FILE_UNSUPPORTED_MESSAGE =
     "このブラウザでは音源ファイルの解析や再生ができません。別のブラウザで開いてください。";
+  let graphWidth = 0;
+  let viewportWidth = 0;
+  let lastGraph: {
+    analysis: AudioFileAnalysis | null;
+    duration: number;
+    pixelRatio: number;
+    width: number;
+    height: number;
+    axisWidth: number;
+  } | null = null;
+
+  const playback = createAudioFilePlayback((event) => {
+    switch (event) {
+      case "metadata":
+        validateAudioPlaybackDuration();
+        refreshPlaybackControls();
+        break;
+      case "state":
+        updateAudioFileControls();
+        break;
+      case "position":
+        updateAudioPlaybackView();
+        break;
+    }
+  });
+
   function init() {
     elements.vocalSeparationModelSelect.value = state.vocalSeparationModel;
     syncVocalSeparationModelOptions();
@@ -251,8 +272,8 @@ export function setupAudioFileView() {
       dispose() {
         state.operation?.controller.abort();
         stopAudioAnalysisMemoryTracking();
-        cleanupAudioFilePlayer();
-        cleanupExtractedVocalAudioUrl();
+        playback.clear();
+        cleanupExtractedVocals();
         cleanupAudioRangeCanvasListeners();
       },
     };
@@ -312,7 +333,7 @@ export function setupAudioFileView() {
 
   function invalidateAnalysis(resetPlayer: boolean) {
     state.audioFileAnalysis = null;
-    cleanupExtractedVocalAudioUrl();
+    cleanupExtractedVocals();
     if (resetPlayer) {
       elements.audioPlaybackSourceSelect.value = "original";
       resetAudioFilePlayerForSelectedSource();
@@ -404,18 +425,12 @@ export function setupAudioFileView() {
   }
 
   function resetAudioFilePlayerForSelectedSource() {
-    cleanupAudioFilePlayer();
     state.isAudioPlaybackDurationCompatible = true;
-    const file = getSelectedOriginalAudioPlaybackFile();
-
-    if (usesExtractedVocals() && state.extractedVocals) {
-      setupAudioFilePlayerFromUrl(state.extractedVocals.url);
-    } else if (file) {
-      setupAudioFilePlayer(file);
-    }
+    const source = usesExtractedVocals()
+      ? (state.extractedVocals?.playbackBlob ?? null)
+      : getSelectedOriginalAudioPlaybackFile();
+    playback.load(source);
   }
-
-  let playbackRequest = 0;
 
   async function handleAudioFilePlayback() {
     if (!isAudioContextSupported()) {
@@ -443,35 +458,17 @@ export function setupAudioFileView() {
       return;
     }
 
-    if (!state.audioFilePlayer && usesExtractedVocals()) {
-      resetAudioFilePlayerForSelectedSource();
-    } else if (!state.audioFilePlayer && selectedPlaybackFile) {
-      setupAudioFilePlayer(selectedPlaybackFile);
-    }
-
-    const player = state.audioFilePlayer;
-    if (!player) {
-      return;
-    }
-
-    if (!player.paused) {
-      return;
-    }
+    if (!playback.hasSource()) resetAudioFilePlayerForSelectedSource();
+    if (playback.isPlaying()) return;
 
     if (!validateAudioPlaybackDuration()) {
-      updateAudioFileControls();
-      drawAudioRangeGraph();
+      refreshPlaybackControls();
       return;
     }
 
-    const request = ++playbackRequest;
     try {
-      await setupBoostedAudioFilePlayback(player);
-      if (request !== playbackRequest || player !== state.audioFilePlayer)
-        return;
-      await player.play();
+      await playback.play();
     } catch (error) {
-      if (request !== playbackRequest) return;
       setAudioFileStatus(
         "音源を再生できませんでした。ブラウザの音声設定を確認してください。",
         "error",
@@ -481,13 +478,7 @@ export function setupAudioFileView() {
   }
 
   function pauseAudioFilePlayback() {
-    playbackRequest++;
-    const player = state.audioFilePlayer;
-    if (!player) {
-      return;
-    }
-
-    player.pause();
+    playback.pause();
     updateAudioPlaybackView();
     updateAudioFileControls();
   }
@@ -507,32 +498,19 @@ export function setupAudioFileView() {
   }
 
   function stopAudioFilePlayback() {
-    playbackRequest++;
-    const player = state.audioFilePlayer;
-    if (!player) {
-      return;
-    }
-
-    player.pause();
-    player.currentTime = 0;
+    if (!playback.hasSource()) return;
+    playback.pause();
     elements.audioRangeScroll.scrollLeft = 0;
-    updateAudioPlaybackView();
+    playback.seek(0);
     updateAudioFileControls();
   }
 
   function seekAudioPlayback(offsetSec: number) {
-    const player = state.audioFilePlayer;
-    if (!player) {
-      return;
-    }
-
-    const durationSec = getAudioPlaybackDurationSec();
-    const maxTime = durationSec > 0 ? durationSec : Number.POSITIVE_INFINITY;
-    player.currentTime = Math.max(
-      0,
-      Math.min(maxTime, player.currentTime + offsetSec),
+    const duration = playback.getDuration();
+    const maxTime = duration > 0 ? duration : Number.POSITIVE_INFINITY;
+    playback.seek(
+      Math.max(0, Math.min(maxTime, playback.getTime() + offsetSec)),
     );
-    updateAudioPlaybackView();
   }
 
   function getSelectedOriginalAudioPlaybackFile(): File | null {
@@ -580,16 +558,14 @@ export function setupAudioFileView() {
     elements.downloadExtractedVocalButton.disabled =
       !isAudioSupported || !state.extractedVocals || isAudioBusy;
     elements.audioFileInput.disabled = !isAudioSupported || isAudioBusy;
-    const isPlaying = Boolean(
-      state.audioFilePlayer && !state.audioFilePlayer.paused,
-    );
+    const isPlaying = playback.isPlaying();
     elements.playAudioFileButton.disabled = !canUsePlayback || isPlaying;
     elements.pauseAudioFileButton.disabled =
-      !canUsePlayback || !state.audioFilePlayer || !isPlaying;
+      !canUsePlayback || !playback.hasSource() || !isPlaying;
     elements.stopAudioFileButton.disabled =
-      !canUsePlayback || !state.audioFilePlayer;
+      !canUsePlayback || !playback.hasSource();
     elements.audioSeekButtons.forEach((button) => {
-      button.disabled = !canUsePlayback || !state.audioFilePlayer;
+      button.disabled = !canUsePlayback || !playback.hasSource();
     });
   }
 
@@ -614,140 +590,29 @@ export function setupAudioFileView() {
     return (state.audioFileAnalysis?.summary.validFrames ?? 0) > 0;
   }
 
-  function setupAudioFilePlayer(file: File) {
-    const url = URL.createObjectURL(file);
-    setupAudioFilePlayerFromUrl(url);
-    state.selectedPlaybackAudioFileUrl = url;
-  }
-
-  function setupAudioFilePlayerFromUrl(url: string) {
-    const player = new Audio(url);
-    player.preload = "metadata";
-    player.volume = 1;
-
-    state.audioFilePlayer = player;
-
-    player.addEventListener("loadedmetadata", () => {
-      if (state.audioFilePlayer !== player) return;
-      validateAudioPlaybackDuration();
-      updateAudioRangeCanvasWidth();
-      updateAudioPlaybackReadout();
-      updateAudioFileControls();
-      drawAudioRangeGraph();
-    });
-    player.addEventListener("play", () => {
-      if (state.audioFilePlayer !== player) return;
-      updateAudioFileControls();
-      startAudioPlaybackTracking();
-    });
-    const onPlaybackStopped = () => {
-      if (state.audioFilePlayer !== player) return;
-      updateAudioFileControls();
-      stopAudioPlaybackTracking();
-      updateAudioPlaybackView();
-    };
-    player.addEventListener("pause", onPlaybackStopped);
-    player.addEventListener("ended", onPlaybackStopped);
-    player.addEventListener("timeupdate", () => {
-      if (state.audioFilePlayer === player) updateAudioPlaybackView();
-    });
-  }
-
-  async function setupBoostedAudioFilePlayback(player: HTMLAudioElement) {
-    if (!isAudioContextSupported()) {
-      throw new Error("AudioContext is not available.");
-    }
-
-    const audioContext = getAudioContext();
-
-    if (!state.audioFilePlaybackSource || !state.audioFilePlaybackGain) {
-      const source = audioContext.createMediaElementSource(player);
-      const gain = audioContext.createGain();
-      gain.gain.value = AUDIO_FILE_PLAYBACK_GAIN;
-      source.connect(gain);
-      gain.connect(audioContext.destination);
-
-      state.audioFilePlaybackSource = source;
-      state.audioFilePlaybackGain = gain;
-    } else {
-      state.audioFilePlaybackGain.gain.value = AUDIO_FILE_PLAYBACK_GAIN;
-    }
-
-    if (audioContext.state === "suspended") {
-      await audioContext.resume();
-    }
-  }
-
-  function cleanupAudioFilePlayer() {
-    playbackRequest++;
-    stopAudioPlaybackTracking();
-
-    state.audioFilePlaybackSource?.disconnect();
-    state.audioFilePlaybackGain?.disconnect();
-    state.audioFilePlaybackSource = null;
-    state.audioFilePlaybackGain = null;
-
-    if (state.audioFilePlayer) {
-      state.audioFilePlayer.pause();
-      state.audioFilePlayer.removeAttribute("src");
-      state.audioFilePlayer.load();
-    }
-
-    if (state.selectedPlaybackAudioFileUrl) {
-      URL.revokeObjectURL(state.selectedPlaybackAudioFileUrl);
-    }
-
-    state.selectedPlaybackAudioFileUrl = null;
-    state.audioFilePlayer = null;
-  }
-
-  function cleanupExtractedVocalAudioUrl() {
+  function cleanupExtractedVocals() {
     const vocals = state.extractedVocals;
     if (!vocals) return;
-
-    if (usesExtractedVocals() || state.audioFilePlayer?.src === vocals.url) {
-      cleanupAudioFilePlayer();
+    if (usesExtractedVocals() || playback.uses(vocals.playbackBlob)) {
+      playback.clear();
       elements.audioPlaybackSourceSelect.value = "original";
     }
-    URL.revokeObjectURL(vocals.url);
     state.extractedVocals = null;
-  }
-
-  function startAudioPlaybackTracking() {
-    if (state.audioPlaybackAnimationId !== null) {
-      return;
-    }
-
-    const tick = () => {
-      updateAudioPlaybackView();
-      state.audioPlaybackAnimationId = requestAnimationFrame(tick);
-    };
-
-    state.audioPlaybackAnimationId = requestAnimationFrame(tick);
-  }
-
-  function stopAudioPlaybackTracking() {
-    if (state.audioPlaybackAnimationId === null) {
-      return;
-    }
-
-    cancelAnimationFrame(state.audioPlaybackAnimationId);
-    state.audioPlaybackAnimationId = null;
   }
 
   function updateAudioPlaybackView() {
     updateAudioPlaybackReadout();
     scrollAudioRangeToPlayback();
-    drawAudioRangeGraph();
+    updateAudioRangeCursor();
   }
 
   function updateAudioPlaybackReadout() {
-    const currentTime = getAudioPlaybackTimeSec();
-    const duration = getAudioPlaybackDurationSec();
+    const currentTime = playback.getTime();
+    const duration = playback.getDuration();
 
-    elements.audioPlaybackTime.textContent = `${formatClockTime(
-      currentTime,
-    )} / ${formatClockTime(duration)}`;
+    const label = `${formatClockTime(currentTime)} / ${formatClockTime(duration)}`;
+    if (elements.audioPlaybackTime.textContent !== label)
+      elements.audioPlaybackTime.textContent = label;
   }
 
   function validateAudioPlaybackDuration(): boolean {
@@ -758,7 +623,7 @@ export function setupAudioFileView() {
     }
 
     const analysisDuration = state.audioFileAnalysis?.summary.durationSec;
-    const playbackDuration = getAudioPlaybackDurationSec();
+    const playbackDuration = playback.getDuration();
 
     if (
       analysisDuration === undefined ||
@@ -773,10 +638,7 @@ export function setupAudioFileView() {
     state.isAudioPlaybackDurationCompatible = isCompatible;
 
     if (!isCompatible) {
-      const player = state.audioFilePlayer;
-      if (player && !player.paused) {
-        player.pause();
-      }
+      playback.pause();
 
       setAudioFileStatus(
         `解析用音源（${formatDuration(
@@ -792,16 +654,12 @@ export function setupAudioFileView() {
   }
 
   function scrollAudioRangeToPlayback() {
-    const player = state.audioFilePlayer;
-    const durationSec = getAudioPlaybackDurationSec();
-
-    if (!player || player.paused || durationSec <= 0) {
+    const durationSec = playback.getDuration();
+    if (!playback.isPlaying() || durationSec <= 0) {
       return;
     }
 
-    const canvasWidth = elements.audioRangeCanvas.clientWidth;
-    const x = (player.currentTime / durationSec) * canvasWidth;
-    const viewportWidth = elements.audioRangeScroll.clientWidth;
+    const x = (playback.getTime() / durationSec) * graphWidth;
     const desiredLeft = x - viewportWidth * 0.45;
 
     elements.audioRangeScroll.scrollLeft = Math.max(0, desiredLeft);
@@ -838,10 +696,10 @@ export function setupAudioFileView() {
           ? {
               audio: vocals,
               fileName: vocalDownloadName(file, vocalModel),
-              url: URL.createObjectURL(createWavBlobFromDecodedAudio(vocals)),
+              playbackBlob: createWavBlobFromDecodedAudio(vocals),
             }
           : null;
-      cleanupExtractedVocalAudioUrl();
+      cleanupExtractedVocals();
       if (extractedVocals) {
         state.extractedVocals = extractedVocals;
         elements.audioPlaybackSourceSelect.value = "vocals";
@@ -1040,7 +898,12 @@ export function setupAudioFileView() {
 
   function setupAudioRangeCanvas() {
     cleanupAudioRangeCanvasListeners();
-    syncAudioRangeCanvasSize();
+    const { top, bottom, left, right } = AUDIO_RANGE_GRAPH_PADDING;
+    const { style } = elements.audioRangeCursor;
+    style.setProperty("--audio-plot-top", `${top}px`);
+    style.setProperty("--audio-plot-bottom", `${bottom}px`);
+    style.setProperty("--audio-plot-left", `${left}px`);
+    style.setProperty("--audio-plot-right", `${right}px`);
     elements.audioRangeCanvas.addEventListener(
       "pointerdown",
       handleAudioRangePointerDown,
@@ -1064,19 +927,13 @@ export function setupAudioFileView() {
 
     const ResizeObserverClass = globalThis.ResizeObserver;
     if (ResizeObserverClass) {
-      const observer = new ResizeObserverClass(() => {
-        syncAudioRangeCanvasSize();
-        drawAudioRangeGraph();
-      });
+      const observer = new ResizeObserverClass(drawAudioRangeGraph);
       observer.observe(elements.audioRangeScroll);
       state.audioRangeResizeObserver = observer;
       return;
     }
 
-    state.audioRangeResizeHandler = () => {
-      syncAudioRangeCanvasSize();
-      drawAudioRangeGraph();
-    };
+    state.audioRangeResizeHandler = drawAudioRangeGraph;
     window.addEventListener("resize", state.audioRangeResizeHandler);
   }
 
@@ -1112,7 +969,7 @@ export function setupAudioFileView() {
   }
 
   function handleAudioRangePointerDown(event: PointerEvent) {
-    if (!state.audioFilePlayer || !isPointerNearAudioPlaybackCursor(event)) {
+    if (!playback.hasSource() || !isPointerNearAudioPlaybackCursor(event)) {
       return;
     }
 
@@ -1157,22 +1014,17 @@ export function setupAudioFileView() {
   }
 
   function seekAudioPlaybackToPointer(event: PointerEvent) {
-    const player = state.audioFilePlayer;
     const durationSec = getAudioFileDurationSec();
-
-    if (!player || durationSec <= 0) {
+    if (!playback.hasSource() || durationSec <= 0) {
       return;
     }
 
-    player.currentTime = getAudioTimeFromPointer(event, durationSec);
-    updateAudioPlaybackView();
+    playback.seek(getAudioTimeFromPointer(event, durationSec));
   }
 
   function isPointerNearAudioPlaybackCursor(event: PointerEvent): boolean {
-    const player = state.audioFilePlayer;
     const durationSec = getAudioFileDurationSec();
-
-    if (!player || durationSec <= 0) {
+    if (!playback.hasSource() || durationSec <= 0) {
       return false;
     }
 
@@ -1187,8 +1039,7 @@ export function setupAudioFileView() {
     durationSec: number,
   ): number {
     const pointerX = getAudioCanvasPointerX(event);
-    const canvasWidth =
-      elements.audioRangeCanvas.width / state.audioRangePixelRatio;
+    const canvasWidth = graphWidth;
     const plotWidth =
       canvasWidth -
       AUDIO_RANGE_GRAPH_PADDING.left -
@@ -1200,16 +1051,12 @@ export function setupAudioFileView() {
   }
 
   function getAudioPlaybackCursorX(durationSec: number): number {
-    const canvasWidth =
-      elements.audioRangeCanvas.width / state.audioRangePixelRatio;
+    const canvasWidth = graphWidth;
     const plotWidth =
       canvasWidth -
       AUDIO_RANGE_GRAPH_PADDING.left -
       AUDIO_RANGE_GRAPH_PADDING.right;
-    const currentTime = Math.max(
-      0,
-      Math.min(durationSec, getAudioPlaybackTimeSec()),
-    );
+    const currentTime = Math.max(0, Math.min(durationSec, playback.getTime()));
 
     return (
       AUDIO_RANGE_GRAPH_PADDING.left +
@@ -1226,7 +1073,14 @@ export function setupAudioFileView() {
   function syncAudioRangeCanvasSize() {
     const canvas = elements.audioRangeCanvas;
     const axisCanvas = elements.audioRangeAxisCanvas;
-    updateAudioRangeCanvasWidth();
+    viewportWidth = elements.audioRangeScroll.clientWidth;
+    const rangeWidth = audioRangeGraphWidth(
+      getAudioFileDurationSec(),
+      Math.max(1, viewportWidth),
+    );
+    const widthStyle = `${rangeWidth}px`;
+    if (elements.audioRangeContent.style.width !== widthStyle)
+      elements.audioRangeContent.style.width = widthStyle;
 
     const rect = canvas.getBoundingClientRect();
     const cssWidth = Math.max(
@@ -1244,6 +1098,7 @@ export function setupAudioFileView() {
     );
 
     state.audioRangePixelRatio = backingSize.pixelRatio;
+    graphWidth = backingSize.width / backingSize.pixelRatio;
 
     if (
       canvas.width !== backingSize.width ||
@@ -1273,53 +1128,75 @@ export function setupAudioFileView() {
     }
   }
 
-  function updateAudioRangeCanvasWidth() {
-    const durationSec = getAudioFileDurationSec();
-    const visibleWidth = Math.max(1, elements.audioRangeScroll.clientWidth);
-    const cssWidth = audioRangeGraphWidth(durationSec, visibleWidth);
-    elements.audioRangeCanvas.style.width = `${cssWidth}px`;
-  }
-
   function getAudioFileDurationSec(): number {
     const analysisDuration = state.audioFileAnalysis?.summary.durationSec;
     if (analysisDuration !== undefined && Number.isFinite(analysisDuration)) {
       return analysisDuration;
     }
 
-    const playerDuration = state.audioFilePlayer?.duration;
-    if (playerDuration !== undefined && Number.isFinite(playerDuration)) {
-      return playerDuration;
-    }
-
-    return 0;
-  }
-
-  function getAudioPlaybackDurationSec(): number {
-    const playerDuration = state.audioFilePlayer?.duration;
-    if (playerDuration !== undefined && Number.isFinite(playerDuration)) {
-      return playerDuration;
-    }
-
-    return 0;
-  }
-
-  function getAudioPlaybackTimeSec(): number {
-    const currentTime = state.audioFilePlayer?.currentTime ?? 0;
-
-    return Number.isFinite(currentTime) ? currentTime : 0;
+    return playback.getDuration();
   }
 
   function drawAudioRangeGraph() {
+    if (elements.audioFileView.hidden) return;
     syncAudioRangeCanvasSize();
-    renderAudioRangeGraph(audioRangeCanvasContext, {
-      axisContext: audioRangeAxisCanvasContext,
-      pixelRatio: state.audioRangePixelRatio,
+    const graph = {
       analysis: state.audioFileAnalysis,
-      durationSec: getAudioFileDurationSec(),
-      playbackTime: state.audioFilePlayer
-        ? getAudioPlaybackTimeSec()
-        : undefined,
-    });
+      duration: getAudioFileDurationSec(),
+      pixelRatio: state.audioRangePixelRatio,
+      width: elements.audioRangeCanvas.width,
+      height: elements.audioRangeCanvas.height,
+      axisWidth: elements.audioRangeAxisCanvas.width,
+    };
+
+    if (
+      !lastGraph ||
+      lastGraph.analysis !== graph.analysis ||
+      lastGraph.duration !== graph.duration ||
+      lastGraph.pixelRatio !== graph.pixelRatio ||
+      lastGraph.width !== graph.width ||
+      lastGraph.height !== graph.height ||
+      lastGraph.axisWidth !== graph.axisWidth
+    ) {
+      renderAudioRangeGraph(audioRangeCanvasContext, {
+        axisContext: audioRangeAxisCanvasContext,
+        pixelRatio: graph.pixelRatio,
+        analysis: graph.analysis,
+        durationSec: graph.duration,
+      });
+      lastGraph = graph;
+    }
+    updateAudioRangeCursor();
+  }
+
+  function updateAudioRangeCursor() {
+    const duration = getAudioFileDurationSec();
+    const analysis = state.audioFileAnalysis;
+    const cursor = elements.audioRangeCursor;
+    if (
+      !analysis ||
+      analysis.summary.validFrames === 0 ||
+      !playback.hasSource() ||
+      duration <= 0
+    ) {
+      cursor.hidden = true;
+      return;
+    }
+
+    const time = Math.max(0, Math.min(duration, playback.getTime()));
+    cursor.hidden = false;
+    cursor.style.setProperty(
+      "--audio-cursor-x",
+      `${getAudioPlaybackCursorX(duration)}px`,
+    );
+    const timeLabel = formatClockTime(time);
+    if (elements.audioRangeCursorTime.textContent !== timeLabel)
+      elements.audioRangeCursorTime.textContent = timeLabel;
+
+    const pitchLabel = audioPitchLabelAt(analysis.points, time * 1000);
+    elements.audioRangeCursorPitch.hidden = pitchLabel === null;
+    if (elements.audioRangeCursorPitch.textContent !== pitchLabel)
+      elements.audioRangeCursorPitch.textContent = pitchLabel;
   }
 
   return init();

@@ -25,6 +25,7 @@ src/voiceRangeCheck.ts
 src/microphone.ts
 src/audioContext.ts
 src/audioFileView.ts
+src/audioFilePlayback.ts
 src/audioAnalysisPipeline.ts
 src/audioAnalysisProgress.ts
 src/audioDownloads.ts
@@ -49,9 +50,9 @@ docs/
 - `src/app.ts` が5画面の表示、共通設定変更の通知、ページのライフサイクルを扱う。画面切り替えでは共通設定の試聴と離れる画面の実行中の音声を止める。タブが非表示のときも参照音・再生・マイクを止める。通常のページ離脱では画面が保持するリソースも解放する。
 - `src/commonSettings.ts` が設定値、ダイアログと要約表示、マイク選択、音色の試聴を扱う。単音・メロディ練習、ゲーム、自分の声域チェックは共通設定から現在値を読む。設定変更への反応は各画面が決める。スライダー操作中の反映と、操作確定時にゲームや声域チェックを中止する通知は分ける。試聴を始める前の画面停止は `src/app.ts` が行う。
 - `src/practiceView.ts` が単音練習の記録と、単音・メロディ共用のマイク入力を扱う。`src/melodyPracticeView.ts` がメロディの進行、描画用サンプル、音ごとの集計を保持する。単音の選択音と練習記録はメロディから戻った後も保持する。試聴・単音・メロディは `src/app.ts` が遅延生成する同じ参考音プレーヤーを使う。
-- `src/microphone.ts` がマイクの制約指定、入力ノードと波形バッファの準備、停止と切断、許可待ちで無効になったストリームの解放を扱う。各画面は必要なフレームで入力を読み、音程、信頼度、RMSを受け取る。単音・メロディ・発声ゲームは `sampleTarget()`、自分の声域チェックは `sampleVoiceRange()` を使う。`src/pitchDetection.ts` が1フレームのRMSを計算し、「声の拾いやすさ」に応じて検出を実行する。呼び出すタイミングと、目標音の有無は各画面が決める。単音・メロディと発声ゲームは4096サンプル、自分の声域チェックは8192サンプルを使う。
+- `src/microphone.ts` がマイクの制約指定、入力ノードと波形バッファの準備、停止と切断、許可待ちで無効になったストリームの解放を扱う。各画面は必要なフレームで入力を読み、音程、信頼度、RMSを受け取る。単音・メロディ・発声ゲームは `sampleTarget()`、自分の声域チェックは `sampleVoiceRange()` を使う。`src/pitchDetection.ts` が1フレームのRMSを計算し、「声の拾いやすさ」に応じて検出を実行する。サンプルを読むタイミングは各画面が決める。単音・メロディと発声ゲームは4096サンプル、自分の声域チェックは8192サンプルを使う。
 - 単音・メロディ、試聴、音源再生は必要時に生成する共有の AudioContext を使い、ページの通常離脱時に閉じる。ゲームと声域チェックは開始ごとに専用の AudioContext を作り、停止時に閉じる。
-- `src/audioFileView.ts` がファイル、表示、再生を扱う。`src/audioAnalysisPipeline.ts` がモデル確認、デコード、任意のボーカル抽出、推定、推定セッションの解放を行う。開始直後に解析操作をロックし、成功した結果をまとめて画面に反映する。画面を離れれば再生を一時停止し、解析と結果はページ内に保持する。`src/audioRangeGraph.ts` は解析結果からグラフを描き、開発用の比較出力でも使う。
+- `src/audioFileView.ts` がファイル選択、結果の表示、再生用音源の長さの照合を扱う。`src/audioFilePlayback.ts` がプレーヤー、ゲイン、一時URL、再生要求、位置通知をまとめて管理する。`src/audioAnalysisPipeline.ts` がモデル確認、デコード、任意のボーカル抽出、推定、推定セッションの解放を行う。開始直後に解析操作をロックし、成功した結果をまとめて画面に反映する。画面を離れれば再生を一時停止し、解析と結果はページ内に保持する。`src/audioRangeGraph.ts` は解析結果からグラフを描き、開発用の比較出力でも使う。
 
 ローカル確認は Dev Container 内の Bun + Vite を使い、可能であれば外部ブラウザで開く。
 
@@ -273,7 +274,7 @@ Demucs / ONNX Runtime Web の実行では SharedArrayBuffer が必要になる�
 
 ライセンス面では、Mediabunny と `@mediabunny/mp3-encoder` は MPL-2.0、MP3 エンコードで使う LAME は LGPL、demucs-web、ONNX Runtime Web、onnxcrepe、VoiceConversionWebUI の RMVPE モデルは MIT として扱う。RoFormer 系の実行コードと既定参照モデルも配布元の MIT 表記を前提に扱うが、BS-RoFormer は配布元が商用前の学習データ条件確認を推奨しているため、その注意をUI、ドキュメント、`public/THIRD_PARTY_NOTICES.txt` に残す。ONNX Runtime Web の依存に Apache-2.0、BSD-3-Clause、ISC のパッケージが含まれるため、`public/THIRD_PARTY_NOTICES.txt` に追記している。Workers Static Assets の単一ファイルサイズ上限を避けるため、ONNX Runtime Web の WASM ファイルはアプリに同梱せず jsDelivr から実行時に取得する。Demucs のボーカル抽出モデルもアプリに同梱せず、既定では Hugging Face 上の `timcsy/demucs-web-onnx` の `htdemucs_embedded.onnx` を実行時に取得する。BS-RoFormer は開発時に `public/models/bs-roformer-fp16-webgpu.onnx` を生成して使い、公開ビルドでは `VITE_BS_ROFORMER_FP16_MODEL_URL` で配信用 URL を指定した場合のみ有効にする。CREPE 推定モデルは GitHub Releases 直リンクがブラウザの CORS 制約に当たりやすいため、アプリ実行時は `models/crepe-small.onnx`、`models/crepe-medium.onnx`、`models/crepe-large.onnx`、`models/crepe-full.onnx` を参照する。RMVPE モデルも `models/rmvpe.onnx` を参照する。これらは GitHub Pages のサブパス配信でも解決できるように相対URLにしている。ONNX モデルは Git リポジトリにはコミットせず、ローカルでは `bun run download:pitch-models`、GitHub Pages デプロイでは GitHub Actions の `Download pitch models for GitHub Pages` ステップで `public/models/` に取得してから build する。ランタイムで別モデルを使う場合は `VITE_RMVPE_MODEL_URL`、`VITE_DEMUCS_MODEL_URL`、`VITE_BS_ROFORMER_FP16_MODEL_URL` を使う。`VITE_CREPE_MODEL_URL` は現状 CREPE small の差し替えにのみ使い、ダウンロード元の差し替えは `CREPE_SMALL_MODEL_SOURCE_URL` など size 別の環境変数を使う。
 
-音源グラフは、短いフレームごとの検出点を薄い点群で表示し、近傍中央値から作った中心線を重ねる。ピッチ検出は子音、息、リバーブ、分離ノイズで瞬間的に乱れるため、全点を連続線で結ばない。音源再生中は現在位置を縦線で描画し、長いグラフでは現在位置が見えるようにスクロール位置を更新する。
+音源グラフは、短いフレームごとの検出点を薄い点群で表示し、近傍中央値から作った中心線を重ねる。ピッチ検出は子音、息、リバーブ、分離ノイズで瞬間的に乱れるため、全点を連続線で結ばない。再生位置の縦線、時刻、音名はCanvasに重ねたDOMで表示し、長いグラフでは現在位置が見えるようにスクロールする。Canvasのサイズの計測は表示・音源・レイアウトの変更時に行い、描画範囲や解析結果が変わったときに背景グラフと中心線を描き直す。
 
 開発サーバの `/model-comparison.html` で、ピッチ推定モデル比較PNGと全ボーカル抽出モデルMP3を出力できる。比較ページは通常の公開ビルドの入口から独立している。`src/modelComparisonTool.ts` が解析パイプラインとグラフ描画を呼び出し、PNGでは各推定器の結果を縦に並べる。必要に応じて `bun run download:pitch-models` で比較用モデルを取得する。MP3比較は各モデルの失敗を記録して次のモデルへ進む。BS-RoFormerを比較する場合は `bun run prepare:bs-roformer-webgpu` でローカルモデルを生成する。
 

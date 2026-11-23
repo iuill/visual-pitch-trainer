@@ -973,6 +973,66 @@ input[type="range"] {
   scrollbar-gutter: stable;
 }
 
+.audio-range-content {
+  position: relative;
+  width: 100%;
+  min-width: 100%;
+}
+
+#audioRangeCursor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #b42318;
+  font-family: system-ui, sans-serif;
+}
+
+#audioRangeCursor::before {
+  position: absolute;
+  top: var(--audio-plot-top);
+  bottom: var(--audio-plot-bottom);
+  left: var(--audio-cursor-x);
+  width: 2px;
+  background: currentColor;
+  transform: translateX(-50%);
+  content: "";
+}
+
+#audioRangeCursorTime {
+  position: absolute;
+  top: calc(var(--audio-plot-top) - 23px);
+  left: var(--audio-cursor-x);
+  font-size: 13px;
+  font-weight: 700;
+  transform: translateX(-50%);
+}
+
+.audio-range-cursor-pitch {
+  position: absolute;
+  top: calc(var(--audio-plot-top) + 2px);
+  left: clamp(
+    calc(var(--audio-plot-left) + 50px),
+    var(--audio-cursor-x),
+    calc(100% - var(--audio-plot-right) - 50px)
+  );
+  width: 100px;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+#audioRangeCursorPitch {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1.5px solid #b42318;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.98);
+  color: #8f1d14;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 19px;
+  white-space: nowrap;
+}
+
 #audioRangeAxisCanvas {
   position: absolute;
   top: 0;

@@ -33,12 +33,10 @@ export function renderAudioRangeGraph(
     pixelRatio: number;
     analysis: AudioFileAnalysis | null;
     durationSec: number;
-    playbackTime?: number;
   },
 ) {
   const { canvas } = context;
-  const { axisContext, pixelRatio, analysis, durationSec, playbackTime } =
-    options;
+  const { axisContext, pixelRatio, analysis, durationSec } = options;
   const width = canvas.width / pixelRatio;
   const height = canvas.height / pixelRatio;
   const padding = AUDIO_RANGE_GRAPH_PADDING;
@@ -110,16 +108,6 @@ export function renderAudioRangeGraph(
     maxMidi,
     durationSec: analysis.summary.durationSec,
   });
-  if (playbackTime !== undefined)
-    drawAudioPlaybackCursor(context, playbackTime, {
-      points: analysis.points,
-      padding,
-      plotWidth,
-      plotHeight,
-      minMidi,
-      maxMidi,
-      durationSec,
-    });
 }
 
 function drawAudioRangeGrid(
@@ -471,116 +459,35 @@ function drawAudioPitchTrend(
   context.restore();
 }
 
-function drawAudioPlaybackCursor(
-  context: CanvasRenderingContext2D,
-  currentTime: number,
-  options: {
-    points: AudioPitchPoint[];
-    padding: GraphPadding;
-    plotWidth: number;
-    plotHeight: number;
-    minMidi: number;
-    maxMidi: number;
-    durationSec: number;
-  },
-) {
-  const { points, padding, plotWidth, plotHeight, durationSec } = options;
-
-  if (durationSec <= 0) {
-    return;
-  }
-
-  const clampedTime = Math.max(0, Math.min(durationSec, currentTime));
-  const x = padding.left + (clampedTime / durationSec) * plotWidth;
-
-  context.save();
-  context.strokeStyle = "#b42318";
-  context.lineWidth = 2;
-  context.beginPath();
-  context.moveTo(x, padding.top);
-  context.lineTo(x, padding.top + plotHeight);
-  context.stroke();
-
-  context.fillStyle = "#b42318";
-  context.font = "700 13px system-ui, sans-serif";
-  context.textAlign = "center";
-  context.fillText(formatClockTime(clampedTime), x, padding.top - 8);
-
-  drawAudioPlaybackPitchLabel(context, {
-    point: findNearestAudioPitchPoint(points, clampedTime * 1000),
-    x,
-    padding,
-    plotWidth,
-  });
-  context.restore();
-}
-
-function drawAudioPlaybackPitchLabel(
-  context: CanvasRenderingContext2D,
-  options: {
-    point: AudioPitchPoint | null;
-    x: number;
-    padding: GraphPadding;
-    plotWidth: number;
-  },
-) {
-  const { point, x, padding, plotWidth } = options;
-
-  if (point?.midi === null || point?.midi === undefined) {
-    return;
-  }
-
-  const label = `${midiToSolfegeName(point.midi)} ${midiToNoteName(point.midi)}`;
-
-  context.save();
-  context.font = "800 15px system-ui, sans-serif";
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-
-  const metrics = context.measureText(label);
-  const labelWidth = metrics.width + 14;
-  const labelHeight = 24;
-  const labelX = Math.max(
-    padding.left + labelWidth / 2,
-    Math.min(x, padding.left + plotWidth - labelWidth / 2),
-  );
-  const labelY = padding.top + 14;
-  const rectX = labelX - labelWidth / 2;
-  const rectY = labelY - labelHeight / 2;
-
-  context.fillStyle = "rgba(255, 255, 255, 0.98)";
-  context.strokeStyle = "#b42318";
-  context.lineWidth = 1.5;
-  context.beginPath();
-  context.roundRect(rectX, rectY, labelWidth, labelHeight, 7);
-  context.fill();
-  context.stroke();
-  context.fillStyle = "#8f1d14";
-  context.fillText(label, labelX, labelY);
-  context.restore();
-}
-
-function findNearestAudioPitchPoint(
-  points: AudioPitchPoint[],
+/** The analysis points must be in ascending time order. */
+export function audioPitchLabelAt(
+  points: readonly AudioPitchPoint[],
   timeMs: number,
-): AudioPitchPoint | null {
+): string | null {
   const maxDistanceMs = 300;
-  let nearestPoint: AudioPitchPoint | null = null;
+  let start = 0;
+  let end = points.length;
+  while (start < end) {
+    const middle = Math.floor((start + end) / 2);
+    if (points[middle].timeMs < timeMs - maxDistanceMs) start = middle + 1;
+    else end = middle;
+  }
+
+  let nearestMidi: number | null = null;
   let nearestDistance = Infinity;
-
-  for (const point of points) {
-    if (point.midi === null) {
-      continue;
-    }
-
+  for (let index = start; index < points.length; index++) {
+    const point = points[index];
+    if (point.timeMs > timeMs + maxDistanceMs) break;
+    if (point.midi === null) continue;
     const distance = Math.abs(point.timeMs - timeMs);
     if (distance < nearestDistance) {
       nearestDistance = distance;
-      nearestPoint = point;
+      nearestMidi = point.midi;
     }
   }
-
-  return nearestDistance <= maxDistanceMs ? nearestPoint : null;
+  return nearestMidi === null
+    ? null
+    : `${midiToSolfegeName(nearestMidi)} ${midiToNoteName(nearestMidi)}`;
 }
 
 function buildAudioPitchTrend(
