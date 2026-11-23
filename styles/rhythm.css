@@ -548,10 +548,6 @@
 }
 
 .rhythm-note[data-active] .rhythm-note-icon {
-  color: #087982;
-  background: #edf6fa;
-  border-radius: 50%;
-  outline: 2px solid #087982;
   scale: 1.1;
 }
 
@@ -585,14 +581,38 @@
 }
 
 .rhythm-beat[data-active="true"] .rhythm-footprint {
-  outline: 2px solid currentColor;
-  border-radius: 5px;
-  background: #f3f7f8;
   translate: 0 2px;
 }
 
-.rhythm-beat[data-count-in][data-active="true"] .rhythm-footprint {
-  background: #e4e7ea;
+:is(.rhythm-note, .rhythm-beat) {
+  --rhythm-glow-ink: #075e68;
+  --rhythm-glow-near: #31d9cf;
+  --rhythm-glow-far: #099dba99;
+}
+
+.rhythm-beat[data-count-in] {
+  --rhythm-glow-ink: var(--rhythm-count-in-ink);
+  --rhythm-glow-near: #b5c8d5;
+  --rhythm-glow-far: #788d9d88;
+}
+
+.rhythm-note[data-active] .rhythm-note-icon,
+.rhythm-beat[data-active="true"] .rhythm-footprint {
+  color: var(--rhythm-glow-ink);
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 2px var(--rhythm-glow-near))
+    drop-shadow(0 0 5px var(--rhythm-glow-far));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rhythm-note .rhythm-note-icon,
+  .rhythm-beat .rhythm-footprint {
+    transition: filter 85ms ease-out;
+  }
+
+  .rhythm-note[data-active] .rhythm-note-icon,
+  .rhythm-beat[data-active="true"] .rhythm-footprint {
+    transition-duration: 20ms;
+  }
 }
 
 #rhythmHitFeedback {
