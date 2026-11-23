@@ -496,6 +496,7 @@ const gamePractice = new GamePractice(
   }),
   () => {
     voiceRangeCheck.stop();
+    stopInstrumentPreview();
     stopScalePlayback();
     stopReferenceTone();
     stopMicrophone();
@@ -507,6 +508,7 @@ const voiceRangeCheck = new VoiceRangeCheck(
   () => ({ deviceId: state.selectedDeviceId, minRms: state.minRms }),
   () => {
     gamePractice.stop();
+    stopInstrumentPreview();
     stopScalePlayback();
     stopReferenceTone();
     stopMicrophone();
@@ -529,6 +531,7 @@ function setupPracticeNavigation() {
       if (view === practiceView) return;
       voiceRangeCheck.stop();
       gamePractice.stop();
+      stopInstrumentPreview();
       stopScalePlayback();
       stopReferenceTone();
       stopMicrophone();
@@ -683,8 +686,8 @@ function init() {
   window.addEventListener("pagehide", handlePageHide);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) return;
+    stopInstrumentPreview();
     if (state.isScalePlaying) stopScalePlayback();
-    else stopInstrumentPreview();
   });
   elements.melodyPatternSelect.replaceChildren(
     ...MELODY_PATTERNS.map((pattern) =>
@@ -2430,8 +2433,8 @@ function updateNoteButtonStates() {
 }
 
 function handleNoteRangeChange() {
+  stopInstrumentPreview();
   if (state.isScalePlaying) stopScalePlayback();
-  else stopInstrumentPreview();
   const previousIndex = getCurrentNotes().findIndex(
     (note) => note.name === state.target.name,
   );
@@ -2791,6 +2794,7 @@ function handleReferenceInstrumentChange() {
   const instrument = elements.referenceInstrumentSelect.value;
   if (!isReferenceInstrumentId(instrument)) return;
   const wasPlaying = state.isReferencePlaying;
+  stopInstrumentPreview();
   stopReferenceTone();
   stopScalePlayback();
   state.referenceInstrument = instrument;
@@ -2863,6 +2867,7 @@ async function toggleReferenceTone() {
 }
 
 async function startReferenceTone() {
+  stopInstrumentPreview();
   stopScalePlayback();
   const requestId = ++referencePlaybackRequestId;
   const instrument = state.referenceInstrument;
@@ -3016,8 +3021,7 @@ function stopScalePlayback() {
       : 0;
   elements.melodyCountdown.hidden = true;
   scalePlaybackRequestId++;
-  if (state.isScalePlaying) state.referencePlayer?.stopScale();
-  else stopInstrumentPreview();
+  state.referencePlayer?.stopScale();
   if (state.scalePlaybackTimerId !== null) {
     window.clearTimeout(state.scalePlaybackTimerId);
     state.scalePlaybackTimerId = null;

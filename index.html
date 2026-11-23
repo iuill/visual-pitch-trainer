@@ -92,12 +92,13 @@
                 <option value="violin">バイオリン</option>
                 <option value="flute">フルート</option>
               </select>
-              <button id="previewInstrumentButton" class="secondary-button" type="button">試聴</button>
+              <button id="previewInstrumentButton" class="secondary-button" type="button" aria-describedby="previewInstrumentHelp">試聴</button>
             </div>
           </div>
           <p id="referenceInstrumentStatus" class="reference-instrument-status" role="status">
             生ピアノの録音です。お手本音は約2.5秒ごとに鳴ります。
           </p>
+          <p id="previewInstrumentHelp" class="reference-instrument-status">試聴すると、進行中の練習や計測、音源の再生が止まります。</p>
 
           <p class="compatibility-note">
             iOSではマイク使用中にお手本音へノイズが乗る場合があります。気になるときは、お手本音を止めてから稽古を開始してください。
