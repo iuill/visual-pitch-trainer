@@ -1,10 +1,7 @@
-import { PitchDetector } from "pitchy";
+import { createAudioContext } from "./audioContext";
 import { VOICE_RANGE_GRAPH_MS, type VoiceRangeGraphSample } from "./graphModel";
-import { formatMicrophoneError } from "./microphone";
-import {
-  detectVoiceRangePitch,
-  VOICE_RANGE_MIN_CLARITY,
-} from "./pitchDetection";
+import { formatMicrophoneError, MicrophoneInput } from "./microphone";
+import { detectVoiceRangePitch } from "./pitchDetection";
 import {
   hzToMidi,
   midiToKaraokeName,
@@ -25,14 +22,13 @@ import {
 export class VoiceRangeCheck {
   private range = createVoiceRange();
   private context: AudioContext | null = null;
-  private stream: MediaStream | null = null;
-  private source: MediaStreamAudioSourceNode | null = null;
-  private analyser: AnalyserNode | null = null;
+  private readonly microphone = new MicrophoneInput();
   private frame: number | null = null;
   private generation = 0;
   private active = false;
   private samples: VoiceRangeGraphSample[] = [];
   private readonly root: HTMLElement;
+  private readonly resizeObserver: ResizeObserver | undefined;
   private pendingMessage = "";
   private pendingMessageAt = 0;
 
@@ -61,17 +57,14 @@ export class VoiceRangeCheck {
         this.message("記録を消しました。もう一度チェックできます。");
       },
     );
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) this.stop();
-    });
-    window.addEventListener("pagehide", () => this.stop());
     this.el<HTMLSelectElement>("voiceRangeGraphNotation").addEventListener(
       "change",
       () => this.drawGraph(),
     );
-    new ResizeObserver(() => this.drawGraph()).observe(
-      this.el("voiceRangeCanvas"),
-    );
+    if (typeof ResizeObserver !== "undefined") {
+      this.resizeObserver = new ResizeObserver(() => this.drawGraph());
+      this.resizeObserver.observe(this.el("voiceRangeCanvas"));
+    }
     this.render();
   }
 
@@ -93,21 +86,21 @@ export class VoiceRangeCheck {
     if (element.textContent !== text) element.textContent = text;
   }
 
+  dispose() {
+    this.stop();
+    this.resizeObserver?.disconnect();
+  }
+
   stop() {
     const wasActive = this.active;
     this.active = false;
     this.generation++;
     if (this.frame !== null) cancelAnimationFrame(this.frame);
     this.frame = null;
-    this.source?.disconnect();
-    this.analyser?.disconnect();
-    for (const track of this.stream?.getTracks() ?? []) track.stop();
+    this.microphone.stop();
     if (this.context && this.context.state !== "closed")
       void this.context.close().catch(() => {});
     this.context = null;
-    this.stream = null;
-    this.source = null;
-    this.analyser = null;
     this.range.candidate = null;
     this.range.heldMs = 0;
     this.range.previousAt = null;
@@ -139,48 +132,25 @@ export class VoiceRangeCheck {
     try {
       if (!navigator.mediaDevices?.getUserMedia)
         throw new DOMException("microphone unavailable", "SecurityError");
-      const Context = window.AudioContext || window.webkitAudioContext;
-      if (!Context) throw new Error("audio unavailable");
-      const context = new Context();
+      const context = createAudioContext();
       this.context = context;
       await context.resume();
       if (generation !== this.generation) return;
       const { deviceId, minRms } = this.settings();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
+      const capture = await this.microphone.start(context, {
+        deviceId,
+        fftSize: 8192,
+        minRms,
+        onEnded: () => this.stop(),
       });
-      if (generation !== this.generation) {
-        for (const track of stream.getTracks()) track.stop();
-        return;
-      }
-      this.stream = stream;
-      for (const track of stream.getTracks())
-        track.addEventListener("ended", () => {
-          if (generation === this.generation) this.stop();
-        });
-      const analyser = context.createAnalyser();
-      analyser.fftSize = 8192;
-      this.analyser = analyser;
-      this.source = context.createMediaStreamSource(stream);
-      this.source.connect(analyser);
-      const buffer = new Float32Array(analyser.fftSize);
-      const detector = PitchDetector.forFloat32Array(buffer.length);
-      detector.clarityThreshold = VOICE_RANGE_MIN_CLARITY;
-      detector.minVolumeAbsolute = minRms;
-      const detectors = {
-        detector,
-        sampleRate: context.sampleRate,
-        bufferSize: buffer.length,
-      };
+      if (!capture || generation !== this.generation) return;
       const tick = (now: number) => {
         if (generation !== this.generation) return;
-        analyser.getFloatTimeDomainData(buffer);
-        const detection = detectVoiceRangePitch(buffer, detectors, minRms);
+        const detection = detectVoiceRangePitch(
+          capture.read(),
+          capture.detectors,
+          minRms,
+        );
         const before = this.range.notes.length;
         observeVoiceRange(this.range, detection.frequency, now);
         if (now - (this.samples.at(-1)?.timeMs ?? -Infinity) >= 40) {

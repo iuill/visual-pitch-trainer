@@ -1,9 +1,11 @@
-import { PitchDetector } from "pitchy";
-import { formatMicrophoneError } from "./microphone";
+import { createAudioContext } from "./audioContext";
 import {
-  detectPitchWithLibraries,
-  type LibraryDetectors,
-} from "./pitchDetection";
+  formatMicrophoneError,
+  type MicrophoneCapture,
+  MicrophoneInput,
+  PRACTICE_MIC_FFT_SIZE,
+} from "./microphone";
+import { detectPitchWithLibraries } from "./pitchDetection";
 import {
   APPROACH_MS,
   awardGameRound,
@@ -44,16 +46,14 @@ type Phase =
 
 export class GamePractice {
   private readonly root: HTMLElement;
+  private readonly resizeObserver: ResizeObserver | undefined;
   private active = false;
   private audioReady = false;
   private generation = 0;
   private context: AudioContext | null = null;
   private player: ReferencePlayer | null = null;
-  private stream: MediaStream | null = null;
-  private source: MediaStreamAudioSourceNode | null = null;
-  private analyser: AnalyserNode | null = null;
-  private buffer = new Float32Array(4096);
-  private detectors: LibraryDetectors | null = null;
+  private readonly microphone = new MicrophoneInput();
+  private capture: MicrophoneCapture | null = null;
   private frame: number | null = null;
   private phase: Phase = "idle";
   private mode = "voice";
@@ -96,11 +96,10 @@ export class GamePractice {
       else this.nextEarRound();
     });
     this.el("gameMode").addEventListener("change", () => this.showMode());
-    new ResizeObserver(() => this.draw()).observe(this.el("gameCanvas"));
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) this.stop();
-    });
-    window.addEventListener("pagehide", () => this.stop());
+    if (typeof ResizeObserver !== "undefined") {
+      this.resizeObserver = new ResizeObserver(() => this.draw());
+      this.resizeObserver.observe(this.el("gameCanvas"));
+    }
     this.showMode();
   }
   private el<T extends HTMLElement>(id: string): T {
@@ -135,6 +134,11 @@ export class GamePractice {
         "共通設定が変わったため中止しました。新しい設定で再開できます。",
       );
   }
+  dispose() {
+    this.stop();
+    this.resizeObserver?.disconnect();
+  }
+
   stop(message = "ゲームを中止しました。最初からやり直せます。") {
     const wasActive = this.active;
     this.active = false;
@@ -145,17 +149,12 @@ export class GamePractice {
     this.frame = null;
     this.clearCelebration();
     this.player?.dispose();
-    this.source?.disconnect();
-    this.analyser?.disconnect();
-    for (const track of this.stream?.getTracks() ?? []) track.stop();
+    this.microphone.stop();
+    this.capture = null;
     if (this.context && this.context.state !== "closed")
       void this.context.close().catch(() => {});
     this.player = null;
     this.context = null;
-    this.source = null;
-    this.analyser = null;
-    this.stream = null;
-    this.detectors = null;
     this.el<HTMLButtonElement>("gameStart").disabled = false;
     this.el<HTMLButtonElement>("gameStop").disabled = true;
     this.el<HTMLFieldSetElement>("gameSettings").disabled = false;
@@ -219,7 +218,7 @@ export class GamePractice {
       this.notes = buildNoteRange(this.settings.startMidi);
       if (this.mode === "ear" && this.settings.volume === 0)
         throw new Error("共通設定のお手本音量を上げてから始めてください。");
-      this.context = new AudioContext();
+      this.context = createAudioContext();
       const context = this.context;
       await context.resume();
       if (generation !== this.generation) return;
@@ -254,43 +253,14 @@ export class GamePractice {
         this.nextEarRound();
       } else {
         startingMicrophone = true;
-        if (!navigator.mediaDevices?.getUserMedia)
-          throw new DOMException(
-            "マイクにはHTTPSまたはlocalhostが必要です。",
-            "SecurityError",
-          );
         this.message("マイクの使用を許可してください。");
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            ...(this.settings.deviceId
-              ? { deviceId: { exact: this.settings.deviceId } }
-              : {}),
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-          },
+        const capture = await this.microphone.start(context, {
+          deviceId: this.settings.deviceId,
+          fftSize: PRACTICE_MIC_FFT_SIZE,
+          onEnded: () => this.stop("マイクが切断されました。"),
         });
-        if (generation !== this.generation) {
-          for (const track of stream.getTracks()) track.stop();
-          return;
-        }
-        this.stream = stream;
-        for (const track of stream.getAudioTracks())
-          track.addEventListener("ended", () => {
-            if (generation === this.generation)
-              this.stop("マイクが切断されました。");
-          });
-        this.analyser = context.createAnalyser();
-        this.analyser.fftSize = this.buffer.length;
-        this.source = context.createMediaStreamSource(stream);
-        this.source.connect(this.analyser);
-        const detector = PitchDetector.forFloat32Array(this.buffer.length);
-        detector.clarityThreshold = 0.93;
-        this.detectors = {
-          detector,
-          sampleRate: context.sampleRate,
-          bufferSize: this.buffer.length,
-        };
+        if (!capture || generation !== this.generation) return;
+        this.capture = capture;
         this.until = context.currentTime * 1000 + 3000;
         this.el("gameCountdown").hidden = false;
         this.message(
@@ -414,14 +384,12 @@ export class GamePractice {
         this.phase === "challenge" &&
         this.challenge &&
         this.target &&
-        this.analyser &&
-        this.detectors &&
+        this.capture &&
         this.settings
       ) {
-        this.analyser.getFloatTimeDomainData(this.buffer);
         const detection = detectPitchWithLibraries(
-          this.buffer,
-          this.detectors,
+          this.capture.read(),
+          this.capture.detectors,
           {
             minRms: this.settings.minRms,
             minClarity: 0.9,
