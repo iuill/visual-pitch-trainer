@@ -6,6 +6,7 @@ import { setupGamePractice } from "./gamePractice";
 import { setupPracticeView } from "./practiceView";
 import { setupPwa } from "./pwa";
 import { ReferencePlayer } from "./referencePlayer";
+import { setupRhythmPractice } from "./rhythmPracticeView";
 import { setupVoiceRangeCheck } from "./voiceRangeCheck";
 import "../styles.css";
 
@@ -38,8 +39,9 @@ function init() {
     audio: setupAudioFileView(),
     game: setupGamePractice(settings.getSettings, settings.stopPreview),
     range: setupVoiceRangeCheck(settings.getSettings, settings.stopPreview),
+    rhythm: setupRhythmPractice(settings.stopPreview, playback.getPlayer),
   };
-  const { practice, audio, game, range } = instances;
+  const { practice, audio, game, range, rhythm } = instances;
   const views = {
     single: {
       description: "音をひとつ選び、お手本に合わせて声を伸ばします。",
@@ -55,6 +57,10 @@ function init() {
         show: (visible) => practice.show(visible ? "melody" : null),
         stop: practice.stop,
       },
+    },
+    rhythm: {
+      description: "足で拍を刻み、流れる音符に合わせて手でタップします。",
+      view: rhythm,
     },
     games: {
       description:
@@ -125,7 +131,7 @@ function init() {
 function updateBuildInfo() {
   const element = queryElement<HTMLElement>("#appVersion");
   const hash = import.meta.env.VITE_APP_COMMIT_HASH;
-  element.textContent = `Version v${import.meta.env.VITE_APP_VERSION}${hash ? ` (${hash})` : ""}`;
+  element.textContent = `Version ${import.meta.env.VITE_APP_VERSION_LABEL}${hash ? ` (${hash})` : ""}`;
   element.title = hash ? `build commit: ${hash}` : "build commit: unavailable";
 }
 

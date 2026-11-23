@@ -2,6 +2,7 @@
 @import "./styles/practice.css" layer(screens);
 @import "./styles/settings.css" layer(screens);
 @import "./styles/melody.css" layer(screens);
+@import "./styles/rhythm.css" layer(screens);
 @import "./styles/game.css" layer(screens);
 @import "./styles/voice-range.css" layer(screens);
 @import "./styles/audio.css" layer(screens);

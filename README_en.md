@@ -41,7 +41,7 @@ Browser
 
 On narrow screens, you can stop single-note practice, melody practice, and the voice range check from the bottom of the screen while viewing the graph.
 
-Switch between single-note practice, melody practice, games, your own voice range check, and audio range analysis using the top menu. Shared settings sit above the menu and apply to single-note practice, melody practice and games. Voice range checks use only the microphone and sensitivity settings. Open shared settings with the labeled button; the current range, instrument, volume and tolerance remain visible on the practice screen. The default instrument is piano. Choose single-note targets on the practice screen, and open Melody Settings to change the melody or note duration. Changes apply immediately. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
+Switch between single-note practice, melody practice, rhythm practice, games, your own voice range check, and audio range analysis using the top menu. Shared settings sit above the menu and apply to single-note practice, melody practice and games. Voice range checks use only the microphone and sensitivity settings. Open shared settings with the labeled button; the current range, instrument, volume and tolerance remain visible on the practice screen. The default instrument is piano. Choose single-note targets on the practice screen, and open Melody Settings to change the melody or note duration. Changes apply immediately. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
 
 - Select and play reference tones across one chromatic octave
 - Choose vocal ranges with voice range guides: C3-C4 / C4-C5 / C5-C6
@@ -58,6 +58,10 @@ Switch between single-note practice, melody practice, games, your own voice rang
 - Export a development PNG comparing pitchy / CREPE / RMVPE pitch graphs
 - Play either the analyzed audio file or a separately selected playback audio file while following the current position on the vocal range graph
 - Responsive UI for desktop, tablet, and smartphone browsers
+
+## Rhythm Practice
+
+Keep the beat with your foot and tap the screen or press Space, F, or J as notes reach the judgment line. The course has 27 steps, including 11 songs in the final chapter. You can preview the rhythm, review the result of each note, calibrate timing, and save your progress in the browser. See the [design notes](docs/design.md#リズム練習) for the practice flow and scoring rules.
 
 ## Voice Range Check
 
@@ -137,7 +141,7 @@ bun run build
 
 On pushes to `main` or SemVer tags, the app is deployed to GitHub Pages after verification passes. For the first deployment, set the GitHub Pages Build and deployment source to `GitHub Actions` in the repository settings.
 
-The deployed app shows a build version and short commit hash in the footer. Regular GitHub Pages deployments use `GITHUB_RUN_NUMBER` to generate labels such as `v0.1.N`, so you do not need to manually increment `package.json`. `N` is the CI workflow run number and may include gaps from pull requests or manual runs. Tag deployments display the SemVer tag name, such as `v1.2.3`.
+The deployed app shows a build version and short commit hash in the footer. Regular GitHub Pages deployments display `Version v0.2 · Build N (commit hash)` and read `N` from `GITHUB_RUN_NUMBER`. `N` is the CI workflow run number and may include gaps from pull requests or manual runs. Tag deployments display the SemVer tag name, such as `v1.2.3`.
 
 To update Pages manually, select Actions → `Deploy Pages` → `Run workflow` on `main`. It audits dependencies, runs lint, tests and typechecking, downloads models, builds and deploys. Other branches are skipped. Manual `CI` runs only verify the app.
 

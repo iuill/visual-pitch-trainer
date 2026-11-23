@@ -158,6 +158,7 @@
       <nav class="practice-nav" aria-label="練習メニュー">
         <button type="button" data-practice-view="single" aria-pressed="true" aria-controls="practiceWorkspace">単音練習</button>
         <button type="button" data-practice-view="melody" aria-pressed="false" aria-controls="practiceWorkspace">メロディ練習</button>
+        <button type="button" data-practice-view="rhythm" aria-pressed="false" aria-controls="rhythmPracticeView">リズム練習</button>
         <button type="button" data-practice-view="games" aria-pressed="false" aria-controls="gamePracticeView">ゲーム</button>
         <button type="button" data-practice-view="range" aria-pressed="false" aria-controls="voiceRangeView">自分の声域チェック</button>
         <button type="button" data-practice-view="audio" aria-pressed="false" aria-controls="audioFileView">音源の声域確認</button>
@@ -665,6 +666,130 @@
           <button id="gameNext" type="button" class="primary-button" hidden>次の問題</button>
         </div>
         <details class="game-history"><summary>今回の結果</summary><ol id="gameHistory"></ol></details>
+      </section>
+
+      <section id="rhythmPracticeView" class="panel rhythm-practice" aria-labelledby="rhythmTitle" hidden>
+        <h2 id="rhythmTitle">リズム練習</h2>
+        <p id="rhythmStorageWarning" class="graph-hint" role="status"></p>
+        <div id="rhythmSetup">
+          <div>
+            <label class="rhythm-field">コースのステップ <select id="rhythmStep"></select></label>
+            <p id="rhythmStepInfo"></p>
+            <div class="rhythm-unlock">
+              <strong id="rhythmUnlockMessage"></strong>
+              <span id="rhythmUnlockCount"></span>
+              <progress id="rhythmUnlockProgress" aria-label="ステップクリアまでの連続合格"></progress>
+            </div>
+            <details id="rhythmExamples" open>
+              <summary>今回のポイントとリズムの例</summary>
+              <p id="rhythmHint"></p>
+              <div class="rhythm-example-controls">
+                <button id="rhythmExamplePlayAll" class="secondary-button" type="button" hidden>通しで再生</button>
+                <label><input id="rhythmExampleVoice" type="checkbox"> カウント音声を重ねる</label>
+              </div>
+              <p id="rhythmExampleHelp" class="graph-hint"></p>
+              <details id="rhythmExampleBars" open>
+                <summary id="rhythmExampleBarsLabel">小節ごとの譜例</summary>
+                <div id="rhythmPatterns" class="rhythm-patterns"></div>
+                <ul id="rhythmPatternLegend" class="rhythm-pattern-legend" aria-label="このステップの譜面記号" hidden></ul>
+              </details>
+              <p id="rhythmExampleStatus" role="status"></p>
+            </details>
+            <button id="rhythmStart" type="button" class="primary-button">練習画面へ</button>
+          </div>
+          <details id="rhythmSettings">
+            <summary>リズム練習の設定</summary>
+            <div class="rhythm-settings-fields">
+              <label class="rhythm-field">カウント音 <select id="rhythmSound"><option value="voice">音声</option><option value="click">クリック</option><option value="none">なし</option></select></label>
+              <label class="rhythm-field">カウントの声 <select id="rhythmCountVoice"><option value="male">男性</option><option value="female">女性</option></select></label>
+              <label class="rhythm-field">カウント・曲の音量 <input id="rhythmVolume" type="range" min="0" max="100" step="1"></label>
+              <label><input id="rhythmEffects" type="checkbox"> 判定の効果音</label>
+              <label class="rhythm-field">何に合わせて叩くか <select id="rhythmGuide"><option value="visual">画面の動き</option><option value="audio">聞こえる音</option></select></label>
+            </div>
+            <label class="rhythm-free-play"><input id="rhythmFreePlay" type="checkbox" aria-describedby="rhythmFreePlayHelp"> 全ステップを自由に選ぶ</label>
+            <p id="rhythmFreePlayHelp" class="graph-hint">オンにすると、クリア前でも全ステップを選べます。練習結果も記録します。</p>
+            <fieldset class="rhythm-calibration-settings">
+              <legend>タイミング補正（任意）</legend>
+              <p class="graph-hint">3秒のカウントダウンの後、準備の4拍があります。「測定」に切り替わったら、合図に合わせて8回タップします。</p>
+              <div class="rhythm-calibration-options">
+                <div>
+                  <strong>画面を見て叩く</strong>
+                  <p class="graph-hint">画面の光とタップのズレを測ります。</p>
+                  <p id="rhythmVisualCalibrationInfo" class="graph-hint"></p>
+                  <div class="rhythm-actions">
+                    <button id="rhythmVisualCalibration" type="button" class="secondary-button">光に合わせて測る</button>
+                    <button id="rhythmClearVisualCalibration" type="button" class="secondary-button">画面の補正を解除</button>
+                  </div>
+                </div>
+                <div>
+                  <strong>音を聴いて叩く</strong>
+                  <p class="graph-hint">聞こえたクリック音とタップのズレを測ります。Bluetoothでも、練習に使うイヤホンやスピーカーで測ってください。</p>
+                  <p id="rhythmAudioCalibrationInfo" class="graph-hint"></p>
+                  <div class="rhythm-actions">
+                    <button id="rhythmAudioCalibration" type="button" class="secondary-button">クリック音に合わせて測る</button>
+                    <button id="rhythmClearAudioCalibration" type="button" class="secondary-button">音の補正を解除</button>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+            <button id="rhythmReset" type="button" class="secondary-button">進捗をリセット</button>
+          </details>
+        </div>
+        <div id="rhythmStage" hidden>
+          <p id="rhythmActiveStep" class="graph-hint" hidden>
+            <span id="rhythmActiveStepLabel"></span>
+            <span id="rhythmActiveMeter"></span>
+          </p>
+          <div class="rhythm-stage-heading">
+            <strong id="rhythmActiveTitle"></strong>
+            <div class="rhythm-phase-status">
+              <span id="rhythmLoading" class="loading-spinner" aria-hidden="true" hidden></span>
+              <span id="rhythmPhase" role="status"></span>
+            </div>
+          </div>
+          <div id="rhythmCount" class="rhythm-count" data-accent="false">—</div>
+          <section id="rhythmScore" class="rhythm-score" aria-labelledby="rhythmScoreLabel" hidden>
+            <div class="rhythm-score-heading">
+              <h3 id="rhythmScoreLabel">小節ごとの判定</h3>
+              <span id="rhythmScoreExtras" hidden></span>
+            </div>
+            <ol id="rhythmScoreBars" class="rhythm-score-bars"></ol>
+            <p class="rhythm-score-key">◎ ぴったり　○ ずれ　× ミス</p>
+          </section>
+          <div id="rhythmLaneArea" class="rhythm-lane-area">
+            <div id="rhythmLanes" class="rhythm-lanes">
+              <div class="rhythm-lane-labels" aria-hidden="true"><span>手</span><span>足</span></div>
+              <div class="rhythm-track">
+                <div class="rhythm-judge-line" aria-hidden="true"></div>
+                <div id="rhythmMarkers" aria-hidden="true"></div>
+              </div>
+            </div>
+            <div id="rhythmHitFeedback" class="rhythm-hit-feedback"></div>
+          </div>
+          <p id="rhythmInputHelp" class="graph-hint"></p>
+          <button id="rhythmTap" type="button" class="primary-button rhythm-tap" aria-describedby="rhythmInputHelp" aria-keyshortcuts="Space F J">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11 4V2M7.5 5.5 6 4m8.5 1.5L16 4M11 16V9a2 2 0 1 1 4 0v5l5.4 1.1a2.5 2.5 0 0 1 2 2.8l-.6 4.7a3 3 0 0 1-3 2.6h-5.2a3 3 0 0 1-2.5-1.3l-4.4-6.4a1.8 1.8 0 0 1 2.8-2.2l1.5 1.5"/>
+            </svg>
+            <span id="rhythmTapLabel">タップ（スペース / F / J）</span>
+          </button>
+          <button id="rhythmStop" type="button" class="secondary-button">停止</button>
+        </div>
+        <p id="rhythmFeedback" class="rhythm-feedback" role="status"></p>
+        <section id="rhythmResult" aria-labelledby="rhythmResultTitle" hidden>
+          <h3 id="rhythmResultTitle">練習結果</h3>
+          <div id="rhythmStats" class="result-grid"></div>
+          <p id="rhythmPassRate" hidden></p>
+          <p id="rhythmAverage"></p>
+          <details open>
+            <summary>タップのズレの分布</summary>
+            <ul id="rhythmHistogram" class="rhythm-histogram"></ul>
+          </details>
+          <div class="rhythm-actions">
+            <button id="rhythmNext" type="button" class="primary-button" hidden>次のステップへ</button>
+            <button id="rhythmRetry" type="button" class="secondary-button">もう一度</button>
+          </div>
+        </section>
       </section>
 
       <footer class="app-footer">

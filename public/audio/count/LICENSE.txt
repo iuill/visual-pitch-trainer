@@ -1,0 +1,13 @@
+Count audio (male and female voices)
+
+These files contain single English counting words synthesized using the stock
+eSpeak NG en-us and en-us+f3 formant voices. eSpeak's maintainer states that
+the program's GPL does not apply to generated speech WAV output.
+
+eSpeak NG is the authoring tool, licensed GPL-3.0-or-later. The application
+ships only the generated WAV files. See sources.json for the generation
+parameters and SHA-256 checksums.
+
+https://github.com/espeak-ng/espeak-ng/tree/1.51
+https://github.com/espeak-ng/espeak-ng/blob/1.51/COPYING
+https://sourceforge.net/p/espeak/discussion/538920/thread/c6944a60/

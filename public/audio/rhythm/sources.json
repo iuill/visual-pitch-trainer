@@ -1,0 +1,31 @@
+{
+  "license": "CC0-1.0",
+  "samples": [
+    {
+      "file": "high-tom.wav",
+      "source": "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v3_rr1_Mid.wav",
+      "sourceSha256": "40bd5cf904ed20eb8e7bba6298e356b66cedd313b4f459c5a5884c054bf447a4",
+      "sha256": "213f278ec2774b2040a3ac3db05b84210489ced6338567c1448a5f783dace9df",
+      "durationSeconds": 0.18,
+      "peak": 0.82,
+      "fadeOutSeconds": 0.035,
+      "library": "Versilian Community Sample Library (VCSL)",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "processing": "Average stereo channels. Trim at the first sample above 3.5% of peak with 1 ms of pre-roll. Cap duration, normalize peak, and apply a 0.5 ms fade-in and the specified fade-out. Export mono 44.1 kHz PCM16 WAV."
+    },
+    {
+      "file": "kick.wav",
+      "source": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v3_rr1_Sum.wav",
+      "sourceSha256": "a2d8829e8b2b59e8afb12fa396b01758827059339c2a84ad066d17b36c82d1ff",
+      "sha256": "15e06fe29095aedf6ef9152f9cfb19ff91a57a6248a3143302989c6b9faaeaf9",
+      "durationSeconds": 0.21,
+      "peak": 0.65,
+      "fadeOutSeconds": 0.04,
+      "library": "Versilian Community Sample Library (VCSL)",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "processing": "Average stereo channels. Trim at the first sample above 3.5% of peak with 1 ms of pre-roll. Cap duration, normalize peak, and apply a 0.5 ms fade-in and the specified fade-out. Export mono 44.1 kHz PCM16 WAV."
+    }
+  ]
+}
