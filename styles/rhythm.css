@@ -590,15 +590,17 @@
 .rhythm-rest {
   position: absolute;
   top: 0;
-  display: grid;
-  place-items: center;
   height: 49%;
   background: #e1e4e8;
   font-size: 1.65rem;
 }
 
 .rhythm-rest .rhythm-rest-icon {
-  width: min(1em, 100%);
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 2;
+  translate: -50% -50%;
   color: #68747e;
 }
 
