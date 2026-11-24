@@ -124,7 +124,16 @@ const alternating = ["x-x-sese", "sesex-x-", "x-r-sese", "sesseex-"];
 const longerNotes = [...quarters, ...halves, ...wholes];
 const shortNotesAndRests = [...eighths, ...rests];
 const basics = [...longerNotes, ...shortNotesAndRests];
-const offbeatMix = [...offbeats, ...alternating, "x-seeese", "sd--x-x-"];
+const offbeatIntoBeat = "r-sex-r-";
+const eighthsIntoHeldOffbeat = "eex-sd--";
+const offbeatMix = [
+  ...offbeats,
+  ...alternating,
+  "x-seeese",
+  "sd--x-x-",
+  offbeatIntoBeat,
+  eighthsIntoHeldOffbeat,
+];
 
 export const RHYTHM_STEPS: readonly RhythmStep[] = [
   {
@@ -264,6 +273,26 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
   {
     id: "3-3",
     chapter: 3,
+    title: "裏拍を待って叩く",
+    hint: "足は4拍を刻み続けます。休符のあと、2・3・4拍目の裏を狙います。2拍目の裏のあと、次の表で手も叩く小節と、足だけの小節があります。",
+    bpm: 90,
+    patterns: ["r-ser-r-", offbeatIntoBeat, "r-r-ser-", "r-r-r-se"],
+    requiredStreak: 2,
+    countSubdivision: "eighth",
+  },
+  {
+    id: "3-4",
+    chapter: 3,
+    title: "半拍ずつ続けて叩く",
+    hint: "足は4拍を刻み続け、手は8分音符が並ぶところを半拍ずつ叩きます。途中の休符で手を休め、裏拍から伸ばす音は最初の1回だけ叩きます。",
+    bpm: 90,
+    patterns: ["x-eeeeee", "sex-eees", eighthsIntoHeldOffbeat, "eeeseeee"],
+    requiredStreak: 2,
+    countSubdivision: "eighth",
+  },
+  {
+    id: "3-5",
+    chapter: 3,
     title: "3拍子の裏拍",
     hint: "足は3拍でひとまとまりです。休符のあとの裏拍や、裏拍から次の表拍まで続く音も、音の頭で一度だけ叩きます。",
     bpm: 95,
@@ -273,7 +302,7 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
     countSubdivision: "eighth",
   },
   {
-    id: "3-4",
+    id: "3-6",
     chapter: 3,
     title: "裏拍のテンポアップ",
     hint: "休符、連続する8分音符、裏拍から伸ばす音が混ざります。手のリズムが変わっても足の拍を保ちます。",
