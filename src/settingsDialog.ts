@@ -9,6 +9,7 @@ export function setupSettingsDialog(
     opener.addEventListener("click", () => {
       if (dialog.open) return;
       beforeOpen?.(opener);
+      // Safari may leave focus elsewhere after a button click.
       opener.focus({ preventScroll: true });
       dialog.showModal();
       dialog.scrollTop = 0;

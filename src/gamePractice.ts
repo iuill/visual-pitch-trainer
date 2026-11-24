@@ -136,7 +136,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
   const stopObservingGraph = observeGraphResize([elements.canvas], draw);
   showMode();
 
-  return { show, stop, settingsChanged, dispose };
+  return { show, stop, dispose };
 
   function message(text: string) {
     elements.feedback.textContent = text;
@@ -172,11 +172,6 @@ export function setupGamePractice(commonSettings: CommonSettings) {
     if (!visible) elements.setup.close();
     root.hidden = !visible;
     if (visible) requestAnimationFrame(draw);
-  }
-
-  function settingsChanged() {
-    if (active)
-      stop("共通設定が変わったため中止しました。新しい設定で再開できます。");
   }
 
   function dispose() {

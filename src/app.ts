@@ -81,6 +81,7 @@ function init() {
   let currentView: ViewId = "single";
   const description = queryElement<HTMLElement>("#practiceViewDescription");
   const commonSummary = queryElement<HTMLElement>("#commonSettingsSummary");
+  const commonLocation = queryElement<HTMLElement>("#commonSettingsLocation");
   const openCommonSettings = queryElement<HTMLButtonElement>(
     "#openPracticeSettings",
   );
@@ -95,11 +96,10 @@ function init() {
       );
     const current = views[currentView];
     description.textContent = current.description;
-    commonSummary.hidden =
-      currentView !== "single" &&
-      currentView !== "melody" &&
-      currentView !== "games";
+    const hasSettingsTabs = currentView === "melody" || currentView === "games";
+    commonSummary.hidden = currentView !== "single" && !hasSettingsTabs;
     openCommonSettings.hidden = currentView !== "single";
+    commonLocation.hidden = !hasSettingsTabs;
     current.view.show(true);
   };
   const suspend = () => {
