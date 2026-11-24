@@ -10,7 +10,7 @@ export interface RhythmStepProgress {
 }
 
 export interface RhythmProgress {
-  version: 1;
+  version: 3;
   steps: Record<string, RhythmStepProgress>;
   currentStepId: string;
 }
@@ -48,7 +48,7 @@ const defaultSettings: RhythmSettings = {
 };
 
 export function newRhythmProgress(): RhythmProgress {
-  return { version: 1, steps: {}, currentStepId: RHYTHM_STEPS[0].id };
+  return { version: 3, steps: {}, currentStepId: RHYTHM_STEPS[0].id };
 }
 
 export function rhythmStepUnlocked(
