@@ -380,6 +380,13 @@ describe("rhythm course", () => {
     ]);
   });
 
+  test("reviews both new 4/4 offbeat patterns in the chapter finale", () => {
+    const finale = RHYTHM_STEPS.find((item) => item.id === "3-6");
+    if (!finale) throw new Error("Step 3-6 is missing.");
+    expect(finale.patterns).toContain("r-sex-r-");
+    expect(finale.patterns).toContain("eex-sd--");
+  });
+
   test("maps eighth slots and bar boundaries to the common time axis", () => {
     expect(
       createRhythmTargets(["-e---e--", "w-------", "h---x-x-"], 60, 1000),

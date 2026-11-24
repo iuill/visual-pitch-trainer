@@ -124,7 +124,16 @@ const alternating = ["x-x-sese", "sesex-x-", "x-r-sese", "sesseex-"];
 const longerNotes = [...quarters, ...halves, ...wholes];
 const shortNotesAndRests = [...eighths, ...rests];
 const basics = [...longerNotes, ...shortNotesAndRests];
-const offbeatMix = [...offbeats, ...alternating, "x-seeese", "sd--x-x-"];
+const offbeatIntoBeat = "r-sex-r-";
+const eighthsIntoHeldOffbeat = "eex-sd--";
+const offbeatMix = [
+  ...offbeats,
+  ...alternating,
+  "x-seeese",
+  "sd--x-x-",
+  offbeatIntoBeat,
+  eighthsIntoHeldOffbeat,
+];
 
 export const RHYTHM_STEPS: readonly RhythmStep[] = [
   {
@@ -267,7 +276,7 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
     title: "裏拍を待って叩く",
     hint: "足は4拍を刻み続けます。休符のあと、2・3・4拍目の裏を狙います。2拍目の裏のあと、次の表で手も叩く小節と、足だけの小節があります。",
     bpm: 90,
-    patterns: ["r-ser-r-", "r-sex-r-", "r-r-ser-", "r-r-r-se"],
+    patterns: ["r-ser-r-", offbeatIntoBeat, "r-r-ser-", "r-r-r-se"],
     requiredStreak: 2,
     countSubdivision: "eighth",
   },
@@ -277,7 +286,7 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
     title: "半拍ずつ続けて叩く",
     hint: "足は4拍を刻み続け、手は8分音符が並ぶところを半拍ずつ叩きます。途中の休符で手を休め、裏拍から伸ばす音は最初の1回だけ叩きます。",
     bpm: 90,
-    patterns: ["x-eeeeee", "sex-eees", "eex-sd--", "eeeseeee"],
+    patterns: ["x-eeeeee", "sex-eees", eighthsIntoHeldOffbeat, "eeeseeee"],
     requiredStreak: 2,
     countSubdivision: "eighth",
   },
