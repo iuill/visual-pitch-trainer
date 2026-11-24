@@ -41,7 +41,9 @@ Browser
 
 On narrow screens, you can stop single-note practice, melody practice, and the voice range check from the bottom of the screen while viewing the graph.
 
-Switch between single-note practice, melody practice, rhythm practice, games, your own voice range check, and audio range analysis using the top menu. Shared settings sit above the menu and apply to single-note practice, melody practice and games. Voice range checks use only the microphone and sensitivity settings. Open shared settings with the labeled button; the current range, instrument, volume and tolerance remain visible on the practice screen. The default instrument is piano. Choose single-note targets on the practice screen, and open Melody Settings to change the melody or note duration. Changes apply immediately. Shared practice settings do not affect audio range analysis. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
+Switch modes using the top menu. Single-note practice opens shared settings directly, and rhythm practice opens its own settings. In melody practice and games, open settings and switch between the mode-specific tab and the Shared tab in the same dialog. The voice range check offers a microphone settings dialog with the shared microphone and sensitivity controls.
+
+The shared range, instrument, volume, microphone and tolerance settings apply immediately to single-note practice, melody practice and games. The practice screens show the current range, instrument, volume and tolerance. The default instrument is piano. Choose single-note targets on the practice screen. Use the Melody tab to change the melody or note duration. Audio range analysis has its own controls. Switching views stops playback and releases the microphone while retaining audio analysis results and melody review.
 
 - Select and play reference tones across one chromatic octave
 - Choose vocal ranges with voice range guides: C3-C4 / C4-C5 / C5-C6
@@ -169,7 +171,7 @@ Use headphones: reference audio leaking into the microphone can be scored as sin
 
 ### Reference Instruments
 
-In Shared Settings, select an instrument and press **試聴** (Preview) to hear about five seconds of “Twinkle, Twinkle, Little Star” in the selected range at the reference volume. To end the preview early, press **試聴を停止** (Stop preview), change the instrument or range, or close the dialog. Starting a preview stops active practice and voice measurements and pauses audio file playback. Previewing requires no microphone permission. The app plays the public-domain French folk melody using its own instrument sounds. [Score of Mozart’s variations on the same tune](https://imslp.org/wiki/12_Variations_on_%27Ah%2C_vous_dirai-je_maman%27%2C_K.265%2F300e_%28Mozart%2C_Wolfgang_Amadeus%29)
+In Shared Settings, select an instrument and press **試聴** (Preview) to hear about five seconds of “Twinkle, Twinkle, Little Star” in the selected range at the reference volume. To end the preview early, press **試聴を停止** (Stop preview), change the instrument or range, leave the Shared tab, or close the dialog. Starting a preview stops active practice and voice measurements and pauses audio file playback. Previewing requires no microphone permission. The app plays the public-domain French folk melody using its own instrument sounds. [Score of Mozart’s variations on the same tune](https://imslp.org/wiki/12_Variations_on_%27Ah%2C_vous_dirai-je_maman%27%2C_K.265%2F300e_%28Mozart%2C_Wolfgang_Amadeus%29)
 
 Harmonium, organ, violin and flute are available alongside sine and piano. The four added timbres use crossfaded sustain loops from CC0 recordings, held until stop or the end of each melody note, without piano-style retriggering. Small variations in the original performance remain.
 

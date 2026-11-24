@@ -37,7 +37,7 @@ function init() {
   const instances = {
     practice: setupPracticeView(settings, playback),
     audio: setupAudioFileView(),
-    game: setupGamePractice(settings.getSettings, settings.stopPreview),
+    game: setupGamePractice(settings),
     range: setupVoiceRangeCheck(settings.getSettings, settings.stopPreview),
     rhythm: setupRhythmPractice(settings.stopPreview, playback.getPlayer),
   };
@@ -80,6 +80,10 @@ function init() {
   type ViewId = keyof typeof views;
   let currentView: ViewId = "single";
   const description = queryElement<HTMLElement>("#practiceViewDescription");
+  const commonSummary = queryElement<HTMLElement>("#commonSettingsSummary");
+  const openCommonSettings = queryElement<HTMLButtonElement>(
+    "#openPracticeSettings",
+  );
   const buttons = document.querySelectorAll<HTMLButtonElement>(
     "button[data-practice-view]",
   );
@@ -91,6 +95,11 @@ function init() {
       );
     const current = views[currentView];
     description.textContent = current.description;
+    commonSummary.hidden =
+      currentView !== "single" &&
+      currentView !== "melody" &&
+      currentView !== "games";
+    openCommonSettings.hidden = currentView !== "single";
     current.view.show(true);
   };
   const suspend = () => {
@@ -103,6 +112,7 @@ function init() {
       const view = button.dataset.practiceView as ViewId;
       if (view === currentView || !Object.hasOwn(views, view)) return;
       suspend();
+      settings.close();
       views[currentView].view.show(false);
       currentView = view;
       showCurrentView();

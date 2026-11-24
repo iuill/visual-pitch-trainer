@@ -32,7 +32,6 @@ import {
   type PitchSample,
   resolveAnalysisStatus,
 } from "./session";
-import { setupSettingsDialog } from "./settingsDialog";
 
 type MelodyInput = {
   start(): Promise<MicrophoneCapture | null>;
@@ -43,6 +42,7 @@ export function createMelodyPracticeView(
   settings: Pick<
     CommonSettings,
     | "getSettings"
+    | "setupTabbedDialog"
     | "showReferencePreparing"
     | "resetReferenceStatus"
     | "reportReferenceError"
@@ -125,7 +125,11 @@ export function createMelodyPracticeView(
   let melodyGraphData: MelodyGraphData | null = null;
 
   function init() {
-    setupSettingsDialog(elements.melodySetup, elements.openMelodySettings);
+    settings.setupTabbedDialog(
+      elements.melodySetup,
+      elements.openMelodySettings,
+      () => running,
+    );
     elements.melodyPatternSelect.replaceChildren(
       ...MELODY_PATTERNS.map(
         (pattern) => new Option(pattern.label, pattern.id),
@@ -202,6 +206,7 @@ export function createMelodyPracticeView(
   }
 
   function show(visible: boolean) {
+    if (!visible) elements.melodySetup.close();
     elements.melodySection.hidden = !visible;
     elements.melodyGraphView.hidden = !visible;
     elements.melodyResults.hidden =
@@ -549,7 +554,6 @@ export function createMelodyPracticeView(
     elements.melodySequence.hidden = locked;
     elements.playScaleButton.classList.toggle("is-active", locked);
     for (const control of [
-      elements.openMelodySettings,
       elements.melodyPatternSelect,
       elements.melodySecondsSelect,
       elements.melodyCountdownSound,

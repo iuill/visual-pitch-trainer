@@ -426,7 +426,3 @@
 .melody-settings-launcher {
   margin: 16px 0;
 }
-
-.melody-settings {
-  width: min(640px, calc(100% - 32px));
-}

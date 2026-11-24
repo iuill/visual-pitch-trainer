@@ -8,7 +8,10 @@ import {
   type ReferenceInstrumentId,
 } from "./referenceInstruments";
 import type { ReferencePlayer } from "./referencePlayer";
-import { setupSettingsDialog } from "./settingsDialog";
+import {
+  setupSettingsDialog,
+  setupTabbedSettingsDialog,
+} from "./settingsDialog";
 
 type Settings = Readonly<{
   startMidi: number;
@@ -32,7 +35,11 @@ export function setupCommonSettings(
 ) {
   const elements = {
     dialog: queryElement<HTMLDialogElement>("#practiceSettings"),
+    dialogTitle: queryElement<HTMLElement>("#practiceSettingsTitle"),
+    dialogBody: queryElement<HTMLElement>("#practiceSettingsBody"),
     opener: queryElement<HTMLButtonElement>("#openPracticeSettings"),
+    rangeOpener: queryElement<HTMLButtonElement>("#openVoiceRangeSettings"),
+    content: queryElement<HTMLElement>("#commonSettingsContent"),
     range: queryElement<HTMLSelectElement>("#noteRangeSelect"),
     instrument: queryElement<HTMLSelectElement>("#referenceInstrumentSelect"),
     preview: queryElement<HTMLButtonElement>("#previewInstrumentButton"),
@@ -110,6 +117,8 @@ export function setupCommonSettings(
       stopPreview();
       return;
     }
+    const dialog = elements.content.closest("dialog");
+    if (!dialog?.open) return;
     beforePreview();
 
     const request = Symbol();
@@ -121,7 +130,7 @@ export function setupCommonSettings(
       const context = getAudioContext();
       const player = playback.getPlayer();
       await Promise.all([player.prepare(instrument), context.resume()]);
-      if (previewRequest !== request || !elements.dialog.open) return;
+      if (previewRequest !== request || !dialog.open) return;
       const seconds = player.playPhrase(
         instrument,
         buildInstrumentPreview(startMidi),
@@ -129,7 +138,7 @@ export function setupCommonSettings(
       setReferenceStatus("「きらきら星」を試聴中…");
       previewTimer = window.setTimeout(stopPreview, seconds * 1000);
     } catch (error) {
-      if (previewRequest !== request || !elements.dialog.open) return;
+      if (previewRequest !== request || !dialog.open) return;
       stopPreview();
       reportReferenceError(error);
     }
@@ -187,8 +196,29 @@ export function setupCommonSettings(
     }
   }
 
-  setupSettingsDialog(elements.dialog, elements.opener);
-  elements.dialog.addEventListener("close", stopPreview);
+  function mountSettings(slot: HTMLElement, microphoneOnly = false) {
+    if (elements.content.parentElement !== slot) slot.append(elements.content);
+    elements.content.toggleAttribute("data-microphone-only", microphoneOnly);
+  }
+
+  function stopPreviewOnClose(event: Event) {
+    const dialog = elements.content.closest("dialog");
+    if (dialog && !dialog.open && dialog === event.currentTarget) stopPreview();
+  }
+
+  setupSettingsDialog(
+    elements.dialog,
+    [elements.opener, elements.rangeOpener],
+    (opener) => {
+      stopPreview();
+      const microphoneOnly = opener === elements.rangeOpener;
+      elements.dialogTitle.textContent = microphoneOnly
+        ? "マイク設定"
+        : "共通設定";
+      mountSettings(elements.dialogBody, microphoneOnly);
+    },
+  );
+  elements.dialog.addEventListener("close", stopPreviewOnClose);
   elements.instrument.replaceChildren(
     ...Object.values(REFERENCE_INSTRUMENTS).map(
       (instrument) => new Option(instrument.label, instrument.id),
@@ -239,7 +269,24 @@ export function setupCommonSettings(
       listeners.push(listener);
     },
     onCommit(listener: () => void) {
-      elements.dialog.addEventListener("change", listener);
+      elements.content.addEventListener("change", listener);
+    },
+    setupTabbedDialog(
+      dialog: HTMLDialogElement,
+      opener: HTMLButtonElement,
+      openOnCommon = () => false,
+    ) {
+      dialog.addEventListener("close", stopPreviewOnClose);
+      setupTabbedSettingsDialog(
+        dialog,
+        opener,
+        (panel) => {
+          stopPreview();
+          if (panel.hasAttribute("data-common-settings-slot"))
+            mountSettings(panel);
+        },
+        () => (openOnCommon() ? 1 : 0),
+      );
     },
     close: () => elements.dialog.close(),
     lockInputControls(locked: boolean) {
