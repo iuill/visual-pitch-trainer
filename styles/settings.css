@@ -127,6 +127,47 @@ body:has(.settings-dialog[open]) {
   border-bottom: 1px solid var(--line);
 }
 
+.settings-dialog-top {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+}
+
+.settings-dialog-top .settings-dialog-header {
+  position: static;
+  border-bottom: 0;
+}
+
+.settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-tabs button {
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.settings-tabs button[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  background: #e7f3f2;
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.settings-dialog:has(> .settings-dialog-top) {
+  scroll-padding-block-start: 110px;
+}
+
 .settings-dialog-footer {
   bottom: 0;
   border-top: 1px solid var(--line);
@@ -187,6 +228,21 @@ body:has(.settings-dialog[open]) {
 
 .common-settings-grid > div {
   min-width: 0;
+}
+
+:not([data-microphone-only]) > .microphone-settings-help,
+[data-microphone-only] > .common-settings-help:not(.microphone-settings-help),
+[data-microphone-only]
+  :is(
+    .common-settings-reference,
+    .common-settings-tolerance,
+    .practice-advanced > .panel-header
+  ) {
+  display: none;
+}
+
+[data-microphone-only] .common-settings-grid {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .common-settings > .settings-summary {

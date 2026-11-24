@@ -37,9 +37,22 @@
         </div>
       </section>
 
-        <section class="panel control-panel common-settings" aria-labelledby="commonSettingsTitle">
+      <nav class="practice-nav" aria-label="練習メニュー">
+        <button type="button" data-practice-view="single" aria-pressed="true" aria-controls="practiceWorkspace">単音練習</button>
+        <button type="button" data-practice-view="melody" aria-pressed="false" aria-controls="practiceWorkspace">メロディ練習</button>
+        <button type="button" data-practice-view="rhythm" aria-pressed="false" aria-controls="rhythmPracticeView">リズム練習</button>
+        <button type="button" data-practice-view="games" aria-pressed="false" aria-controls="gamePracticeView">ゲーム</button>
+        <button type="button" data-practice-view="range" aria-pressed="false" aria-controls="voiceRangeView">自分の声域チェック</button>
+        <button type="button" data-practice-view="audio" aria-pressed="false" aria-controls="audioFileView">音源の声域確認</button>
+      </nav>
+      <p id="practiceViewDescription" class="view-description">音をひとつ選び、お手本に合わせて声を伸ばします。</p>
+
+        <section id="commonSettingsSummary" class="panel control-panel common-settings" aria-labelledby="commonSettingsTitle">
           <div class="settings-launcher">
-            <div><h2 id="commonSettingsTitle">共通設定</h2><p>単音・メロディ・ゲーム</p></div>
+            <div>
+              <h2 id="commonSettingsTitle">共通設定</h2>
+              <p id="commonSettingsLocation" hidden>「設定を開く」の「共通」タブで変更できます。</p>
+            </div>
             <button id="openPracticeSettings" class="secondary-button settings-button" type="button" aria-haspopup="dialog" aria-controls="practiceSettings">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6m8 0v6m-6 0v6" /></svg>共通設定を開く
             </button>
@@ -68,10 +81,12 @@
             <h2 id="practiceSettingsTitle">共通設定</h2>
             <button type="button" class="secondary-button" data-close-dialog>閉じる</button>
           </div>
-          <div class="settings-dialog-body">
-          <p class="common-settings-help">ここで選んだ音域・音色・音量・マイク・判定の設定を、単音練習とメロディ練習、ゲームに使います。自分の声域チェックではマイクと声の拾いやすさだけを使います。音源の声域確認には適用しません。</p>
+          <div id="practiceSettingsBody" class="settings-dialog-body">
+          <div id="commonSettingsContent">
+          <p class="common-settings-help">この設定は単音練習・メロディ練習・ゲームに反映されます。「自分の声域チェック」でもマイクと声の拾いやすさを使います。</p>
+          <p class="common-settings-help microphone-settings-help">この設定は単音練習・メロディ練習・ゲームの共通設定にも反映されます。</p>
           <div class="common-settings-grid">
-            <div>
+            <div class="common-settings-reference">
           <div class="setting-row select-row">
             <label for="noteRangeSelect">声の高さ</label>
             <select id="noteRangeSelect">
@@ -136,7 +151,7 @@
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row common-settings-tolerance">
             <label for="toleranceInput">音程厳密さ</label>
             <input id="toleranceInput" type="range" min="5" max="50" value="50" step="5" />
             <output id="toleranceValue" for="toleranceInput">半音の50%</output>
@@ -152,18 +167,10 @@
             </div>
           </div>
           </div>
+          </div>
           <div class="settings-dialog-footer"><p>変更はすぐに反映されます。</p><button type="button" class="primary-button" data-close-dialog>設定を閉じる</button></div>
         </dialog>
 
-      <nav class="practice-nav" aria-label="練習メニュー">
-        <button type="button" data-practice-view="single" aria-pressed="true" aria-controls="practiceWorkspace">単音練習</button>
-        <button type="button" data-practice-view="melody" aria-pressed="false" aria-controls="practiceWorkspace">メロディ練習</button>
-        <button type="button" data-practice-view="rhythm" aria-pressed="false" aria-controls="rhythmPracticeView">リズム練習</button>
-        <button type="button" data-practice-view="games" aria-pressed="false" aria-controls="gamePracticeView">ゲーム</button>
-        <button type="button" data-practice-view="range" aria-pressed="false" aria-controls="voiceRangeView">自分の声域チェック</button>
-        <button type="button" data-practice-view="audio" aria-pressed="false" aria-controls="audioFileView">音源の声域確認</button>
-      </nav>
-      <p id="practiceViewDescription" class="view-description">音をひとつ選び、お手本に合わせて声を伸ばします。</p>
       <section id="practiceWorkspace" class="practice-layout" aria-label="音程トレーニング" data-practice-mode="single">
         <div class="panel control-panel single-note-panel" data-single-only>
           <div class="panel-header">
@@ -185,15 +192,21 @@
             <div class="settings-launcher melody-settings-launcher">
               <p id="melodySettingsSummary"></p>
               <button id="openMelodySettings" class="secondary-button settings-button" type="button" aria-haspopup="dialog" aria-controls="melodySetup">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6m8 0v6m-6 0v6" /></svg>メロディ設定を開く
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6m8 0v6m-6 0v6" /></svg>設定を開く
               </button>
             </div>
-            <dialog id="melodySetup" class="settings-dialog melody-settings" aria-labelledby="melodySettingsTitle">
-              <div class="settings-dialog-header">
-                <div><h2 id="melodySettingsTitle">メロディ設定</h2><p>メロディを選ぶ・長さを変える</p></div>
-                <button type="button" class="secondary-button" data-close-dialog>閉じる</button>
+            <dialog id="melodySetup" class="settings-dialog" aria-labelledby="melodySettingsTitle">
+              <div class="settings-dialog-top">
+                <div class="settings-dialog-header">
+                  <h2 id="melodySettingsTitle">メロディ練習の設定</h2>
+                  <button type="button" class="secondary-button" data-close-dialog>閉じる</button>
+                </div>
+                <div class="settings-tabs" role="tablist" aria-label="設定の種類">
+                  <button id="melodySettingsTab" type="button" role="tab" aria-selected="true" aria-controls="melodySettingsPanel">メロディ</button>
+                  <button id="melodyCommonTab" type="button" role="tab" aria-selected="false" aria-controls="melodyCommonPanel" tabindex="-1">共通</button>
+                </div>
               </div>
-              <div class="settings-dialog-body">
+              <div id="melodySettingsPanel" class="settings-dialog-body" role="tabpanel" aria-labelledby="melodySettingsTab">
             <p>3秒で準備 → お手本と一緒に発声。停止するまで繰り返し練習できます。</p>
             <div class="setting-row select-row">
               <label for="melodyPatternSelect">練習するメロディ</label>
@@ -220,6 +233,7 @@
             <label class="melody-countdown-setting"><input id="melodyCountdownSound" type="checkbox" checked /> 準備の3・2・1と開始を音でも知らせる（お手本音量を使用）</label>
             <p class="compatibility-note">ヘッドホンを使ってください。スピーカーのお手本音をマイクが拾うと、声を出していなくても判定されます。判定はマイクに入った音の目安です。</p>
               </div>
+              <div id="melodyCommonPanel" class="settings-dialog-body" role="tabpanel" aria-labelledby="melodyCommonTab" data-common-settings-slot hidden></div>
               <div class="settings-dialog-footer"><p>変更はすぐに反映されます。</p><button type="button" class="primary-button" data-close-dialog>設定を閉じる</button></div>
             </dialog>
             <div id="toneScaleControls" class="tone-scale-controls" hidden>
@@ -567,7 +581,12 @@
       <section id="voiceRangeView" class="panel voice-range-check" aria-labelledby="voiceRangeTitle" hidden>
         <div class="panel-header"><div><h2 id="voiceRangeTitle">自分の声域チェック</h2><p>楽な高さから始めて、低い声・高い声をゆっくり伸ばしてください。</p></div></div>
         <p>同じ音を約0.6秒保つと記録します。無理に声を張らず、つらくなったら停止してください。お手本音は鳴りません。</p>
-        <p class="graph-hint">共通設定のマイクと「声の拾いやすさ」を使います。「声の高さ」の設定にかかわらず、低い音から高い音まで測れます。</p>
+        <p class="graph-hint">共通設定の「声の高さ」にかかわらず、低い音から高い音まで測れます。</p>
+        <div class="settings-launcher practice-settings-launcher">
+          <button id="openVoiceRangeSettings" class="secondary-button settings-button" type="button" aria-haspopup="dialog" aria-controls="practiceSettings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6m8 0v6m-6 0v6" /></svg>マイク設定を開く
+          </button>
+        </div>
         <div id="voiceRangeActions" class="voice-range-actions mobile-action-bar">
           <button id="voiceRangeStart" type="button" class="primary-button">声域チェックを開始・続ける</button>
           <button id="voiceRangeStop" type="button" class="secondary-button" disabled>停止</button>
@@ -601,15 +620,21 @@
         <div class="settings-launcher practice-settings-launcher">
           <p id="gameSettingsSummary"></p>
           <button id="openGameSettings" class="secondary-button settings-button" type="button" aria-haspopup="dialog" aria-controls="gameSetup">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6m8 0v6m-6 0v6" /></svg>ゲーム設定を開く
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6m8 0v6m-6 0v6" /></svg>設定を開く
           </button>
         </div>
         <dialog id="gameSetup" class="settings-dialog" aria-labelledby="gameSettingsTitle">
-          <div class="settings-dialog-header">
-            <h2 id="gameSettingsTitle">ゲーム設定</h2>
-            <button type="button" class="secondary-button" data-close-dialog>閉じる</button>
+          <div class="settings-dialog-top">
+            <div class="settings-dialog-header">
+              <h2 id="gameSettingsTitle">ゲームの設定</h2>
+              <button type="button" class="secondary-button" data-close-dialog>閉じる</button>
+            </div>
+            <div class="settings-tabs" role="tablist" aria-label="設定の種類">
+              <button id="gameSettingsTab" type="button" role="tab" aria-selected="true" aria-controls="gameSettingsPanel">ゲーム</button>
+              <button id="gameCommonTab" type="button" role="tab" aria-selected="false" aria-controls="gameCommonPanel" tabindex="-1">共通</button>
+            </div>
           </div>
-          <div class="settings-dialog-body">
+          <div id="gameSettingsPanel" class="settings-dialog-body" role="tabpanel" aria-labelledby="gameSettingsTab">
             <fieldset id="gameSettings" class="game-settings">
               <legend class="visually-hidden">ゲームの設定</legend>
               <fieldset id="gameMode" class="game-option-group game-mode-select">
@@ -654,8 +679,9 @@
               </div>
               <label class="game-sound-setting"><input id="gameEffectSound" type="checkbox" checked /> 成功時の効果音（共通設定のお手本音量を使用）</label>
             </fieldset>
-            <p class="graph-hint">音域・判定幅・マイクなどは共通設定を使います。ゲーム中に共通設定を変えると中止します。通常練習のスコア・自己ベストには加算しません。</p>
+            <p class="graph-hint">通常練習のスコア・自己ベストには加算しません。</p>
           </div>
+          <div id="gameCommonPanel" class="settings-dialog-body" role="tabpanel" aria-labelledby="gameCommonTab" data-common-settings-slot hidden></div>
         </dialog>
         <p id="gameInstructions"></p>
         <div class="game-actions"><button id="gameStart" type="button" class="primary-button">ゲームを始める</button><button id="gameStop" type="button" class="secondary-button" disabled>中止</button></div>

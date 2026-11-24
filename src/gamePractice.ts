@@ -34,7 +34,6 @@ import {
   type Note,
 } from "./pitchMath";
 import { ReferencePlayer } from "./referencePlayer";
-import { setupSettingsDialog } from "./settingsDialog";
 
 type Settings = ReturnType<CommonSettings["getSettings"]>;
 type Phase =
@@ -52,10 +51,8 @@ const CELEBRATION_COLORS = [
   "#ce5591",
 ];
 
-export function setupGamePractice(
-  getSettings: () => Settings,
-  beforeStart: () => void,
-) {
+export function setupGamePractice(commonSettings: CommonSettings) {
+  const { getSettings, stopPreview } = commonSettings;
   const root = queryElement<HTMLElement>("#gamePracticeView");
   const elements = {
     start: queryElement<HTMLButtonElement>("#gameStart"),
@@ -128,7 +125,7 @@ export function setupGamePractice(
     if (round >= rounds) finish();
     else nextEarRound();
   });
-  setupSettingsDialog(elements.setup, elements.openSettings);
+  commonSettings.setupTabbedDialog(elements.setup, elements.openSettings);
   elements.settings.addEventListener("change", (event) => {
     if (
       event.target instanceof HTMLInputElement &&
@@ -139,7 +136,7 @@ export function setupGamePractice(
   const stopObservingGraph = observeGraphResize([elements.canvas], draw);
   showMode();
 
-  return { show, stop, settingsChanged, dispose };
+  return { show, stop, dispose };
 
   function message(text: string) {
     elements.feedback.textContent = text;
@@ -175,11 +172,6 @@ export function setupGamePractice(
     if (!visible) elements.setup.close();
     root.hidden = !visible;
     if (visible) requestAnimationFrame(draw);
-  }
-
-  function settingsChanged() {
-    if (active)
-      stop("共通設定が変わったため中止しました。新しい設定で再開できます。");
   }
 
   function dispose() {
@@ -244,7 +236,7 @@ export function setupGamePractice(
     updateScore();
     let startingMicrophone = false;
     try {
-      beforeStart();
+      stopPreview();
       settings = getSettings();
       bestKey = `pitch-games:v1:${JSON.stringify([
         mode,
