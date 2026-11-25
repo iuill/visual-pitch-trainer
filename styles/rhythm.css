@@ -786,8 +786,75 @@
 }
 
 @media (max-width: 640px) {
+  :root:has(#rhythmStage:not([hidden])) {
+    --rhythm-tap-height: clamp(104px, 28vw, 124px);
+    --rhythm-actions-padding: 10px;
+    --rhythm-actions-gap: 8px;
+    --rhythm-actions-space: calc(
+      var(--rhythm-tap-height) +
+      var(--control-height) +
+      2 *
+      var(--rhythm-actions-padding) +
+      var(--rhythm-actions-gap) +
+      1px +
+      env(safe-area-inset-bottom)
+    );
+    scroll-padding-block-end: var(--rhythm-actions-space);
+  }
+
+  body:has(#rhythmStage:not([hidden])) {
+    padding-bottom: var(--rhythm-actions-space);
+  }
+
+  .rhythm-stage-actions {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 5;
+    display: grid;
+    grid-template:
+      "tap tap" var(--rhythm-tap-height)
+      "foot stop" var(--control-height)
+      / minmax(0, 1fr) auto;
+    gap: var(--rhythm-actions-gap);
+    padding: var(--rhythm-actions-padding)
+      max(var(--rhythm-actions-padding), env(safe-area-inset-right))
+      calc(var(--rhythm-actions-padding) + env(safe-area-inset-bottom))
+      max(var(--rhythm-actions-padding), env(safe-area-inset-left));
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    box-shadow: 0 -10px 28px rgba(23, 32, 38, 0.12);
+  }
+
+  .rhythm-stage-actions .rhythm-tap {
+    margin-bottom: 0;
+  }
+
   #rhythmTap {
-    min-height: clamp(104px, 28vw, 124px);
+    grid-area: tap;
+    min-height: var(--rhythm-tap-height);
+  }
+
+  #rhythmFootTap {
+    grid-area: foot;
+    min-height: var(--control-height);
+    font-size: 1rem;
+  }
+
+  #rhythmStop {
+    grid-area: stop;
+  }
+
+  #rhythmStage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #rhythmStage > .rhythm-score {
+    order: 1;
+  }
+
+  #rhythmInputHelp {
+    order: 2;
   }
 }
 

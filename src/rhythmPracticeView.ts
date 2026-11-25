@@ -299,6 +299,7 @@ export function setupRhythmPractice(
   const reset = queryElement<HTMLButtonElement>("#rhythmReset");
   const warning = queryElement<HTMLElement>("#rhythmStorageWarning");
   const stage = queryElement<HTMLElement>("#rhythmStage");
+  const stageActions = queryElement<HTMLElement>("#rhythmStageActions");
   const activeStep = queryElement<HTMLElement>("#rhythmActiveStep");
   const activeStepLabel = queryElement<HTMLElement>("#rhythmActiveStepLabel");
   const activeMeter = queryElement<HTMLElement>("#rhythmActiveMeter");
@@ -913,6 +914,12 @@ export function setupRhythmPractice(
     if (started) feedback.textContent = "中止しました。";
   }
 
+  function scrollStageIntoView() {
+    // With fixed controls, start at the top so the visual count stays in view.
+    const fixedActions = getComputedStyle(stageActions).position === "fixed";
+    stage.scrollIntoView({ block: fixedActions ? "start" : "nearest" });
+  }
+
   function openStage(mode: RhythmGuide | null) {
     stopExample();
     stopPreview();
@@ -955,7 +962,7 @@ export function setupRhythmPractice(
           : `タップかスペース・F・Jキーで開始します。同じテンポで準備${practiceCountInBars}小節、本番${preparedBars?.length ?? 0}小節です。本番ではゲームパッド（Xbox の A・B・X・Y など）でもタップできます。`;
     feedback.textContent = "";
     tap.focus({ preventScroll: true });
-    if (mode !== null) stage.scrollIntoView({ block: "nearest" });
+    if (mode !== null) scrollStageIntoView();
   }
 
   async function prepareAudio(
@@ -1167,7 +1174,7 @@ export function setupRhythmPractice(
       "--rhythm-note-gap",
       `${beatPercent / slotsPerBeat}cqi`,
     );
-    if (step.sections) stopButton.after(score);
+    if (step.sections) stageActions.after(score);
     else laneArea.before(score);
     score.hidden = false;
     scoreLabel.textContent = section
@@ -1274,7 +1281,7 @@ export function setupRhythmPractice(
         marker.style.left = `${linePercent + (beatPercent * slot) / slotsPerBeat}%`;
       });
     }
-    stage.scrollIntoView({ block: "nearest" });
+    scrollStageIntoView();
   }
 
   async function play() {
