@@ -69,7 +69,7 @@ You can also tap with a standard gamepad using A, B, X, or Y on an Xbox controll
 
 Chapter 2 starts with a 4/4 review, introduces 2/4 and 3/4, and ends with a 150 BPM challenge in 4/4.
 
-Chapter 3, Within the Beat, covers offbeats and runs of eighth notes. It includes notes held across the beat in 3/4 and a 130 BPM offbeat challenge in 4/4. The last two steps return to 60 BPM in 4/4 and teach three evenly spaced taps per beat with triplets and four with sixteenth notes.
+Chapter 3, Within the Beat, covers offbeats and runs of eighth notes. It includes notes held across the beat in 3/4 and a 130 BPM offbeat challenge in 4/4. The last two steps return to 60 BPM in 4/4 and teach three evenly spaced taps per beat with triplets and four with sixteenth notes. The last step also practices the dotted-eighth and sixteenth note pair used in the next chapter.
 
 ## Voice Range Check
 

@@ -317,17 +317,27 @@ describe("rhythm course", () => {
     expect(taps[2].some(({ pulse }) => pulse >= 2 && pulse < 3)).toBe(false);
   });
 
-  test("introduces sixteenths alongside half-beat notes and rests", () => {
+  test("introduces sixteenths alongside eighth notes, dotted eighth notes, and rests", () => {
     const step = RHYTHM_STEPS.find((item) => item.id === "3-8");
     if (!step) throw new Error("Step 3-8 is missing.");
     const taps = createRhythmBars(step).map((bar) =>
       createRhythmTargets([bar], step.bpm, 0, rhythmSlotsPerBeat(step)),
     );
-    expect(taps.map((bar) => bar.length)).toEqual([7, 8, 12, 16]);
+    expect(taps.map((bar) => bar.length)).toEqual([7, 7, 12, 16]);
     expect(taps[0].map(({ timeMs }) => timeMs)).toEqual([
       0, 1000, 2000, 2250, 2500, 2750, 3000,
     ]);
-    expect(taps[1].slice(0, 2).map(({ pulse }) => pulse)).toEqual([0, 0.5]);
+    expect(taps[1].map(({ timeMs, noteValue }) => [timeMs, noteValue])).toEqual(
+      [
+        [0, "eighth"],
+        [500, "eighth"],
+        [1000, "dotted-eighth"],
+        [1750, "sixteenth"],
+        [2000, "quarter"],
+        [3000, "dotted-eighth"],
+        [3750, "sixteenth"],
+      ],
+    );
     expect(taps[2].some(({ pulse }) => pulse >= 2 && pulse < 3)).toBe(false);
   });
 
@@ -409,11 +419,11 @@ describe("rhythm course", () => {
     ]);
   });
 
-  test("reviews both new 4/4 offbeat patterns in the chapter finale", () => {
-    const finale = RHYTHM_STEPS.find((item) => item.id === "3-6");
-    if (!finale) throw new Error("Step 3-6 is missing.");
-    expect(finale.patterns).toContain("r-sex-r-");
-    expect(finale.patterns).toContain("eex-sd--");
+  test("reviews both 4/4 offbeat patterns in the 130 BPM challenge", () => {
+    const challenge = RHYTHM_STEPS.find((item) => item.id === "3-6");
+    if (!challenge) throw new Error("Step 3-6 is missing.");
+    expect(challenge.patterns).toContain("r-sex-r-");
+    expect(challenge.patterns).toContain("eex-sd--");
   });
 
   test("maps eighth slots and bar boundaries to the common time axis", () => {

@@ -326,11 +326,11 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
     id: "3-8",
     chapter: 3,
     title: "16分音符：足1回で手4回",
-    hint: "足は同じ速さで刻み、16分音符が並ぶ拍では手を等間隔に4回叩きます。8分音符は手2回、休符は足だけです。",
+    hint: "足は同じ速さで刻みます。16分音符が4つ並ぶ拍は手で等間隔に4回、8分音符が2つ並ぶ拍は2回叩きます。付点8分音符と16分音符の組み合わせでは、拍の頭と次の拍の直前で叩きます。",
     bpm: 60,
     patterns: [
       "x---x---zzzzx---",
-      "e-e-x---zzzzx---",
+      "e-e-f--zx---f--z",
       "zzzzzzzzr---zzzz",
       "zzzzzzzzzzzzzzzz",
     ],
