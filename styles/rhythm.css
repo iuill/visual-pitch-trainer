@@ -843,6 +843,19 @@
   #rhythmStop {
     grid-area: stop;
   }
+
+  #rhythmStage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #rhythmStage > .rhythm-score {
+    order: 1;
+  }
+
+  #rhythmInputHelp {
+    order: 2;
+  }
 }
 
 .rhythm-feedback {

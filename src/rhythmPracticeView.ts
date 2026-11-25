@@ -914,9 +914,10 @@ export function setupRhythmPractice(
     if (started) feedback.textContent = "中止しました。";
   }
 
-  function scrollStageIntoView(target: HTMLElement) {
+  function scrollStageIntoView() {
+    // With fixed controls, start at the top so the visual count stays in view.
     const fixedActions = getComputedStyle(stageActions).position === "fixed";
-    (fixedActions ? target : stage).scrollIntoView({ block: "nearest" });
+    stage.scrollIntoView({ block: fixedActions ? "start" : "nearest" });
   }
 
   function openStage(mode: RhythmGuide | null) {
@@ -961,7 +962,7 @@ export function setupRhythmPractice(
           : `タップかスペース・F・Jキーで開始します。同じテンポで準備${practiceCountInBars}小節、本番${preparedBars?.length ?? 0}小節です。本番ではゲームパッド（Xbox の A・B・X・Y など）でもタップできます。`;
     feedback.textContent = "";
     tap.focus({ preventScroll: true });
-    if (mode !== null) scrollStageIntoView(count);
+    if (mode !== null) scrollStageIntoView();
   }
 
   async function prepareAudio(
@@ -1280,7 +1281,7 @@ export function setupRhythmPractice(
         marker.style.left = `${linePercent + (beatPercent * slot) / slotsPerBeat}%`;
       });
     }
-    scrollStageIntoView(laneArea);
+    scrollStageIntoView();
   }
 
   async function play() {
