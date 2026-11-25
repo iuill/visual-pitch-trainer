@@ -822,14 +822,16 @@
             <div id="rhythmHitFeedback" class="rhythm-hit-feedback"></div>
           </div>
           <p id="rhythmInputHelp" class="graph-hint"></p>
-          <button id="rhythmTap" type="button" class="primary-button rhythm-tap" aria-describedby="rhythmInputHelp" aria-keyshortcuts="Space F J">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M11 4V2M7.5 5.5 6 4m8.5 1.5L16 4M11 16V9a2 2 0 1 1 4 0v5l5.4 1.1a2.5 2.5 0 0 1 2 2.8l-.6 4.7a3 3 0 0 1-3 2.6h-5.2a3 3 0 0 1-2.5-1.3l-4.4-6.4a1.8 1.8 0 0 1 2.8-2.2l1.5 1.5"/>
-            </svg>
-            <span id="rhythmTapLabel">タップ（スペース / F / J）</span>
-          </button>
-          <button id="rhythmFootTap" type="button" class="secondary-button rhythm-tap" aria-describedby="rhythmInputHelp" aria-keyshortcuts="K" hidden>足の拍（K）</button>
-          <button id="rhythmStop" type="button" class="secondary-button">停止</button>
+          <div id="rhythmStageActions" class="rhythm-stage-actions">
+            <button id="rhythmTap" type="button" class="primary-button rhythm-tap" aria-describedby="rhythmInputHelp" aria-keyshortcuts="Space F J">
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 4V2M7.5 5.5 6 4m8.5 1.5L16 4M11 16V9a2 2 0 1 1 4 0v5l5.4 1.1a2.5 2.5 0 0 1 2 2.8l-.6 4.7a3 3 0 0 1-3 2.6h-5.2a3 3 0 0 1-2.5-1.3l-4.4-6.4a1.8 1.8 0 0 1 2.8-2.2l1.5 1.5"/>
+              </svg>
+              <span id="rhythmTapLabel">タップ（スペース / F / J）</span>
+            </button>
+            <button id="rhythmFootTap" type="button" class="secondary-button rhythm-tap" aria-describedby="rhythmInputHelp" aria-keyshortcuts="K" hidden>足の拍（K）</button>
+            <button id="rhythmStop" type="button" class="secondary-button">停止</button>
+          </div>
         </div>
         <p id="rhythmFeedback" class="rhythm-feedback" role="status"></p>
         <section id="rhythmResult" aria-labelledby="rhythmResultTitle" hidden>
