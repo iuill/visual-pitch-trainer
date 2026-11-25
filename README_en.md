@@ -63,11 +63,13 @@ The shared range, instrument, volume, microphone and tolerance settings apply im
 
 ## Rhythm Practice
 
-Keep the beat with your foot and tap the screen or press Space, F, or J as notes reach the judgment line. The course has 34 steps. The first practice chapter has 11 arrangements, and the second adds five original pieces, including a 180 BPM symphonic rock ballad, that run for three to four minutes each. You can preview and practice each original piece in full or by section. You can also review each tap, calibrate timing, and save your progress in the browser. See the [design notes](docs/design.md#リズム練習) for the practice flow and scoring rules.
+Keep the beat with your foot and tap the screen or press Space, F, or J as notes reach the judgment line. The course has 36 steps. The first practice chapter has 11 arrangements, and the second adds five original pieces, including a 180 BPM symphonic rock ballad, that run for three to four minutes each. You can preview and practice each original piece in full or by section. You can also review each tap, calibrate timing, and save your progress in the browser. See the [design notes](docs/design.md#リズム練習) for the practice flow and scoring rules.
 
 You can also tap with a standard gamepad using A, B, X, or Y on an Xbox controller. Choose 「リズム練習の設定を開く」 to open rhythm practice settings, then enable 「足レーンも判定する」 to score foot taps. You can use the on-screen foot button or map a foot controller to the K key or to LB, RB, LT, or RT on a standard gamepad.
 
-Chapter 2 starts with a 4/4 review, introduces 2/4 and 3/4, and ends with a 150 BPM challenge in 4/4. Chapter 3 adds a 90 BPM exercise in 4/4 for entering on the offbeats after beats 2, 3 and 4. It also practices whether to tap on the next beat or keep it with your foot alone. A second 90 BPM exercise mixes runs of eighth notes, rests and a held offbeat. The chapter continues with notes held across the beat in 3/4 and ends with a 130 BPM challenge.
+Chapter 2 starts with a 4/4 review, introduces 2/4 and 3/4, and ends with a 150 BPM challenge in 4/4.
+
+Chapter 3, Within the Beat, covers offbeats and runs of eighth notes. It includes notes held across the beat in 3/4 and a 130 BPM offbeat challenge in 4/4. The last two steps return to 60 BPM in 4/4 and teach three evenly spaced taps per beat with triplets and four with sixteenth notes.
 
 ## Voice Range Check
 

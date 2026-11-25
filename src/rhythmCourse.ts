@@ -59,7 +59,7 @@ export function rhythmPulseLevel(step: RhythmStep, pulse: number) {
 export const RHYTHM_CHAPTERS = [
   "ゆっくり基礎",
   "だんだん速く",
-  "裏拍",
+  "拍の中のリズム",
   "実践編",
   "実践編2",
 ];
@@ -311,6 +311,31 @@ export const RHYTHM_STEPS: readonly RhythmStep[] = [
     requiredStreak: 2,
     countSubdivision: "eighth",
     mixed: true,
+  },
+  {
+    id: "3-7",
+    chapter: 3,
+    title: "三連符：足1回で手3回",
+    hint: "足は数字の拍を同じ速さで刻みます。三連符では1回目を足と同時に叩き、続く2回を等間隔に入れます。手を休める拍でも足は続けましょう。",
+    bpm: 60,
+    patterns: ["x--x--tttx--", "tttx--tttx--", "ttttttr--ttt", "tttttttttttt"],
+    requiredStreak: 2,
+    countSubdivision: "triplet",
+  },
+  {
+    id: "3-8",
+    chapter: 3,
+    title: "16分音符：足1回で手4回",
+    hint: "足は同じ速さで刻み、16分音符が並ぶ拍では手を等間隔に4回叩きます。8分音符は手2回、休符は足だけです。",
+    bpm: 60,
+    patterns: [
+      "x---x---zzzzx---",
+      "e-e-x---zzzzx---",
+      "zzzzzzzzr---zzzz",
+      "zzzzzzzzzzzzzzzz",
+    ],
+    requiredStreak: 2,
+    countSubdivision: "sixteenth",
   },
   {
     id: "4-1",

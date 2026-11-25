@@ -65,12 +65,13 @@ describe("rhythm course", () => {
       ),
     ).toEqual([1, 0.5, 0.88, 0.5, 0.88, 0.5, 0.5]);
   });
-  test("uses 34 ordered steps, in 5 chapters", () => {
+  test("uses 36 ordered steps, in 5 chapters", () => {
     expect(RHYTHM_STEPS.map((step) => step.bpm)).toEqual([
       60, 60, 60, 60, 60, 60, 70, 70, 90, 105, 125, 150, 60, 60, 90, 90, 95,
-      130, 76, 100, 80, 76, 72, 88, 92, 96, 52, 60, 52, 72, 116, 144, 128, 180,
+      130, 60, 60, 76, 100, 80, 76, 72, 88, 92, 96, 52, 60, 52, 72, 116, 144,
+      128, 180,
     ]);
-    expect(new Set(RHYTHM_STEPS.map((step) => step.id)).size).toBe(34);
+    expect(new Set(RHYTHM_STEPS.map((step) => step.id)).size).toBe(36);
     for (const step of RHYTHM_STEPS) {
       expect(step.requiredStreak).toBe(step.chapter === 5 ? 1 : 2);
       const bars = createRhythmBars(step, () => 0);
@@ -300,6 +301,34 @@ describe("rhythm course", () => {
         (target) => target.timeMs,
       ),
     ).toEqual([0, 750, 1000, 1500, 2000, 2750, 3000, 3500]);
+  });
+
+  test("introduces triplets between quarter notes and rests", () => {
+    const step = RHYTHM_STEPS.find((item) => item.id === "3-7");
+    if (!step) throw new Error("Step 3-7 is missing.");
+    const bars = createRhythmBars(step);
+    const taps = bars.map((bar) =>
+      createRhythmTargets([bar], step.bpm, 0, rhythmSlotsPerBeat(step)),
+    );
+    expect(taps.map((bar) => bar.length)).toEqual([6, 8, 9, 12]);
+    expect(taps[0].map(({ timeMs }) => Math.round(timeMs))).toEqual([
+      0, 1000, 2000, 2333, 2667, 3000,
+    ]);
+    expect(taps[2].some(({ pulse }) => pulse >= 2 && pulse < 3)).toBe(false);
+  });
+
+  test("introduces sixteenths alongside half-beat notes and rests", () => {
+    const step = RHYTHM_STEPS.find((item) => item.id === "3-8");
+    if (!step) throw new Error("Step 3-8 is missing.");
+    const taps = createRhythmBars(step).map((bar) =>
+      createRhythmTargets([bar], step.bpm, 0, rhythmSlotsPerBeat(step)),
+    );
+    expect(taps.map((bar) => bar.length)).toEqual([7, 8, 12, 16]);
+    expect(taps[0].map(({ timeMs }) => timeMs)).toEqual([
+      0, 1000, 2000, 2250, 2500, 2750, 3000,
+    ]);
+    expect(taps[1].slice(0, 2).map(({ pulse }) => pulse)).toEqual([0, 0.5]);
+    expect(taps[2].some(({ pulse }) => pulse >= 2 && pulse < 3)).toBe(false);
   });
 
   test("keeps the song's pitches, offbeat and rest aligned in 3/4", () => {
