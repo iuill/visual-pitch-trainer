@@ -32,10 +32,14 @@ export function getToneScaleSize(patternId: string): number {
   return pattern && "tones" in pattern ? pattern.tones : 0;
 }
 
+export function isToneScaleMidi(midi: number): boolean {
+  return MAJOR_OFFSETS.includes(midi % 12);
+}
+
 export function buildToneScaleNotes(low: number, high: number): Note[] {
   const notes: Note[] = [];
   for (let midi = low; midi <= high; midi++) {
-    if (!MAJOR_OFFSETS.includes(midi % 12)) continue;
+    if (!isToneScaleMidi(midi)) continue;
     notes.push({
       solfege: midiToSolfegeName(midi),
       name: midiToNoteName(midi),

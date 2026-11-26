@@ -14,6 +14,7 @@ import {
   getMelodyPosition,
   getToneScaleSize,
   getToneScaleStartBounds,
+  isToneScaleMidi,
   MELODY_COUNTDOWN_SECONDS,
   MELODY_GRACE_SECONDS,
   MELODY_PATTERNS,
@@ -48,11 +49,13 @@ type MelodyInput = {
 
 const TONE_SCALE_RANGE_KEY = "melody-tone-scale-range:v1";
 
-function loadToneScaleRange(): {
+type ToneScaleRangePreference = {
   custom: boolean;
   low: number;
   high: number;
-} | null {
+};
+
+function loadToneScaleRange(): ToneScaleRangePreference | null {
   try {
     const value = JSON.parse(
       localStorage.getItem(TONE_SCALE_RANGE_KEY) ?? "null",
@@ -64,7 +67,9 @@ function loadToneScaleRange(): {
       Number.isInteger(value.high) &&
       value.low >= min &&
       value.low <= value.high &&
-      value.high <= max
+      value.high <= max &&
+      isToneScaleMidi(value.low) &&
+      isToneScaleMidi(value.high)
     )
       return { custom: value.custom, low: value.low, high: value.high };
   } catch {
@@ -166,6 +171,7 @@ export function createMelodyPracticeView(
   let scalePlaybackRequestId = 0;
   let melodyGraphData: MelodyGraphData | null = null;
   let customToneNotes: Note[] | undefined;
+  let savedToneScaleRange: ToneScaleRangePreference | null = null;
 
   function customRangeBounds() {
     return [
@@ -182,48 +188,63 @@ export function createMelodyPracticeView(
   }
 
   function initToneScaleRange() {
-    const saved = loadToneScaleRange();
+    savedToneScaleRange = loadToneScaleRange();
     const startMidi = settings.getSettings().startMidi;
     const [min, max] = PITCH_PRACTICE_MIDI_RANGE;
     for (const [select, selected] of [
-      [elements.toneScaleRangeLow, saved?.low ?? startMidi],
-      [elements.toneScaleRangeHigh, saved?.high ?? startMidi + 12],
+      [elements.toneScaleRangeLow, savedToneScaleRange?.low ?? startMidi],
+      [
+        elements.toneScaleRangeHigh,
+        savedToneScaleRange?.high ?? startMidi + 12,
+      ],
     ] as const) {
       for (let midi = min; midi <= max; midi++) {
+        if (!isToneScaleMidi(midi)) continue;
         const label = `${midiToSolfegeWithOctave(midi)} / ${midiToNoteName(midi)} / ${midiToKaraokeName(midi)}`;
         select.add(new Option(label, String(midi), false, midi === selected));
       }
     }
-    elements.toneScaleRangeMode.value = saved?.custom ? "custom" : "shared";
+    elements.toneScaleRangeMode.value = savedToneScaleRange?.custom
+      ? "custom"
+      : "shared";
     updateCustomToneRange();
     for (const control of [
       elements.toneScaleRangeMode,
       elements.toneScaleRangeLow,
       elements.toneScaleRangeHigh,
     ]) {
-      control.addEventListener("change", () => {
-        updateCustomToneRange();
-        const [low, high] = customRangeBounds();
-        try {
-          if (low <= high)
-            localStorage.setItem(
-              TONE_SCALE_RANGE_KEY,
-              JSON.stringify({
-                custom: customToneNotes !== undefined,
-                low,
-                high,
-              }),
-            );
-          else if (!customToneNotes)
-            localStorage.removeItem(TONE_SCALE_RANGE_KEY);
-        } catch {
-          // The selected range remains available for the current page.
-        }
-        toneScaleStartDegree = 0;
-        toneScaleOffsets = undefined;
-        renderMelodyPreview();
-      });
+      control.addEventListener("change", changeToneScaleRange);
     }
+  }
+
+  function changeToneScaleRange() {
+    const custom = elements.toneScaleRangeMode.value === "custom";
+    const [draftLow, draftHigh] = customRangeBounds();
+    if (!savedToneScaleRange || (!custom && draftLow > draftHigh)) {
+      const startMidi = settings.getSettings().startMidi;
+      elements.toneScaleRangeLow.value = String(
+        savedToneScaleRange?.low ?? startMidi,
+      );
+      elements.toneScaleRangeHigh.value = String(
+        savedToneScaleRange?.high ?? startMidi + 12,
+      );
+    }
+    updateCustomToneRange();
+    const [low, high] = customRangeBounds();
+    if (low <= high) {
+      savedToneScaleRange = { custom, low, high };
+      try {
+        localStorage.setItem(
+          TONE_SCALE_RANGE_KEY,
+          JSON.stringify(savedToneScaleRange),
+        );
+      } catch {
+        // The selected range remains available for the current page.
+      }
+    }
+    toneScaleStartDegree = 0;
+    toneScaleOffsets = undefined;
+    renderMelodyPreview();
   }
 
   function init() {
@@ -450,7 +471,7 @@ export function createMelodyPracticeView(
     if (!usesCommonRange()) {
       const [low, high] = customRangeBounds();
       if (low > high)
-        throw new Error("最高音は最低音より高い音を選んでください。");
+        throw new Error("最高音は最低音以上の音を選んでください。");
     }
     return buildMelody(
       elements.melodyPatternSelect.value,
@@ -639,6 +660,8 @@ export function createMelodyPracticeView(
     elements.melodySettingsError.hidden = true;
     elements.melodySettingsError.textContent = "";
     elements.customMelodyInput.removeAttribute("aria-invalid");
+    elements.toneScaleRangeLow.removeAttribute("aria-invalid");
+    elements.toneScaleRangeHigh.removeAttribute("aria-invalid");
     const range = !usesCommonRange()
       ? ` · ${customRangeBounds().map(midiToNoteName).join("〜")}`
       : "";
@@ -678,6 +701,10 @@ export function createMelodyPracticeView(
       elements.melodySettingsError.hidden = false;
       if (custom)
         elements.customMelodyInput.setAttribute("aria-invalid", "true");
+      if (!usesCommonRange()) {
+        elements.toneScaleRangeLow.setAttribute("aria-invalid", "true");
+        elements.toneScaleRangeHigh.setAttribute("aria-invalid", "true");
+      }
       elements.melodyMovement.hidden = true;
       elements.melodyKeyboard.hidden = true;
       elements.melodyStatus.textContent = (error as Error).message;
