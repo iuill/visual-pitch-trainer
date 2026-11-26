@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildMelody,
+  buildToneScaleNotes,
   getMelodyAssessedSeconds,
   getMelodyPosition,
   MELODY_PATTERNS,
@@ -42,6 +43,34 @@ describe("melody practice", () => {
       buildMelody("five-tone", "", 60, 3).map((note) => note.name),
     ).toEqual(["F4", "G4", "A4", "B4", "C5", "B4", "A4", "G4"]);
   });
+  test("crosses C boundaries and clamps starts to the chosen tone scale range", () => {
+    const scale = buildToneScaleNotes(45, 69);
+    const outward = (pattern: string, start: number, tones: number) =>
+      buildMelody(pattern, "", 48, start, undefined, scale)
+        .slice(0, tones)
+        .map((note) => note.name);
+    expect(outward("five-tone", 7, 5)).toEqual(["A3", "B3", "C4", "D4", "E4"]);
+    expect(outward("five-tone", 99, 5)).toEqual(["D4", "E4", "F4", "G4", "A4"]);
+    expect(outward("three-tone", 99, 3)).toEqual(["F4", "G4", "A4"]);
+    expect(outward("two-tone", 0, 2)).toEqual(["A2", "B2"]);
+    expect(() =>
+      buildMelody("five-tone", "", 48, 0, undefined, scale.slice(0, 4)),
+    ).toThrow("5つ以上");
+  });
+
+  test("allows random tone scales above the first octave of a custom range", () => {
+    const scale = buildToneScaleNotes(45, 69);
+    const { startDegree, offsets } = pickToneScalePattern(5, 1, undefined, {
+      noteCount: scale.length,
+      random: () => 0.999,
+    });
+    expect(
+      buildMelody("five-tone", "", 48, startDegree, offsets, scale)
+        .slice(0, 5)
+        .map((note) => note.name),
+    ).toEqual(["A4", "G4", "F4", "E4", "D4"]);
+  });
+
   test("changes the two-tone interval so it can skip notes or go down", () => {
     const skip = pickToneScalePattern(2, 3, undefined, { random: () => 0 });
     expect(skip).toEqual({ startDegree: 0, offsets: [0, 2] });

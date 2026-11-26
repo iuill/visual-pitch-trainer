@@ -9,6 +9,7 @@ import { drawMelodyGraph, type MelodyGraphData } from "./melodyGraph";
 import { followMelodyKeyboard, renderMelodyKeyboard } from "./melodyKeyboard";
 import {
   buildMelody,
+  buildToneScaleNotes,
   getMelodyAssessedSeconds,
   getMelodyPosition,
   getToneScaleSize,
@@ -23,7 +24,12 @@ import {
 } from "./melodyPractice";
 import { formatMicrophoneError, type MicrophoneCapture } from "./microphone";
 import { PRACTICE_MIN_CLARITY } from "./pitchDetection";
-import { formatPitchMovement, type Note } from "./pitchMath";
+import {
+  formatPitchMovement,
+  midiToNoteName,
+  type Note,
+  PITCH_PRACTICE_MIDI_RANGE,
+} from "./pitchMath";
 import { getPitchMovementIcon } from "./pitchMovementVisual";
 import type { PracticeReadout } from "./practiceReadout";
 import {
@@ -37,6 +43,33 @@ type MelodyInput = {
   start(): Promise<MicrophoneCapture | null>;
   stop(): void;
 };
+
+const TONE_SCALE_RANGE_KEY = "melody-tone-scale-range:v1";
+
+function loadToneScaleRange(): {
+  custom: boolean;
+  low: number;
+  high: number;
+} | null {
+  try {
+    const value = JSON.parse(
+      localStorage.getItem(TONE_SCALE_RANGE_KEY) ?? "null",
+    );
+    const [min, max] = PITCH_PRACTICE_MIDI_RANGE;
+    if (
+      typeof value?.custom === "boolean" &&
+      Number.isInteger(value.low) &&
+      Number.isInteger(value.high) &&
+      value.low >= min &&
+      value.low <= value.high &&
+      value.high <= max
+    )
+      return { custom: value.custom, low: value.low, high: value.high };
+  } catch {
+    // A blocked store or an invalid value leaves the shared range selected.
+  }
+  return null;
+}
 
 export function createMelodyPracticeView(
   settings: Pick<
@@ -82,6 +115,13 @@ export function createMelodyPracticeView(
       "#melodySecondsSelect",
     ),
     toneScaleControls: queryElement<HTMLDivElement>("#toneScaleControls"),
+    toneScaleRangeSettings: queryElement<HTMLFieldSetElement>(
+      "#toneScaleRangeSettings",
+    ),
+    toneScaleRangeFields: queryElement<HTMLDivElement>("#toneScaleRangeFields"),
+    toneScaleRangeMode: queryElement<HTMLSelectElement>("#toneScaleRangeMode"),
+    toneScaleRangeLow: queryElement<HTMLSelectElement>("#toneScaleRangeLow"),
+    toneScaleRangeHigh: queryElement<HTMLSelectElement>("#toneScaleRangeHigh"),
     toneScaleStart: queryElement<HTMLParagraphElement>("#toneScaleStart"),
     toneScaleDown: queryElement<HTMLButtonElement>("#toneScaleDown"),
     toneScaleUp: queryElement<HTMLButtonElement>("#toneScaleUp"),
@@ -123,6 +163,72 @@ export function createMelodyPracticeView(
   let lastSample: PitchSample | null = null;
   let scalePlaybackRequestId = 0;
   let melodyGraphData: MelodyGraphData | null = null;
+  let customToneNotes: Note[] | undefined;
+
+  function customRangeBounds() {
+    return [
+      Number(elements.toneScaleRangeLow.value),
+      Number(elements.toneScaleRangeHigh.value),
+    ] as const;
+  }
+
+  function updateCustomToneRange() {
+    const custom = elements.toneScaleRangeMode.value === "custom";
+    const [low, high] = customRangeBounds();
+    customToneNotes = custom ? buildToneScaleNotes(low, high) : undefined;
+    elements.toneScaleRangeFields.hidden = !custom;
+  }
+
+  function initToneScaleRange() {
+    const saved = loadToneScaleRange();
+    const startMidi = settings.getSettings().startMidi;
+    const [min, max] = PITCH_PRACTICE_MIDI_RANGE;
+    for (const [select, selected] of [
+      [elements.toneScaleRangeLow, saved?.low ?? startMidi],
+      [elements.toneScaleRangeHigh, saved?.high ?? startMidi + 12],
+    ] as const) {
+      for (let midi = min; midi <= max; midi++) {
+        select.add(
+          new Option(
+            midiToNoteName(midi),
+            String(midi),
+            false,
+            midi === selected,
+          ),
+        );
+      }
+    }
+    elements.toneScaleRangeMode.value = saved?.custom ? "custom" : "shared";
+    updateCustomToneRange();
+    for (const control of [
+      elements.toneScaleRangeMode,
+      elements.toneScaleRangeLow,
+      elements.toneScaleRangeHigh,
+    ]) {
+      control.addEventListener("change", () => {
+        updateCustomToneRange();
+        const [low, high] = customRangeBounds();
+        try {
+          if (low <= high)
+            localStorage.setItem(
+              TONE_SCALE_RANGE_KEY,
+              JSON.stringify({
+                custom: customToneNotes !== undefined,
+                low,
+                high,
+              }),
+            );
+          else if (!customToneNotes)
+            localStorage.removeItem(TONE_SCALE_RANGE_KEY);
+        } catch {
+          // The selected range remains available for the current page.
+        }
+        toneScaleStartDegree = 0;
+        toneScaleOffsets = undefined;
+        renderMelodyPreview();
+      });
+    }
+  }
 
   function init() {
     settings.setupTabbedDialog(
@@ -136,6 +242,7 @@ export function createMelodyPracticeView(
       ),
       new Option("自由メロディ（音名を入力）", "custom"),
     );
+    initToneScaleRange();
     elements.melodyPatternSelect.addEventListener("change", () => {
       toneScaleStartDegree = 0;
       toneScaleOffsets = undefined;
@@ -164,7 +271,11 @@ export function createMelodyPracticeView(
       ) {
         toneScaleOffsets = undefined;
         const tones = getToneScaleSize(elements.melodyPatternSelect.value);
-        const { last } = getToneScaleStartBounds(tones);
+        const { last } = getToneScaleStartBounds(
+          tones,
+          undefined,
+          customToneNotes?.length,
+        );
         toneScaleStartDegree = enabling
           ? 0
           : Math.min(toneScaleStartDegree, last);
@@ -181,7 +292,10 @@ export function createMelodyPracticeView(
         getToneScaleSize(elements.melodyPatternSelect.value),
         toneScaleRandomSteps,
         toneScaleOffsets,
-        { pending: run?.pending ?? undefined },
+        {
+          pending: run?.pending ?? undefined,
+          noteCount: customToneNotes?.length,
+        },
       );
       if (!pattern) return;
       if (run) {
@@ -337,12 +451,18 @@ export function createMelodyPracticeView(
     degree = toneScaleStartDegree,
     offsets = toneScaleOffsets,
   ): Note[] {
+    if (!usesCommonRange()) {
+      const [low, high] = customRangeBounds();
+      if (low > high)
+        throw new Error("最高音は最低音より高い音を選んでください。");
+    }
     return buildMelody(
       elements.melodyPatternSelect.value,
       elements.customMelodyInput.value,
       settings.getSettings().startMidi,
       degree,
       offsets,
+      customToneNotes,
     );
   }
 
@@ -350,9 +470,17 @@ export function createMelodyPracticeView(
     const tones = getToneScaleSize(elements.melodyPatternSelect.value);
     const run = melodyRun;
     const offsets = run?.pending?.offsets ?? toneScaleOffsets;
-    const { first, last } = getToneScaleStartBounds(tones, offsets);
+    const { first, last } = getToneScaleStartBounds(
+      tones,
+      offsets,
+      customToneNotes?.length,
+    );
     const next = Math.max(first, Math.min(degree, last));
-    if (!tones || next === (run?.pending?.degree ?? toneScaleStartDegree))
+    if (
+      !tones ||
+      last < first ||
+      next === (run?.pending?.degree ?? toneScaleStartDegree)
+    )
       return;
     if (run) {
       queueToneScaleChange(run, next, offsets);
@@ -416,25 +544,27 @@ export function createMelodyPracticeView(
     const { first, last } = getToneScaleStartBounds(
       tones,
       pending?.offsets ?? toneScaleOffsets,
+      customToneNotes?.length,
     );
-    const preparing = locked && !melodyRun;
+    const unavailable = (locked && !melodyRun) || last < first;
     elements.toneScaleControls.hidden = !tones;
     elements.toneScaleDown.hidden = random && !locked;
     elements.toneScaleUp.hidden = random && !locked;
     elements.toneScaleRandomSetting.hidden = locked;
     elements.toneScaleNext.hidden = !random;
     elements.toneScaleRandom.disabled = locked;
-    elements.toneScaleDown.disabled = preparing;
-    elements.toneScaleUp.disabled = preparing;
+    elements.toneScaleDown.disabled = unavailable;
+    elements.toneScaleUp.disabled = unavailable;
     elements.toneScaleDown.setAttribute(
       "aria-disabled",
-      String(preparing || degree === first),
+      String(unavailable || degree === first),
     );
     elements.toneScaleUp.setAttribute(
       "aria-disabled",
-      String(preparing || degree === last),
+      String(unavailable || degree === last),
     );
-    elements.toneScaleNext.disabled = preparing;
+    elements.toneScaleNext.disabled = unavailable;
+    if (last < first) elements.toneScaleStart.textContent = "";
     if (tones && start) {
       let label = `開始音：${start.solfege}（${start.name}）`;
       if (pending) {
@@ -495,16 +625,29 @@ export function createMelodyPracticeView(
 
   function melodyGraphMidiRange(): readonly [number, number] | undefined {
     if (!getToneScaleSize(elements.melodyPatternSelect.value)) return;
+    if (customToneNotes) return customRangeBounds();
     const start = settings.getSettings().startMidi;
     return [start, start + 12];
+  }
+
+  function usesCommonRange() {
+    return (
+      !customToneNotes || !getToneScaleSize(elements.melodyPatternSelect.value)
+    );
   }
 
   function renderMelodyPreview() {
     if (running) stopScalePlayback();
     const custom = elements.melodyPatternSelect.value === "custom";
+    const tones = getToneScaleSize(elements.melodyPatternSelect.value);
     elements.melodySettingsError.hidden = true;
+    elements.melodySettingsError.textContent = "";
     elements.customMelodyInput.removeAttribute("aria-invalid");
-    elements.melodySettingsSummary.textContent = `${elements.melodyPatternSelect.selectedOptions[0]?.textContent ?? ""} · 1音${elements.melodySecondsSelect.value}秒`;
+    const range = !usesCommonRange()
+      ? ` · ${customRangeBounds().map(midiToNoteName).join("〜")}`
+      : "";
+    elements.melodySettingsSummary.textContent = `${elements.melodyPatternSelect.selectedOptions[0]?.textContent ?? ""} · 1音${elements.melodySecondsSelect.value}秒${range}`;
+    elements.toneScaleRangeSettings.hidden = !tones;
     elements.customMelodyRow.hidden = !custom;
     elements.customMelodyHelp.hidden = !custom;
     updateToneScaleControls();
@@ -558,6 +701,7 @@ export function createMelodyPracticeView(
       elements.melodySecondsSelect,
       elements.melodyCountdownSound,
       elements.customMelodyInput,
+      elements.toneScaleRangeSettings,
     ])
       control.disabled = locked;
     updateToneScaleControls();
@@ -892,6 +1036,7 @@ export function createMelodyPracticeView(
     onFrame,
     graphScroll: elements.melodyGraphScroll,
     stop: stopScalePlayback,
+    usesCommonRange,
     refresh: renderMelodyPreview,
     followKeyboard: () => followMelodyKeyboard(elements.melodyKeyboard),
     clear() {

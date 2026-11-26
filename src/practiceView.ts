@@ -35,7 +35,7 @@ export function setupPracticeView(
 
   const single = createSinglePracticeView(settings, {
     readout,
-    isActive: () => microphone.isActive,
+    isActive: () => practiceView === "single" && microphone.isActive,
     targetChanged: (frequency) =>
       playback.getCurrentPlayer()?.setFrequency(frequency),
   });
@@ -105,9 +105,8 @@ export function setupPracticeView(
   settings.onChange((key, previous) => {
     switch (key) {
       case "startMidi":
-        melody.stop();
         single.changeRange(previous.startMidi);
-        melody.refresh();
+        if (melody.usesCommonRange()) melody.refresh();
         break;
       case "instrument":
         handleReferenceInstrumentChange();

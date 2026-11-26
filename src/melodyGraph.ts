@@ -59,6 +59,10 @@ export function drawMelodyGraph(
     Math.floor(data.cursor / data.seconds),
   );
   const nextIndex = data.phase === "stopped" ? -1 : currentIndex + 1;
+  const labelStep = Math.max(
+    2,
+    Math.ceil((16 * (layout.maxMidi - layout.minMidi)) / layout.plotHeight),
+  );
   for (let midi = layout.minMidi; midi <= layout.maxMidi; midi++) {
     const y = layout.y(midi);
     context.strokeStyle = theme.grid;
@@ -67,7 +71,13 @@ export function drawMelodyGraph(
     context.moveTo(layout.padding.left, y);
     context.lineTo(layout.width - layout.padding.right, y);
     context.stroke();
-    if (midi % 2 === 0 || midi === layout.minMidi || midi === layout.maxMidi) {
+    if (
+      midi === layout.minMidi ||
+      midi === layout.maxMidi ||
+      (midi % labelStep === 0 &&
+        midi - layout.minMidi >= labelStep &&
+        layout.maxMidi - midi >= labelStep)
+    ) {
       context.fillStyle = theme.label;
       context.fillText(midiToNoteName(midi), 5, y + 4);
     }
