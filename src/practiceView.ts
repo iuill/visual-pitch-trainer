@@ -10,6 +10,7 @@ import {
   PRACTICE_MIC_FFT_SIZE,
 } from "./microphone";
 import { createPracticeReadout } from "./practiceReadout";
+import { createRequestGuard } from "./requestGuard";
 import { createSinglePracticeView } from "./singlePracticeView";
 
 type PracticeMode = "single" | "melody";
@@ -30,7 +31,7 @@ export function setupPracticeView(
   const readout = createPracticeReadout(settings.getSettings);
   const microphone = new MicrophoneInput();
   let practiceView: PracticeMode | null = "single";
-  let referencePlaybackRequestId = 0;
+  const referencePlaybackRequest = createRequestGuard();
   let isReferencePlaying = false;
 
   const single = createSinglePracticeView(settings, {
@@ -245,7 +246,7 @@ export function setupPracticeView(
   async function startReferenceTone() {
     settings.stopPreview();
     melody.stop();
-    const requestId = ++referencePlaybackRequestId;
+    const isCurrent = referencePlaybackRequest.begin();
     const instrument = settings.getSettings().instrument;
     isReferencePlaying = true;
     playToneButton.classList.add("is-active");
@@ -256,20 +257,20 @@ export function setupPracticeView(
       const context = getAudioContext();
       const player = playback.getPlayer();
       await player.prepare(instrument);
-      if (requestId !== referencePlaybackRequestId) return;
+      if (!isCurrent()) return;
       await context.resume();
-      if (requestId !== referencePlaybackRequestId) return;
+      if (!isCurrent()) return;
       player.startReference(instrument, single.frequency);
       settings.resetReferenceStatus();
     } catch (error) {
-      if (requestId !== referencePlaybackRequestId) return;
+      if (!isCurrent()) return;
       stopReferenceTone();
       settings.reportReferenceError(error);
     }
   }
 
   function stopReferenceTone() {
-    referencePlaybackRequestId++;
+    referencePlaybackRequest.cancel();
     playback.getCurrentPlayer()?.stopReference();
     isReferencePlaying = false;
     playToneButton.classList.remove("is-active");

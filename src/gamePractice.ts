@@ -34,6 +34,7 @@ import {
   type Note,
 } from "./pitchMath";
 import { ReferencePlayer } from "./referencePlayer";
+import { createRequestGuard } from "./requestGuard";
 
 type Settings = ReturnType<CommonSettings["getSettings"]>;
 type Phase =
@@ -92,7 +93,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
   );
   let active = false;
   let audioReady = false;
-  let runGeneration = 0;
+  const gameRunRequest = createRequestGuard();
   let audioContext: AudioContext | null = null;
   let referencePlayer: ReferencePlayer | null = null;
   const microphone = new MicrophoneInput();
@@ -184,7 +185,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
     const wasActive = active;
     active = false;
     audioReady = false;
-    runGeneration += 1;
+    gameRunRequest.cancel();
     phase = "idle";
     earLoop.stop();
     clearCelebration();
@@ -208,7 +209,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
 
   async function start() {
     stop();
-    const generation = runGeneration;
+    const isCurrent = gameRunRequest.begin();
     active = true;
     mode = selected("gameMode");
     phase = "preparing";
@@ -263,13 +264,9 @@ export function setupGamePractice(commonSettings: CommonSettings) {
       audioContext = createAudioContext();
       const context = audioContext;
       await context.resume();
-      if (generation !== runGeneration) return;
+      if (!isCurrent()) return;
       context.addEventListener("statechange", () => {
-        if (
-          generation === runGeneration &&
-          audioReady &&
-          context.state !== "running"
-        )
+        if (isCurrent() && audioReady && context.state !== "running")
           stop("音声処理が中断されました。再度開始してください。");
       });
       referencePlayer = new ReferencePlayer(context);
@@ -278,7 +275,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
         message("お手本の音色を準備しています。");
         const player = referencePlayer;
         await player.prepare(settings.instrument);
-        if (generation !== runGeneration) return;
+        if (!isCurrent()) return;
         const step = Number(selected("earGameDifficulty")) === 3 ? 3 : 1;
         choices = earChoiceOffsets(step).map((offset) => notes[offset]);
         elements.choices.replaceChildren(
@@ -300,13 +297,13 @@ export function setupGamePractice(commonSettings: CommonSettings) {
           onEnded: () => stop("マイクが切断されました。"),
           onFrame: (_, input) => tick(input),
         });
-        if (!capture || generation !== runGeneration) return;
+        if (!capture || !isCurrent()) return;
         until = context.currentTime * 1000 + 3000;
         elements.countdown.hidden = false;
         message("3秒後に最初の目標が現れます。画面を見て準備してください。");
       }
       await context.resume();
-      if (generation !== runGeneration) return;
+      if (!isCurrent()) return;
       audioReady = true;
       if (mode === "ear") earLoop.start(() => tick());
       elements.feedback.scrollIntoView({
@@ -316,7 +313,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
           : "smooth",
       });
     } catch (error) {
-      if (generation !== runGeneration) return;
+      if (!isCurrent()) return;
       stop(
         startingMicrophone
           ? formatMicrophoneError(error)
