@@ -1,5 +1,6 @@
 import { createPianoKeyboardLayout } from "./graphModel";
 import {
+  formatNoteLabel,
   hzToMidi,
   midiToNoteName,
   midiToSolfegeName,
@@ -115,7 +116,7 @@ export function renderMelodyKeyboard(
     key.classList.toggle("is-current", midi === currentMidi);
     key.classList.toggle("is-next", midi === nextMidi);
   }
-  status.textContent = `いま：${current.solfege} (${current.name}) ／ ${next ? `つぎ：${next.solfege} (${next.name})` : "つぎ：なし（最後の音）"}`;
+  status.textContent = `いま：${formatNoteLabel(current)} ／ ${next ? `つぎ：${formatNoteLabel(next)}` : "つぎ：なし（最後の音）"}`;
   followMelodyKeyboard(root);
   playKeyboardSparks(root);
 }

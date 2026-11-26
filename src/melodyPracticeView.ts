@@ -26,6 +26,7 @@ import {
 import { formatMicrophoneError, type MicrophoneCapture } from "./microphone";
 import { PRACTICE_MIN_CLARITY } from "./pitchDetection";
 import {
+  formatNoteLabel,
   formatPitchMovement,
   midiToKaraokeName,
   midiToNoteName,
@@ -539,10 +540,7 @@ export function createMelodyPracticeView(
   }
 
   function formatToneScalePattern(notes: Note[], tones: number) {
-    return notes
-      .slice(0, tones)
-      .map((note) => `${note.solfege}（${note.name}）`)
-      .join(" → ");
+    return notes.slice(0, tones).map(formatNoteLabel).join(" → ");
   }
 
   function updateToneScaleControls(start?: Note) {
@@ -576,12 +574,12 @@ export function createMelodyPracticeView(
     elements.toneScaleNext.disabled = unavailable;
     if (last < first) elements.toneScaleStart.textContent = "";
     if (tones && start) {
-      let label = `開始音：${start.solfege}（${start.name}）`;
+      let label = `開始音：${formatNoteLabel(start)}`;
       if (pending) {
         const next = pending.notes[0];
         const queued = random
           ? formatToneScalePattern(pending.notes, tones)
-          : `${next.solfege}（${next.name}）`;
+          : formatNoteLabel(next);
         label += ` · ${pending.lap + 1}周目から${queued}`;
       }
       if (elements.toneScaleStart.textContent !== label)
@@ -603,7 +601,7 @@ export function createMelodyPracticeView(
     if (!note) return;
     elements.melodyCurrentMovement.textContent =
       index === 0
-        ? `${preparing ? "発声の最初" : "最初の音"}：${note.solfege} (${note.name})`
+        ? `${preparing ? "発声の最初" : "最初の音"}：${formatNoteLabel(note)}`
         : `前の音から：${formatPitchMovement(notes[index - 1].frequency, note.frequency)}`;
     elements.melodyMovementIcon.toggleAttribute("hidden", !next);
     if (next) {
@@ -612,10 +610,10 @@ export function createMelodyPracticeView(
       elements.melodyMovementIconPath.setAttribute("transform", icon.transform);
     }
     elements.melodyNextMovement.textContent = next
-      ? `次：${formatPitchMovement(note.frequency, next.frequency, true)} · ${next.solfege} (${next.name})`
+      ? `次：${formatPitchMovement(note.frequency, next.frequency, true)} · ${formatNoteLabel(next)}`
       : "最後の音 · そのままキープ";
     elements.melodyCurrentMovement.textContent += next
-      ? `。次の音：${next.solfege} (${next.name})、${formatPitchMovement(note.frequency, next.frequency)}`
+      ? `。次の音：${formatNoteLabel(next)}、${formatPitchMovement(note.frequency, next.frequency)}`
       : "。次の音はありません。最後の音です。";
   }
 
@@ -627,7 +625,7 @@ export function createMelodyPracticeView(
           index === 0
             ? "最初の音"
             : `前の音から ${formatPitchMovement(notes[index - 1].frequency, note.frequency)}`;
-        item.textContent = `${index + 1}. ${note.solfege} (${note.name})・${movement}`;
+        item.textContent = `${index + 1}. ${formatNoteLabel(note)}・${movement}`;
         return item;
       }),
     );
@@ -834,7 +832,7 @@ export function createMelodyPracticeView(
     const message =
       position.phase === "countdown"
         ? `お手本と一緒に発声します：あと${Math.ceil(position.remaining)}秒`
-        : `${position.lap + 1}周目・一緒に発声：${position.index + 1}/${run.notes.length}音 ${run.notes[position.index].solfege} (${run.notes[position.index].name})・あと${Math.ceil(position.remaining)}秒`;
+        : `${position.lap + 1}周目・一緒に発声：${position.index + 1}/${run.notes.length}音 ${formatNoteLabel(run.notes[position.index])}・あと${Math.ceil(position.remaining)}秒`;
     if (elements.melodyStatus.textContent !== message)
       elements.melodyStatus.textContent = message;
     if (position.phase === "countdown")
@@ -895,7 +893,7 @@ export function createMelodyPracticeView(
             section.firstLap,
           ) * 1000;
         const values = [
-          `${index + 1}. ${note.solfege} (${note.name})`,
+          `${index + 1}. ${formatNoteLabel(note)}`,
           `${(result.inTuneMs / 1000).toFixed(1)}秒`,
           assessedMs > 0
             ? `${Math.min(100, Math.round((result.inTuneMs / assessedMs) * 100))}%`

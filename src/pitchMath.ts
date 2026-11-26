@@ -4,6 +4,10 @@ export type Note = {
   frequency: number;
 };
 
+export function formatNoteLabel(note: Note): string {
+  return `${note.solfege}（${note.name}）`;
+}
+
 export type PitchCandidate = {
   frequency: number;
   confidence: number;

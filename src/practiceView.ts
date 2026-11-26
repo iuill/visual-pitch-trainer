@@ -15,6 +15,17 @@ import { createSinglePracticeView } from "./singlePracticeView";
 
 type PracticeMode = "single" | "melody";
 
+function setButtonLabel(
+  button: HTMLButtonElement,
+  icon: string,
+  label: string,
+) {
+  const iconElement = document.createElement("span");
+  iconElement.setAttribute("aria-hidden", "true");
+  iconElement.textContent = icon;
+  button.replaceChildren(iconElement, label);
+}
+
 export function setupPracticeView(
   settings: CommonSettings,
   playback: ReferencePlayback,
@@ -218,11 +229,11 @@ export function setupPracticeView(
   function updateMicButton(status: "active" | "starting" | "stopped") {
     micButton.classList.toggle("is-active", status !== "stopped");
     if (status === "active") {
-      micButton.innerHTML = `<span aria-hidden="true">■</span>稽古停止`;
+      setButtonLabel(micButton, "■", "稽古停止");
     } else if (status === "starting") {
-      micButton.innerHTML = `<span aria-hidden="true">■</span>準備を中止`;
+      setButtonLabel(micButton, "■", "準備を中止");
     } else {
-      micButton.innerHTML = `<span aria-hidden="true">●</span>稽古開始`;
+      setButtonLabel(micButton, "●", "稽古開始");
     }
   }
 
@@ -248,7 +259,7 @@ export function setupPracticeView(
     const instrument = settings.getSettings().instrument;
     isReferencePlaying = true;
     playToneButton.classList.add("is-active");
-    playToneButton.innerHTML = `<span aria-hidden="true">■</span>停止`;
+    setButtonLabel(playToneButton, "■", "停止");
     playToneButton.setAttribute("aria-pressed", "true");
     settings.showReferencePreparing();
     try {
@@ -272,7 +283,7 @@ export function setupPracticeView(
     playback.getCurrentPlayer()?.stopReference();
     isReferencePlaying = false;
     playToneButton.classList.remove("is-active");
-    playToneButton.innerHTML = `<span aria-hidden="true">▶</span>お手本音`;
+    setButtonLabel(playToneButton, "▶", "お手本音");
     playToneButton.setAttribute("aria-pressed", "false");
     settings.resetReferenceStatus();
   }
