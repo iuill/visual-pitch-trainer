@@ -27,6 +27,7 @@ import {
 } from "./pitchGameModel";
 import {
   buildNoteRange,
+  formatNoteLabel,
   hzToCents,
   hzToMidi,
   hzToNoteName,
@@ -280,7 +281,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
           ...choices.map((note, index) => {
             const button = document.createElement("button");
             button.type = "button";
-            button.textContent = `${note.solfege} (${note.name})`;
+            button.textContent = formatNoteLabel(note);
             button.addEventListener("click", () => answer(index));
             return button;
           }),
@@ -337,7 +338,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
       now,
       Number(selected("voiceGameHold")) * 1000,
     );
-    elements.target.textContent = `${target.solfege} (${target.name})`;
+    elements.target.textContent = formatNoteLabel(target);
     elements.countdown.hidden = true;
     root.classList.remove("game-success");
     message(
@@ -389,7 +390,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
     const buttons = elements.choices.querySelectorAll("button");
     buttons[index].dataset.result = correct ? "correct" : "incorrect";
     buttons[choices.indexOf(target)].dataset.result = "correct";
-    const result = `${correct ? "正解！" : "今回は違いました。"} 正解は${target.solfege} (${target.name})です。`;
+    const result = `${correct ? "正解！" : "今回は違いました。"} 正解は${formatNoteLabel(target)}です。`;
     message(result);
     addHistory(result);
     elements.replay.disabled = true;
@@ -464,7 +465,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
               ? `時間切れ。${APPROACH_MS / 1000}秒以内に合わせられませんでした。`
               : "キープが途切れました。";
           message(`${result} 次の目標を準備します。`);
-          addHistory(`${target.solfege} (${target.name})：${result}`);
+          addHistory(`${formatNoteLabel(target)}：${result}`);
           root.classList.toggle("game-success", success);
           phase = "feedback";
           until = now + 1500;
