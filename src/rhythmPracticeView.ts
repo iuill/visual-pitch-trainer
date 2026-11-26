@@ -4,6 +4,7 @@ import { queryElement } from "./dom";
 import { isGeneratedInstrument } from "./generatedInstruments";
 import { midiToFrequency } from "./pitchMath";
 import type { ReferencePlayer } from "./referencePlayer";
+import { createRequestGuard } from "./requestGuard";
 import {
   buildSongEvents,
   type SongEvent,
@@ -245,7 +246,7 @@ export function setupRhythmPractice(
   let loadedProgress = false;
   let scheduler: RhythmScheduler | null = null;
   let melodyPlayer: ReferencePlayer | null = null;
-  let generation = 0;
+  const audioRequest = createRequestGuard();
   let acceptTap: ((timestamp: number, lane?: RhythmInputLane) => void) | null =
     null;
   let preparedBars: string[] | null = null;
@@ -659,7 +660,7 @@ export function setupRhythmPractice(
   }
 
   function end() {
-    generation++;
+    audioRequest.cancel();
     loading.hidden = true;
     loop.stop();
     scheduler?.stop();
@@ -734,13 +735,13 @@ export function setupRhythmPractice(
     step?: RhythmStep,
     events?: readonly SongEvent[],
   ) {
-    const token = ++generation;
+    const isCurrent = audioRequest.begin();
     let cue = settings.sound;
     if (step?.beatGroups && cue === "voice") cue = "click";
     try {
       const context = getAudioContext();
       if (context.state !== "running") await context.resume();
-      if (token !== generation) return null;
+      if (!isCurrent()) return null;
       scheduler ??= new RhythmScheduler(context);
       const player = scheduler;
       let sounds: Awaited<ReturnType<typeof prepareMelody>> | null = null;
@@ -748,20 +749,16 @@ export function setupRhythmPractice(
         try {
           await player.loadVoices(settings.countVoice);
         } catch {
-          if (token !== generation) return null;
+          if (!isCurrent()) return null;
           cue = "click";
           feedback.textContent =
             "カウント音声を読み込めなかったため、クリック音を使います。";
         }
       }
-      if (token !== generation) return null;
+      if (!isCurrent()) return null;
       if (step?.melody && settings.volume > 0) {
         const [melody, drums] = await Promise.all([
-          prepareMelody(
-            getReferencePlayer(),
-            events,
-            () => token === generation,
-          ),
+          prepareMelody(getReferencePlayer(), events, isCurrent),
           player
             .loadPercussion(events ? songDrumsForEvents(events) : ["kick"])
             .then(
@@ -769,14 +766,14 @@ export function setupRhythmPractice(
               () => false,
             ),
         ]);
-        if (token !== generation) return null;
+        if (!isCurrent()) return null;
         sounds = melody;
         const messages = [feedback.textContent, melody.message];
         if (!drums)
           messages.push("読み込めなかった打楽器音は電子音で代用します。");
         feedback.textContent = messages.filter(Boolean).join(" ");
       }
-      if (token !== generation) return null;
+      if (!isCurrent()) return null;
       const now = (guide: RhythmGuide = "visual") => {
         const time = performance.now();
         return rhythmEventTimeMs(context, time, guide, time);
@@ -785,7 +782,7 @@ export function setupRhythmPractice(
         rhythmEventTimeMs(context, timestamp, guide, performance.now());
       return { player, now, eventTime, cue, sounds };
     } catch {
-      if (token !== generation) return null;
+      if (!isCurrent()) return null;
       end();
       feedback.textContent =
         "練習の準備ができませんでした。もう一度お試しください。";
