@@ -31,11 +31,85 @@ import {
   summarizeRhythm,
 } from "./rhythmJudge";
 import {
+  createRhythmPattern,
+  createRhythmPatternLegend,
+} from "./rhythmPracticeModel";
+import {
   createRhythmProgressStore,
   newRhythmProgress,
   recordRhythmAttempt,
   rhythmStepUnlocked,
 } from "./rhythmProgressStore";
+
+describe("rhythm pattern previews", () => {
+  test("retains original slot numbers and hides the note legend for feet-only practice", () => {
+    const step = { ...RHYTHM_STEPS[0], feetOnly: true };
+    const preview = createRhythmPattern(step, "x-x-x-x-");
+    expect(preview.subdivided).toBe(false);
+    expect(preview.slots.map(({ index }) => index)).toEqual([0, 2, 4, 6]);
+    expect(preview.slots.every(({ foot }) => foot)).toBe(true);
+    expect(preview.label).toBe("足で1、2、3、4拍を刻み、各拍でタップ");
+    expect(createRhythmPatternLegend(step, ["x-x-x-x-"])).toEqual([]);
+  });
+
+  test("labels sixteenth subdivisions, notes and rests in a pattern", () => {
+    const step = {
+      ...RHYTHM_STEPS[0],
+      feetOnly: false,
+      countSubdivision: "sixteenth" as const,
+    };
+    const pattern = "zzs-";
+    const preview = createRhythmPattern(step, pattern);
+    expect(preview.subdivided).toBe(true);
+    expect(preview.slots.map(({ count }) => count)).toEqual([
+      "1",
+      "・",
+      "&",
+      "・",
+    ]);
+    expect(preview.slots.map(({ foot }) => foot)).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
+    expect(preview.label).toBe(
+      "足で毎拍を刻む。手で叩く位置は1拍目に16分音符、1拍目の2つ目に16分音符。1拍目の裏に8分休符",
+    );
+    expect(createRhythmPatternLegend(step, [pattern])).toEqual([
+      { kind: "note", value: "sixteenth", label: "16分音符（0.25拍）" },
+      { kind: "rest", value: "eighth", label: "8分休符（半拍休む）" },
+    ]);
+  });
+
+  test("restarts counting within 7/8 groups and labels eighth notes without beat lengths", () => {
+    const step = {
+      ...RHYTHM_STEPS[0],
+      feetOnly: false,
+      beatsPerBar: 7 as const,
+      beatGroups: [2, 4],
+    };
+    const pattern = "eeesxe-";
+    const { slots } = createRhythmPattern(step, pattern);
+    expect(slots.map(({ count }) => count)).toEqual([
+      "1",
+      "2",
+      "1",
+      "2",
+      "1",
+      "2",
+      "3",
+    ]);
+    expect(
+      slots.filter(({ groupStart }) => groupStart).map(({ index }) => index),
+    ).toEqual([2, 4]);
+    expect(createRhythmPatternLegend(step, [pattern])).toEqual([
+      { kind: "note", value: "quarter", label: "4分音符（8分音符2つ分）" },
+      { kind: "note", value: "eighth", label: "8分音符" },
+      { kind: "rest", value: "eighth", label: "8分休符" },
+    ]);
+  });
+});
 
 describe("rhythm course", () => {
   test("keeps spoken subdivisions quieter than weak beats", () => {
