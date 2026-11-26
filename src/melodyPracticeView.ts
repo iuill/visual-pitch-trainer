@@ -26,7 +26,9 @@ import { formatMicrophoneError, type MicrophoneCapture } from "./microphone";
 import { PRACTICE_MIN_CLARITY } from "./pitchDetection";
 import {
   formatPitchMovement,
+  midiToKaraokeName,
   midiToNoteName,
+  midiToSolfegeWithOctave,
   type Note,
   PITCH_PRACTICE_MIDI_RANGE,
 } from "./pitchMath";
@@ -188,14 +190,8 @@ export function createMelodyPracticeView(
       [elements.toneScaleRangeHigh, saved?.high ?? startMidi + 12],
     ] as const) {
       for (let midi = min; midi <= max; midi++) {
-        select.add(
-          new Option(
-            midiToNoteName(midi),
-            String(midi),
-            false,
-            midi === selected,
-          ),
-        );
+        const label = `${midiToSolfegeWithOctave(midi)} / ${midiToNoteName(midi)} / ${midiToKaraokeName(midi)}`;
+        select.add(new Option(label, String(midi), false, midi === selected));
       }
     }
     elements.toneScaleRangeMode.value = saved?.custom ? "custom" : "shared";
