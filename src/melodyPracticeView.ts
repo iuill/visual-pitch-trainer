@@ -35,6 +35,7 @@ import {
 } from "./pitchMath";
 import { getPitchMovementIcon } from "./pitchMovementVisual";
 import type { PracticeReadout } from "./practiceReadout";
+import { createRequestGuard } from "./requestGuard";
 import {
   createPitchSample,
   formatAnalysisStatus,
@@ -168,7 +169,7 @@ export function createMelodyPracticeView(
   };
   let running = false;
   let lastSample: PitchSample | null = null;
-  let scalePlaybackRequestId = 0;
+  const scalePlaybackRequest = createRequestGuard();
   let melodyGraphData: MelodyGraphData | null = null;
   let customToneNotes: Note[] | undefined;
   let savedToneScaleRange: ToneScaleRangePreference | null = null;
@@ -940,25 +941,25 @@ export function createMelodyPracticeView(
       "マイクとお手本音を準備しています。マイクの利用を許可してください。";
     readout.status.textContent = "マイクとお手本音を準備しています。";
 
-    const requestId = ++scalePlaybackRequestId;
+    const isCurrent = scalePlaybackRequest.begin();
     const { instrument } = settings.getSettings();
     settings.showReferencePreparing();
     try {
       const context = getAudioContext();
       const player = playback.getPlayer();
       await player.prepare(instrument);
-      if (requestId !== scalePlaybackRequestId) return;
+      if (!isCurrent()) return;
       let capture: MicrophoneCapture | null;
       try {
         capture = await input.start();
       } catch (error) {
-        if (requestId !== scalePlaybackRequestId) return;
+        if (!isCurrent()) return;
         stopScalePlayback();
         elements.melodyStatus.textContent = formatMicrophoneError(error);
         console.error(error);
         return;
       }
-      if (requestId !== scalePlaybackRequestId) return;
+      if (!isCurrent()) return;
       if (!capture) {
         stopScalePlayback();
         return;
@@ -966,7 +967,7 @@ export function createMelodyPracticeView(
       lastSample = null;
       readout.showMeters(null);
       await context.resume();
-      if (requestId !== scalePlaybackRequestId) return;
+      if (!isCurrent()) return;
       const seconds = Number(elements.melodySecondsSelect.value);
       const startedAt = context.currentTime + 0.1;
       const run: MelodyRun = {
@@ -1008,7 +1009,7 @@ export function createMelodyPracticeView(
       updatePosition();
       draw();
     } catch (error) {
-      if (requestId !== scalePlaybackRequestId) return;
+      if (!isCurrent()) return;
       stopScalePlayback();
       settings.reportReferenceError(error);
       elements.melodyStatus.textContent =
@@ -1024,7 +1025,7 @@ export function createMelodyPracticeView(
     if (run?.pending && elapsed >= MELODY_COUNTDOWN_SECONDS)
       updatePosition(elapsed);
     elements.melodyCountdown.hidden = true;
-    scalePlaybackRequestId++;
+    scalePlaybackRequest.cancel();
     playback.getCurrentPlayer()?.stopScale();
     running = false;
     melodyRun = null;
