@@ -31,11 +31,154 @@ import {
   summarizeRhythm,
 } from "./rhythmJudge";
 import {
+  createRhythmPattern,
+  createRhythmPatternLegend,
+  createRhythmPracticeTimeline,
+} from "./rhythmPracticeModel";
+import {
   createRhythmProgressStore,
   newRhythmProgress,
   recordRhythmAttempt,
   rhythmStepUnlocked,
 } from "./rhythmProgressStore";
+
+describe("rhythm pattern previews", () => {
+  test("retains original slot numbers and hides the note legend for feet-only practice", () => {
+    const step = { ...RHYTHM_STEPS[0], feetOnly: true };
+    const preview = createRhythmPattern(step, "x-x-x-x-");
+    expect(preview.subdivided).toBe(false);
+    expect(preview.slots.map(({ index }) => index)).toEqual([0, 2, 4, 6]);
+    expect(preview.slots.every(({ foot }) => foot)).toBe(true);
+    expect(preview.label).toBe("足で1、2、3、4拍を刻み、各拍でタップ");
+    expect(createRhythmPatternLegend(step, ["x-x-x-x-"])).toEqual([]);
+  });
+
+  test("labels sixteenth subdivisions, notes and rests in a pattern", () => {
+    const step = {
+      ...RHYTHM_STEPS[0],
+      feetOnly: false,
+      countSubdivision: "sixteenth" as const,
+    };
+    const pattern = "zzs-";
+    const preview = createRhythmPattern(step, pattern);
+    expect(preview.subdivided).toBe(true);
+    expect(preview.slots.map(({ count }) => count)).toEqual([
+      "1",
+      "・",
+      "&",
+      "・",
+    ]);
+    expect(preview.slots.map(({ foot }) => foot)).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
+    expect(preview.label).toBe(
+      "足で毎拍を刻む。手で叩く位置は1拍目に16分音符、1拍目の2つ目に16分音符。1拍目の裏に8分休符",
+    );
+    expect(createRhythmPatternLegend(step, [pattern])).toEqual([
+      { kind: "note", value: "sixteenth", label: "16分音符（0.25拍）" },
+      { kind: "rest", value: "eighth", label: "8分休符（半拍休む）" },
+    ]);
+  });
+
+  test("restarts counting within 7/8 groups and labels eighth notes without beat lengths", () => {
+    const step = {
+      ...RHYTHM_STEPS[0],
+      feetOnly: false,
+      beatsPerBar: 7 as const,
+      beatGroups: [2, 4],
+    };
+    const pattern = "eeesxe-";
+    const { slots } = createRhythmPattern(step, pattern);
+    expect(slots.map(({ count }) => count)).toEqual([
+      "1",
+      "2",
+      "1",
+      "2",
+      "1",
+      "2",
+      "3",
+    ]);
+    expect(
+      slots.filter(({ groupStart }) => groupStart).map(({ index }) => index),
+    ).toEqual([2, 4]);
+    expect(createRhythmPatternLegend(step, [pattern])).toEqual([
+      { kind: "note", value: "quarter", label: "4分音符（8分音符2つ分）" },
+      { kind: "note", value: "eighth", label: "8分音符" },
+      { kind: "rest", value: "eighth", label: "8分休符" },
+    ]);
+  });
+});
+
+describe("rhythm practice timeline", () => {
+  const options = {
+    firstBeatMs: 3000,
+    barCount: 1,
+    countInBars: 2,
+    dualLane: true,
+    clickCue: true,
+  };
+
+  test("starts judging the foot lane after two count-in bars and adds offbeat clicks only during practice", () => {
+    const step = {
+      ...RHYTHM_STEPS[0],
+      bpm: 120,
+      beatsPerBar: 3 as const,
+      countSubdivision: "eighth" as const,
+    };
+    const timeline = createRhythmPracticeTimeline(step, options);
+    expect(timeline.countInBeats).toBe(6);
+    expect(timeline.beatCount).toBe(9);
+    expect(timeline.startMs).toBe(6000);
+    expect(timeline.endMs).toBe(7500);
+    expect(timeline.footTargets.map(({ timeMs }) => timeMs)).toEqual([
+      6000, 6500, 7000,
+    ]);
+    expect(timeline.counts.map(({ timeMs }) => timeMs)).toEqual([
+      3000, 3500, 4000, 4500, 5000, 5500, 6000, 6250, 6500, 6750, 7000, 7250,
+    ]);
+    expect(timeline.counts.map(({ voiceIndex }) => voiceIndex)).toEqual([
+      0, 1, 2, 0, 1, 2, 0, 4, 1, 4, 2, 4,
+    ]);
+    const withoutClicks = createRhythmPracticeTimeline(step, {
+      ...options,
+      dualLane: false,
+      clickCue: false,
+    });
+    expect(withoutClicks.counts).toEqual(
+      timeline.counts.filter(({ voiceIndex }) => voiceIndex !== 4),
+    );
+    expect(withoutClicks.footTargets).toEqual([]);
+    expect(
+      createRhythmPracticeTimeline({ ...step, melody: [[60]] }, options).counts,
+    ).toEqual(withoutClicks.counts);
+  });
+
+  test("uses the same 7/8 group accents in both count-in bars and in practice", () => {
+    const step = {
+      ...RHYTHM_STEPS[0],
+      bpm: 120,
+      beatsPerBar: 7 as const,
+      beatGroups: [2, 4],
+    };
+    const timeline = createRhythmPracticeTimeline(step, options);
+    expect(timeline.countInBeats).toBe(14);
+    expect(timeline.startMs).toBe(10000);
+    expect(timeline.endMs).toBe(13500);
+    expect(timeline.footTargets).toHaveLength(7);
+    const groups = [0, 1, 0, 1, 0, 1, 1];
+    expect(timeline.counts.map(({ voiceIndex }) => voiceIndex)).toEqual([
+      ...groups,
+      ...groups,
+      ...groups,
+    ]);
+    expect(
+      timeline.counts.slice(14).map(({ dynamics }) => dynamics?.level),
+    ).toEqual([1, 0.5, 0.88, 0.5, 0.88, 0.5, 0.5]);
+  });
+});
 
 describe("rhythm course", () => {
   test("keeps spoken subdivisions quieter than weak beats", () => {
