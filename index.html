@@ -212,6 +212,26 @@
               <label for="melodyPatternSelect">練習するメロディ</label>
               <select id="melodyPatternSelect"></select>
             </div>
+            <fieldset id="toneScaleRangeSettings" class="tone-scale-range-settings" hidden>
+              <legend>練習音域（2・3・5トーン）</legend>
+              <div class="setting-row select-row">
+                <label for="toneScaleRangeMode">音域の決め方</label>
+                <select id="toneScaleRangeMode">
+                  <option value="shared">共通設定を使う</option>
+                  <option value="custom">自分で指定</option>
+                </select>
+              </div>
+              <div id="toneScaleRangeFields" hidden>
+                <div class="setting-row select-row">
+                  <label for="toneScaleRangeLow">最低音</label>
+                  <select id="toneScaleRangeLow" aria-describedby="melodySettingsError"></select>
+                </div>
+                <div class="setting-row select-row">
+                  <label for="toneScaleRangeHigh">最高音</label>
+                  <select id="toneScaleRangeHigh" aria-describedby="melodySettingsError"></select>
+                </div>
+              </div>
+            </fieldset>
             <div id="customMelodyRow" class="setting-row select-row" hidden>
               <label for="customMelodyInput">自由メロディ</label>
               <input id="customMelodyInput" type="text" value="ド ド ソ ソ ラ ラ ソ" maxlength="160" aria-describedby="customMelodyHelp melodySettingsError" />

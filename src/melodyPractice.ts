@@ -1,4 +1,11 @@
-import { buildNoteRange, type Note, SOLFEGE_NAMES } from "./pitchMath";
+import {
+  buildNoteRange,
+  midiToFrequency,
+  midiToNoteName,
+  midiToSolfegeName,
+  type Note,
+  SOLFEGE_NAMES,
+} from "./pitchMath";
 
 const MAJOR_OFFSETS = [0, 2, 4, 5, 7, 9, 11, 12];
 
@@ -25,11 +32,31 @@ export function getToneScaleSize(patternId: string): number {
   return pattern && "tones" in pattern ? pattern.tones : 0;
 }
 
-export function getToneScaleStartBounds(tones: number, offsets?: number[]) {
+export function isToneScaleMidi(midi: number): boolean {
+  return MAJOR_OFFSETS.includes(midi % 12);
+}
+
+export function buildToneScaleNotes(low: number, high: number): Note[] {
+  const notes: Note[] = [];
+  for (let midi = low; midi <= high; midi++) {
+    if (!isToneScaleMidi(midi)) continue;
+    notes.push({
+      solfege: midiToSolfegeName(midi),
+      name: midiToNoteName(midi),
+      frequency: midiToFrequency(midi),
+    });
+  }
+  return notes;
+}
+
+export function getToneScaleStartBounds(
+  tones: number,
+  offsets?: readonly number[],
+  noteCount = MAJOR_OFFSETS.length,
+) {
   return {
     first: offsets ? -Math.min(...offsets) : 0,
-    last:
-      MAJOR_OFFSETS.length - 1 - (offsets ? Math.max(...offsets) : tones - 1),
+    last: noteCount - 1 - (offsets ? Math.max(...offsets) : tones - 1),
   };
 }
 
@@ -40,9 +67,11 @@ export function pickToneScalePattern(
   {
     pending,
     random = Math.random,
+    noteCount = MAJOR_OFFSETS.length,
   }: {
     pending?: { degree: number; offsets: number[] | undefined };
     random?: () => number;
+    noteCount?: number;
   } = {},
 ) {
   const candidates: { startDegree: number; offsets: number[] }[] = [];
@@ -67,12 +96,13 @@ export function pickToneScalePattern(
       return;
     }
     const previous = degrees.at(-1);
-    for (let degree = 0; degree < MAJOR_OFFSETS.length; degree++) {
-      if (
-        previous !== undefined &&
-        (degrees.includes(degree) || Math.abs(degree - previous) > maxSteps)
-      )
-        continue;
+    const first = previous === undefined ? 0 : Math.max(0, previous - maxSteps);
+    const last =
+      previous === undefined
+        ? noteCount - 1
+        : Math.min(noteCount - 1, previous + maxSteps);
+    for (let degree = first; degree <= last; degree++) {
+      if (degrees.includes(degree)) continue;
       addPatterns([...degrees, degree]);
     }
   }
@@ -86,21 +116,27 @@ export function buildMelody(
   startMidi: number,
   startDegree = 0,
   toneScaleOffsets?: number[],
+  toneScaleNotes?: readonly Note[],
 ): Note[] {
   const range = buildNoteRange(startMidi);
   const pattern = MELODY_PATTERNS.find((item) => item.id === patternId);
   if (pattern && "tones" in pattern) {
+    const scale =
+      toneScaleNotes ?? MAJOR_OFFSETS.map((offset) => range[offset]);
     const { first, last } = getToneScaleStartBounds(
       pattern.tones,
       toneScaleOffsets,
+      scale.length,
     );
+    if (last < first)
+      throw new Error(
+        `練習音域に音階の音が${pattern.tones}つ以上入るように広げてください。`,
+      );
     const start = Math.max(first, Math.min(startDegree, last));
     const offsets =
       toneScaleOffsets ??
       Array.from({ length: pattern.tones }, (_, index) => index);
-    const outward = offsets.map(
-      (offset) => range[MAJOR_OFFSETS[start + offset]],
-    );
+    const outward = offsets.map((offset) => scale[start + offset]);
     // The turn plays once, and the next lap supplies the return to the start.
     return [...outward, ...outward.slice(1, -1).reverse()];
   }

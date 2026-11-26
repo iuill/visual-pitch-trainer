@@ -426,3 +426,15 @@
 .melody-settings-launcher {
   margin: 16px 0;
 }
+
+.tone-scale-range-settings {
+  min-inline-size: 0;
+  margin: 16px 0;
+  padding: 8px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tone-scale-range-settings legend {
+  font-weight: 700;
+}

@@ -42,6 +42,10 @@ const NOTE_NAMES = [
 ];
 const DETECTION_MIN_HZ = 80;
 const DETECTION_MAX_HZ = 1600;
+export const PITCH_PRACTICE_MIDI_RANGE = [
+  Math.ceil(hzToMidi(DETECTION_MIN_HZ)),
+  Math.floor(hzToMidi(DETECTION_MAX_HZ)),
+] as const;
 const MIN_CLARITY = 0.52;
 const TARGET_DISTANCE_CONFIDENCE_WEIGHT = 0.18;
 
