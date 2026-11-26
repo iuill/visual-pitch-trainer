@@ -30,7 +30,6 @@ import {
   type RhythmRestValue,
   type RhythmStep,
   rhythmBeatAccent,
-  rhythmPulseDynamics,
   rhythmPulseLevel,
   rhythmPulseUnits,
   rhythmSlotsPerBeat,
@@ -50,7 +49,6 @@ import {
   RHYTHM_HISTOGRAM_LABELS,
   RHYTHM_MATCH_MS,
   type RhythmHit,
-  type RhythmTarget,
   summarizeRhythm,
 } from "./rhythmJudge";
 import {
@@ -58,6 +56,7 @@ import {
   renderRhythmPatternLegend,
 } from "./rhythmPatternCard";
 import {
+  createRhythmPracticeTimeline,
   noteNotation,
   restNotation,
   rhythmBeatLabel,
@@ -69,11 +68,7 @@ import {
   recordRhythmAttempt,
   rhythmStepUnlocked,
 } from "./rhythmProgressStore";
-import {
-  type RhythmCount,
-  type RhythmCue,
-  RhythmScheduler,
-} from "./rhythmScheduler";
+import { type RhythmCue, RhythmScheduler } from "./rhythmScheduler";
 import { setupSettingsDialog } from "./settingsDialog";
 
 const gradeLabels = {
@@ -1062,9 +1057,7 @@ export function setupRhythmPractice(
     const dualLane = settings.judgeFeet && !step.feetOnly;
     const section = selectedSection(step);
     const from = section?.startBar ?? 0;
-    const beatsPerBar = step.beatsPerBar ?? 4;
     const slotsPerBeat = rhythmSlotsPerBeat(step);
-    const countInBeats = beatsPerBar * practiceCountInBars;
     const nextStep = RHYTHM_STEPS[RHYTHM_STEPS.indexOf(step) + 1];
     phase.textContent = "音源を準備中";
     loading.hidden = false;
@@ -1083,7 +1076,6 @@ export function setupRhythmPractice(
         ? "上段がグレーの区間は手のタップを休み、足の拍は続けます。"
         : "");
     inputHelp.textContent = `準備の${practiceCountInBars}小節は足で拍を刻みます。タップは「本番」の表示からです。`;
-    const beatMs = 60_000 / step.bpm;
     const events =
       step.arrangement && settings.volume > 0
         ? buildSongEvents(step, from, from + bars.length, 0, true)
@@ -1103,41 +1095,23 @@ export function setupRhythmPractice(
         ? (calibration?.audioOffsetMs ?? 0)
         : (calibration?.visualOffsetMs ?? 0);
     const firstBeatMs = audio.now(clockGuide) + practiceReadyMs;
-    const startMs = firstBeatMs + beatMs * countInBeats;
-    const endMs = startMs + bars.length * beatsPerBar * beatMs;
+    const {
+      beatsPerBar,
+      beatMs,
+      countInBeats,
+      startMs,
+      endMs,
+      footTargets,
+      beatCount,
+      counts,
+    } = createRhythmPracticeTimeline(step, {
+      firstBeatMs,
+      barCount: bars.length,
+      countInBars: practiceCountInBars,
+      dualLane,
+      clickCue: audio.cue === "click",
+    });
     const targets = createRhythmTargets(bars, step.bpm, startMs, slotsPerBeat);
-    const footTargets: RhythmTarget[] = dualLane
-      ? Array.from({ length: bars.length * beatsPerBar }, (_, beat) => ({
-          timeMs: startMs + beat * beatMs,
-        }))
-      : [];
-    const beatCount = (bars.length + practiceCountInBars) * beatsPerBar;
-    const counts: RhythmCount[] = [];
-    for (let beat = 0; beat < beatCount; beat++) {
-      const timeMs = firstBeatMs + beat * beatMs;
-      const pulse = beat % beatsPerBar;
-      const voiceIndex = step.beatGroups
-        ? rhythmBeatAccent(step, pulse)
-          ? 0
-          : 1
-        : pulse;
-      counts.push({
-        timeMs,
-        voiceIndex,
-        dynamics: rhythmPulseDynamics(step, pulse),
-      });
-      if (
-        beat >= countInBeats &&
-        !step.melody &&
-        audio.cue === "click" &&
-        step.countSubdivision === "eighth"
-      )
-        counts.push({
-          timeMs: timeMs + beatMs / 2,
-          voiceIndex: 4,
-          dynamics: rhythmPulseDynamics(step, pulse + 0.5),
-        });
-    }
     audio.player.start(
       step.melody ? counts.slice(0, countInBeats) : counts,
       audio.cue,

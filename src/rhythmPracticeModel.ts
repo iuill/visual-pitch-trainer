@@ -6,9 +6,12 @@ import {
   type RhythmRestValue,
   type RhythmStep,
   rhythmBeatAccent,
+  rhythmPulseDynamics,
   rhythmPulseUnits,
   rhythmSlotsPerBeat,
 } from "./rhythmCourse";
+import type { RhythmTarget } from "./rhythmJudge";
+import type { RhythmCount } from "./rhythmScheduler";
 
 export const noteNotation: Record<RhythmNoteValue, string> = {
   whole: "全音符",
@@ -137,4 +140,69 @@ export function createRhythmPatternLegend(
     legend.push({ kind: "rest", value, label });
   }
   return legend;
+}
+
+export function createRhythmPracticeTimeline(
+  step: RhythmStep,
+  {
+    firstBeatMs,
+    barCount,
+    countInBars,
+    dualLane,
+    clickCue,
+  }: {
+    firstBeatMs: number;
+    barCount: number;
+    countInBars: number;
+    dualLane: boolean;
+    clickCue: boolean;
+  },
+) {
+  const beatsPerBar = step.beatsPerBar ?? 4;
+  const beatMs = 60_000 / step.bpm;
+  const countInBeats = beatsPerBar * countInBars;
+  const startMs = firstBeatMs + beatMs * countInBeats;
+  const endMs = startMs + barCount * beatsPerBar * beatMs;
+  const footTargets: RhythmTarget[] = dualLane
+    ? Array.from({ length: barCount * beatsPerBar }, (_, beat) => ({
+        timeMs: startMs + beat * beatMs,
+      }))
+    : [];
+  const beatCount = (barCount + countInBars) * beatsPerBar;
+  const includeOffbeats =
+    !step.melody && clickCue && step.countSubdivision === "eighth";
+  const counts: RhythmCount[] = [];
+
+  for (let beat = 0; beat < beatCount; beat++) {
+    const timeMs = firstBeatMs + beat * beatMs;
+    const pulse = beat % beatsPerBar;
+    const voiceIndex = step.beatGroups
+      ? rhythmBeatAccent(step, pulse)
+        ? 0
+        : 1
+      : pulse;
+    counts.push({
+      timeMs,
+      voiceIndex,
+      dynamics: rhythmPulseDynamics(step, pulse),
+    });
+    if (beat >= countInBeats && includeOffbeats) {
+      counts.push({
+        timeMs: timeMs + beatMs / 2,
+        voiceIndex: 4,
+        dynamics: rhythmPulseDynamics(step, pulse + 0.5),
+      });
+    }
+  }
+
+  return {
+    beatsPerBar,
+    beatMs,
+    countInBeats,
+    startMs,
+    endMs,
+    footTargets,
+    beatCount,
+    counts,
+  };
 }
