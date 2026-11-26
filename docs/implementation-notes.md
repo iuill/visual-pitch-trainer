@@ -89,6 +89,8 @@ bun run typecheck
 bun run build
 ```
 
+`bun run typecheck` はブラウザ用の `src/` と、Bun 用の `scripts/` および `vite.config.ts` を別々の TypeScript 設定で確認する。
+
 `bun run build` で生成される `dist/` を GitHub Pages または Cloudflare Pages に配信する。Cloudflare Pages や手元で `dist/` を配信する場合に RMVPE / CREPE を使うには、build 前に `bun run download:pitch-models` を実行して `public/models/` に ONNX モデルを取得する。GitHub Pages デプロイでは GitHub Actions が取得して Pages artifact に含める。
 
 ## 依存関係の更新方針
