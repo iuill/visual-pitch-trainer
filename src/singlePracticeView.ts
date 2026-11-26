@@ -27,6 +27,8 @@ import {
   LANDING_RIPPLE_DURATION_MS,
 } from "./singlePracticeGraph";
 
+import { readStoredJson, writeStoredValue } from "./storage";
+
 type BestRecords = {
   score: number;
   comboMs: number;
@@ -238,36 +240,23 @@ export function createSinglePracticeView(
   }
 
   function loadBestRecords(): BestRecords {
-    try {
-      const raw = localStorage.getItem(BEST_RECORDS_STORAGE_KEY);
-
-      if (!raw) {
-        return { score: 0, comboMs: 0 };
-      }
-
-      const parsed = JSON.parse(raw) as Partial<BestRecords>;
-
-      return {
-        score:
-          typeof parsed.score === "number" && Number.isFinite(parsed.score)
-            ? Math.max(0, parsed.score)
-            : 0,
-        comboMs:
-          typeof parsed.comboMs === "number" && Number.isFinite(parsed.comboMs)
-            ? Math.max(0, parsed.comboMs)
-            : 0,
-      };
-    } catch {
-      return { score: 0, comboMs: 0 };
-    }
+    const parsed = readStoredJson(
+      BEST_RECORDS_STORAGE_KEY,
+    ) as Partial<BestRecords> | null;
+    return {
+      score:
+        typeof parsed?.score === "number" && Number.isFinite(parsed.score)
+          ? Math.max(0, parsed.score)
+          : 0,
+      comboMs:
+        typeof parsed?.comboMs === "number" && Number.isFinite(parsed.comboMs)
+          ? Math.max(0, parsed.comboMs)
+          : 0,
+    };
   }
 
   function saveBestRecords(records: BestRecords) {
-    try {
-      localStorage.setItem(BEST_RECORDS_STORAGE_KEY, JSON.stringify(records));
-    } catch {
-      // localStorageが使えない環境では自己ベストを永続化しない
-    }
+    writeStoredValue(BEST_RECORDS_STORAGE_KEY, records);
   }
 
   function commitSessionBestRecords() {

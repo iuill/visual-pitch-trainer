@@ -4,7 +4,7 @@ import {
   peekAudioContext,
 } from "./audioContext";
 import type { CommonSettings, ReferencePlayback } from "./commonSettings";
-import { queryElement } from "./dom";
+import { preferredScrollBehavior, queryElement } from "./dom";
 import { drawMelodyGraph, type MelodyGraphData } from "./melodyGraph";
 import { followMelodyKeyboard, renderMelodyKeyboard } from "./melodyKeyboard";
 import {
@@ -42,6 +42,7 @@ import {
   type PitchSample,
   resolveAnalysisStatus,
 } from "./session";
+import { readStoredJson, writeStoredValue } from "./storage";
 
 type MelodyInput = {
   start(): Promise<MicrophoneCapture | null>;
@@ -57,25 +58,23 @@ type ToneScaleRangePreference = {
 };
 
 function loadToneScaleRange(): ToneScaleRangePreference | null {
-  try {
-    const value = JSON.parse(
-      localStorage.getItem(TONE_SCALE_RANGE_KEY) ?? "null",
-    );
-    const [min, max] = PITCH_PRACTICE_MIDI_RANGE;
-    if (
-      typeof value?.custom === "boolean" &&
-      Number.isInteger(value.low) &&
-      Number.isInteger(value.high) &&
-      value.low >= min &&
-      value.low <= value.high &&
-      value.high <= max &&
-      isToneScaleMidi(value.low) &&
-      isToneScaleMidi(value.high)
-    )
-      return { custom: value.custom, low: value.low, high: value.high };
-  } catch {
-    // A blocked store or an invalid value leaves the shared range selected.
-  }
+  const value = readStoredJson(
+    TONE_SCALE_RANGE_KEY,
+  ) as Partial<ToneScaleRangePreference> | null;
+  const [min, max] = PITCH_PRACTICE_MIDI_RANGE;
+  if (
+    typeof value?.custom === "boolean" &&
+    typeof value.low === "number" &&
+    Number.isInteger(value.low) &&
+    typeof value.high === "number" &&
+    Number.isInteger(value.high) &&
+    value.low >= min &&
+    value.low <= value.high &&
+    value.high <= max &&
+    isToneScaleMidi(value.low) &&
+    isToneScaleMidi(value.high)
+  )
+    return { custom: value.custom, low: value.low, high: value.high };
   return null;
 }
 
@@ -234,14 +233,7 @@ export function createMelodyPracticeView(
     const [low, high] = customRangeBounds();
     if (low <= high) {
       savedToneScaleRange = { custom, low, high };
-      try {
-        localStorage.setItem(
-          TONE_SCALE_RANGE_KEY,
-          JSON.stringify(savedToneScaleRange),
-        );
-      } catch {
-        // The selected range remains available for the current page.
-      }
+      writeStoredValue(TONE_SCALE_RANGE_KEY, savedToneScaleRange);
     }
     toneScaleStartDegree = 0;
     toneScaleOffsets = undefined;
@@ -820,9 +812,7 @@ export function createMelodyPracticeView(
               0,
               window.scrollY + rect.top - window.innerHeight * 0.55,
             ),
-            behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-              ? "auto"
-              : "smooth",
+            behavior: preferredScrollBehavior(),
           });
         }
       }

@@ -1,5 +1,6 @@
 import type { RhythmGuide } from "./rhythmCalibration";
 import { RHYTHM_STEPS, type RhythmStep } from "./rhythmCourse";
+import { readStoredJson, writeStoredValue } from "./storage";
 
 export interface RhythmStepProgress {
   cleared: boolean;
@@ -115,29 +116,14 @@ export function createRhythmProgressStore(onUnavailable: () => void) {
   }
 
   function read(key: string) {
-    let value: string | null;
-    try {
-      value = localStorage.getItem(prefix + key);
-    } catch {
-      report();
-      return {};
-    }
-    try {
-      return asRecord(JSON.parse(value ?? "null"));
-    } catch {
-      return {};
-    }
+    return asRecord(readStoredJson(prefix + key, report));
   }
 
   function write(
     key: string,
     value: RhythmProgress | RhythmCalibration | RhythmSettings | null,
   ) {
-    try {
-      localStorage.setItem(prefix + key, JSON.stringify(value));
-    } catch {
-      report();
-    }
+    writeStoredValue(prefix + key, value, report);
   }
 
   return {
