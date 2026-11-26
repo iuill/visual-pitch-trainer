@@ -37,11 +37,7 @@ export function rhythmCountLabel(step: RhythmStep, pulse: number) {
   return String(pulse - start + 1);
 }
 
-export function rhythmBeatLabel(
-  beat: number,
-  part: number,
-  slotsPerBeat: number,
-) {
+function rhythmBeatLabel(beat: number, part: number, slotsPerBeat: number) {
   if (part === 0) return `${beat}拍目`;
   return slotsPerBeat === 2 || (slotsPerBeat === 4 && part === 2)
     ? `${beat}拍目の裏`

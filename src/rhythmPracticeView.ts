@@ -57,10 +57,10 @@ import {
   renderRhythmPatternLegend,
 } from "./rhythmPatternCard";
 import {
+  createRhythmPattern,
   createRhythmPracticeTimeline,
   noteNotation,
   restNotation,
-  rhythmBeatLabel,
   rhythmCountLabel,
 } from "./rhythmPracticeModel";
 import {
@@ -965,34 +965,27 @@ export function setupRhythmPractice(
           number.append(handLabel);
         }
         bar.append(number);
-        for (let slot = 0; slot < pattern.length; slot += stride) {
+        const { slots } = createRhythmPattern(step, pattern);
+        for (const { beatLabel, noteValue, restValue, groupStart } of slots) {
           const note = document.createElement("span");
           note.className = "rhythm-score-slot";
-          const value = getRhythmNoteValue(pattern[slot]);
-          const rest = getRhythmRestValue(pattern[slot]);
-          if (step.beatGroups?.includes(slot))
-            note.classList.add("rhythm-pattern-group-start");
-          const label = rhythmBeatLabel(
-            Math.floor(slot / slotsPerBeat) + 1,
-            slot % slotsPerBeat,
-            slotsPerBeat,
-          );
-          if (value) {
-            note.dataset.note = dualLane ? `手 ${label}` : label;
+          if (groupStart) note.classList.add("rhythm-pattern-group-start");
+          if (noteValue) {
+            note.dataset.note = dualLane ? `手 ${beatLabel}` : beatLabel;
             note.setAttribute("role", "img");
             const noteLabel = feetOnly
-              ? label
-              : `${note.dataset.note} ${noteNotation[value]}`;
+              ? beatLabel
+              : `${note.dataset.note} ${noteNotation[noteValue]}`;
             note.setAttribute("aria-label", `${noteLabel} 未判定`);
             if (feetOnly) note.append(createFootprint());
-            else note.append(createNoteIcon(value));
-          } else if (rest) {
+            else note.append(createNoteIcon(noteValue));
+          } else if (restValue) {
             note.setAttribute("role", "img");
             note.setAttribute(
               "aria-label",
-              `${dualLane ? "手 " : ""}${label} ${restNotation[rest]}`,
+              `${dualLane ? "手 " : ""}${beatLabel} ${restNotation[restValue]}`,
             );
-            note.append(createRestIcon(rest));
+            note.append(createRestIcon(restValue));
           } else {
             note.setAttribute("aria-hidden", "true");
           }
