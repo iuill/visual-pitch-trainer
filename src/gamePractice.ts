@@ -1,7 +1,7 @@
 import { AnimationLoop } from "./animationLoop";
 import { createAudioContext } from "./audioContext";
 import type { CommonSettings } from "./commonSettings";
-import { queryElement } from "./dom";
+import { preferredScrollBehavior, queryElement } from "./dom";
 import {
   getGraphTheme,
   observeGraphResize,
@@ -35,6 +35,8 @@ import {
 } from "./pitchMath";
 import { ReferencePlayer } from "./referencePlayer";
 import { createRequestGuard } from "./requestGuard";
+
+import { readStoredText, writeStoredValue } from "./storage";
 
 type Settings = ReturnType<CommonSettings["getSettings"]>;
 type Phase =
@@ -251,12 +253,8 @@ export function setupGamePractice(commonSettings: CommonSettings) {
         mode === "ear" ? settings.instrument : null,
         ...(mode === "voice" ? [APPROACH_MS] : []),
       ])}`;
-      try {
-        const stored = Number(localStorage.getItem(bestKey));
-        best = Number.isFinite(stored) && stored >= 0 ? stored : 0;
-      } catch {
-        /* Keep playing when browser storage is unavailable. */
-      }
+      const stored = Number(readStoredText(bestKey));
+      best = Number.isFinite(stored) && stored >= 0 ? stored : 0;
       updateScore();
       notes = buildNoteRange(settings.startMidi);
       if (mode === "ear" && settings.volume === 0)
@@ -308,9 +306,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
       if (mode === "ear") earLoop.start(() => tick());
       elements.feedback.scrollIntoView({
         block: "start",
-        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "auto"
-          : "smooth",
+        behavior: preferredScrollBehavior(),
       });
     } catch (error) {
       if (!isCurrent()) return;
@@ -555,11 +551,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
     const newBest = score.points > best;
     if (newBest) {
       best = score.points;
-      try {
-        localStorage.setItem(bestKey, String(best));
-      } catch {
-        /* Best remains visible for this session. */
-      }
+      writeStoredValue(bestKey, String(best));
     }
     const result = elements.result;
     const rank = document.createElement("strong");
@@ -582,9 +574,7 @@ export function setupGamePractice(commonSettings: CommonSettings) {
     updateScore();
     result.scrollIntoView({
       block: "nearest",
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
+      behavior: preferredScrollBehavior(),
     });
   }
 

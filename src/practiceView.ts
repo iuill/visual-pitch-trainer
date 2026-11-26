@@ -1,6 +1,6 @@
 import { getAudioContext, isAudioContextSupported } from "./audioContext";
 import type { CommonSettings, ReferencePlayback } from "./commonSettings";
-import { queryElement } from "./dom";
+import { preferredScrollBehavior, queryElement } from "./dom";
 import { observeGraphResize } from "./graphCanvas";
 import { createMelodyPracticeView } from "./melodyPracticeView";
 import {
@@ -190,9 +190,7 @@ export function setupPracticeView(
         requestAnimationFrame(() => {
           if (!microphone.isCurrent(capture)) return;
           graphPanel.scrollIntoView({
-            behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-              ? "auto"
-              : "smooth",
+            behavior: preferredScrollBehavior(),
             block: "start",
           });
         });

@@ -6,3 +6,9 @@ export function queryElement<T extends Element>(
   if (!element) throw new Error(`Missing required element: ${selector}`);
   return element;
 }
+
+export function preferredScrollBehavior(): ScrollBehavior {
+  return matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "auto"
+    : "smooth";
+}
