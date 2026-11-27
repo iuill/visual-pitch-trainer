@@ -66,6 +66,7 @@ import {
 import {
   createRhythmProgressStore,
   newRhythmProgress,
+  type RhythmCountVoice,
   recordRhythmAttempt,
   rhythmStepUnlocked,
 } from "./rhythmProgressStore";
@@ -78,6 +79,8 @@ const gradeLabels = {
   miss: "× ミス",
 };
 const gradeSymbols = { perfect: "◎", close: "○", miss: "×" };
+const percussionFallbackMessage =
+  "読み込めなかった打楽器音は電子音で代用します。";
 
 const linePercent = 18;
 const beatPercent = 30;
@@ -483,6 +486,43 @@ export function setupRhythmPractice(
     };
   }
 
+  async function loadCountVoice(
+    player: RhythmScheduler,
+    voice: RhythmCountVoice,
+  ) {
+    try {
+      await player.loadVoices(voice);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function loadRhythmSounds(
+    player: RhythmScheduler,
+    reference: ReferencePlayer | null,
+    events: readonly SongEvent[] | undefined,
+    isCurrent: () => boolean,
+    includeHandPercussion = false,
+  ) {
+    const [percussion, melody] = await Promise.all([
+      player
+        .loadPercussion(
+          events
+            ? songDrumsForEvents(events)
+            : includeHandPercussion
+              ? ["kick", "high-tom"]
+              : ["kick"],
+        )
+        .then(
+          () => true,
+          () => false,
+        ),
+      reference ? prepareMelody(reference, events, isCurrent) : null,
+    ]);
+    return { percussion, melody };
+  }
+
   function playSong(
     player: RhythmScheduler,
     reference: ReferencePlayer,
@@ -573,33 +613,19 @@ export function setupRhythmPractice(
       const events = step.arrangement
         ? buildSongEvents(step, from, to, 0, false)
         : undefined;
-      const [percussion, spoken, sounds] = await Promise.all([
-        player
-          .loadPercussion(
-            events
-              ? songDrumsForEvents(events)
-              : feetOnly
-                ? ["kick"]
-                : ["kick", "high-tom"],
-          )
-          .then(
-            () => true,
-            () => false,
-          ),
-        voice
-          ? player.loadVoices(voice).then(
-              () => true,
-              () => false,
-            )
-          : true,
-        reference
-          ? prepareMelody(reference, events, () => activeExample === example)
-          : null,
+      const [{ percussion, melody: sounds }, spoken] = await Promise.all([
+        loadRhythmSounds(
+          player,
+          reference,
+          events,
+          () => activeExample === example,
+          !feetOnly,
+        ),
+        voice ? loadCountVoice(player, voice) : true,
       ]);
       if (activeExample !== example) return;
       const messages = [];
-      if (!percussion)
-        messages.push("読み込めなかった打楽器音は電子音で代用します。");
+      if (!percussion) messages.push(percussionFallbackMessage);
       if (!spoken)
         messages.push(
           "カウント音声を読み込めなかったため、拍の音で再生します。",
@@ -746,31 +772,25 @@ export function setupRhythmPractice(
       const player = scheduler;
       let sounds: Awaited<ReturnType<typeof prepareMelody>> | null = null;
       if (step && cue === "voice" && settings.volume > 0) {
-        try {
-          await player.loadVoices(settings.countVoice);
-        } catch {
-          if (!isCurrent()) return null;
+        const spoken = await loadCountVoice(player, settings.countVoice);
+        if (!isCurrent()) return null;
+        if (!spoken) {
           cue = "click";
           feedback.textContent =
             "カウント音声を読み込めなかったため、クリック音を使います。";
         }
       }
-      if (!isCurrent()) return null;
       if (step?.melody && settings.volume > 0) {
-        const [melody, drums] = await Promise.all([
-          prepareMelody(getReferencePlayer(), events, isCurrent),
-          player
-            .loadPercussion(events ? songDrumsForEvents(events) : ["kick"])
-            .then(
-              () => true,
-              () => false,
-            ),
-        ]);
+        const { melody, percussion } = await loadRhythmSounds(
+          player,
+          getReferencePlayer(),
+          events,
+          isCurrent,
+        );
         if (!isCurrent()) return null;
         sounds = melody;
-        const messages = [feedback.textContent, melody.message];
-        if (!drums)
-          messages.push("読み込めなかった打楽器音は電子音で代用します。");
+        const messages = [feedback.textContent, melody?.message];
+        if (!percussion) messages.push(percussionFallbackMessage);
         feedback.textContent = messages.filter(Boolean).join(" ");
       }
       if (!isCurrent()) return null;
